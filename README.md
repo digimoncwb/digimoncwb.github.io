@@ -4,7 +4,7 @@
 
 O **DIGIMON CWB** reúne os torneios, jogadores e decks da comunidade em um só lugar. Consulte resultados, descubra o que está sendo jogado e compartilhe os destaques dos eventos.
 
-**[Abrir o site](https://e-lopes.github.io/)** · [Instagram](https://www.instagram.com/digimoncwb/) · [X](https://x.com/digimon_cwb)
+**[Abrir o site](https://digimoncwb.github.io/)** · [Instagram](https://www.instagram.com/digimoncwb/) · [X](https://x.com/digimon_cwb)
 
 ## Tudo sobre os torneios da comunidade
 
