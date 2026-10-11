@@ -156,11 +156,11 @@
                         <strong id="mobileMoreTitle">Mais</strong>
                         <button
                             type="button"
-                            class="mobile-more-close"
+                            class="mobile-more-close cancel-close"
                             data-close-mobile-more
-                            aria-label="Fechar"
+                            aria-label="Cancelar"
                         >
-                            &times;
+                            Cancelar
                         </button>
                     </div>
                     <button type="button" class="mobile-more-item" data-mobile-view="admin">
@@ -931,12 +931,12 @@
                                 <h2 id="adminChangePasswordTitle">Trocar senha</h2>
                                 <button
                                     type="button"
-                                    class="admin-change-password-close"
+                                    class="admin-change-password-close cancel-close"
                                     data-admin-action="change-password-close"
-                                    aria-label="Fechar"
-                                    title="Fechar"
+                                    aria-label="Cancelar"
+                                    title="Cancelar"
                                 >
-                                    &times;
+                                    Cancelar
                                 </button>
                             </div>
                             <p class="admin-panel-desc">
@@ -1363,7 +1363,13 @@
                                 </button>
                                 <details class="admin-advanced-actions">
                                     <summary>Opções avançadas</summary>
-                                    <button type="button" class="admin-digilab-action is-secondary" data-admin-action="digilab-health">Testar conexão</button>
+                                    <button
+                                        type="button"
+                                        class="admin-digilab-action is-secondary"
+                                        data-admin-action="digilab-health"
+                                    >
+                                        Testar conexão
+                                    </button>
                                     <button
                                         type="button"
                                         class="admin-digilab-action is-secondary"
@@ -1532,11 +1538,11 @@
                                 </h3>
                                 <button
                                     type="button"
-                                    class="player-modal-close"
+                                    class="player-modal-close cancel-close"
                                     data-admin-action="close-format-modal"
-                                    aria-label="Fechar formato"
+                                    aria-label="Cancelar"
                                 >
-                                    ×
+                                    Cancelar
                                 </button>
                             </div>
                             <form id="adminFormatForm">
@@ -1600,11 +1606,11 @@
                                         />
                                         <button
                                             type="button"
-                                            class="admin-bg-clear-btn"
+                                            class="admin-bg-clear-btn clear-action"
                                             data-admin-action="clear-format-bg"
-                                            title="Remover imagem de fundo"
+                                            title="Limpar imagem de fundo"
                                         >
-                                            ✕
+                                            Limpar
                                         </button>
                                     </div>
                                     <input type="hidden" id="adminFormatBgUrl" />
@@ -1671,11 +1677,11 @@
                                 </h3>
                                 <button
                                     type="button"
-                                    class="player-modal-close"
+                                    class="player-modal-close cancel-close"
                                     data-admin-action="close-ban-modal"
-                                    aria-label="Fechar restrição"
+                                    aria-label="Cancelar"
                                 >
-                                    ×
+                                    Cancelar
                                 </button>
                             </div>
                             <form id="adminBanForm">
@@ -1744,11 +1750,11 @@
                                 <h3 id="adminStoreTitle" class="admin-modal-title">Loja</h3>
                                 <button
                                     type="button"
-                                    class="player-modal-close"
+                                    class="player-modal-close cancel-close"
                                     data-admin-action="close-store-modal"
-                                    aria-label="Fechar loja"
+                                    aria-label="Cancelar"
                                 >
-                                    ×
+                                    Cancelar
                                 </button>
                             </div>
                             <form id="adminStoreForm">
@@ -1793,11 +1799,11 @@
                                         />
                                         <button
                                             type="button"
-                                            class="admin-bg-clear-btn"
+                                            class="admin-bg-clear-btn clear-action"
                                             data-admin-action="clear-store-logo"
-                                            title="Remover logo"
+                                            title="Limpar logo da loja"
                                         >
-                                            ✕
+                                            Limpar
                                         </button>
                                     </div>
                                     <div
@@ -1878,13 +1884,8 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Novo torneio</h2>
-                    <button
-                        type="button"
-                        id="btnCreateModalCloseX"
-                        class="player-modal-close"
-                        aria-label="Fechar"
-                    >
-                        &times;
+                    <button type="button" id="btnCreateCancel" class="btn-cancel button secondary">
+                        Cancelar
                     </button>
                 </div>
                 <form id="createTournamentForm">
@@ -1947,6 +1948,7 @@
                             <option value="Locals">Locals</option>
                             <option value="Online">Online</option>
                             <option value="Evo Cup">Evo Cup</option>
+                            <option value="2v2">2v2</option>
                             <option value="Store Championship">Store Championship</option>
                             <option value="Regulation Battle">Regulation Battle</option>
                             <option value="release_event">Release Event</option>
@@ -1989,9 +1991,6 @@
                     </div>
                     <div class="modal-actions">
                         <button type="submit" class="btn-save">Criar</button>
-                        <button type="button" id="btnCreateCancel" class="btn-cancel">
-                            Cancelar
-                        </button>
                     </div>
                 </form>
             </div>
@@ -2004,10 +2003,10 @@
                     <button
                         type="button"
                         id="btnEditModalCloseX"
-                        class="player-modal-close"
-                        aria-label="Fechar"
+                        class="player-modal-close cancel-close"
+                        aria-label="Cancelar"
                     >
-                        &times;
+                        Cancelar
                     </button>
                 </div>
                 <form id="editTournamentForm">
@@ -2054,6 +2053,7 @@
                             <option value="Top 8">Top 8</option>
                             <option value="Win-A-Box">Win-A-Box</option>
                             <option value="Evo Cup">Evo Cup</option>
+                            <option value="2v2">2v2</option>
                             <option value="Regulation Battle">Regulation Battle</option>
                             <option value="For Fun">For Fun</option>
                         </select>
@@ -2132,10 +2132,10 @@
                     <button
                         type="button"
                         id="feedbackCloseX"
-                        class="player-modal-close"
-                        aria-label="Fechar"
+                        class="player-modal-close cancel-close"
+                        aria-label="Cancelar"
                     >
-                        &times;
+                        Cancelar
                     </button>
                 </div>
                 <form id="feedbackForm">
@@ -2209,10 +2209,10 @@
                     <button
                         type="button"
                         id="playerModalCloseBtn"
-                        class="player-modal-close"
-                        aria-label="Fechar"
+                        class="player-modal-close cancel-close"
+                        aria-label="Cancelar"
                     >
-                        &times;
+                        Cancelar
                     </button>
                 </div>
                 <div class="player-modal-field">

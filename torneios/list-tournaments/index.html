@@ -13,16 +13,46 @@
         <div class="container">
             <h1 class="standalone-page-title">Lista de torneios</h1>
 
-            <section id="mobileTournamentPageHeader" class="mobile-page-header" aria-label="Ações de torneios">
-                <button type="button" id="btnCreateTournamentMobile" class="mobile-create-tournament-button">Adicionar torneio</button>
+            <section
+                id="mobileTournamentPageHeader"
+                class="mobile-page-header"
+                aria-label="Ações de torneios"
+            >
+                <button
+                    type="button"
+                    id="btnCreateTournamentMobile"
+                    class="mobile-create-tournament-button"
+                >
+                    Adicionar torneio
+                </button>
             </section>
 
             <div class="mobile-tournament-toolbar" aria-label="Visualização dos torneios">
                 <div class="mobile-view-segment" role="group" aria-label="Alternar visualização">
-                    <button type="button" id="btnMobileListView" class="mobile-view-option is-active" aria-pressed="true">Lista</button>
-                    <button type="button" id="btnMobileCalendarView" class="mobile-view-option" aria-pressed="false">Calendário</button>
+                    <button
+                        type="button"
+                        id="btnMobileListView"
+                        class="mobile-view-option is-active"
+                        aria-pressed="true"
+                    >
+                        Lista
+                    </button>
+                    <button
+                        type="button"
+                        id="btnMobileCalendarView"
+                        class="mobile-view-option"
+                        aria-pressed="false"
+                    >
+                        Calendário
+                    </button>
                 </div>
-                <button type="button" id="btnMobileFilters" class="mobile-filter-button" aria-expanded="false" aria-controls="tournamentFilters">
+                <button
+                    type="button"
+                    id="btnMobileFilters"
+                    class="mobile-filter-button"
+                    aria-expanded="false"
+                    aria-controls="tournamentFilters"
+                >
                     <span>Filtros</span>
                     <span id="mobileFilterCount" class="mobile-filter-count" hidden>0</span>
                 </button>
@@ -225,11 +255,23 @@
 
                 <div class="pagination" id="pagination"></div>
                 <div class="pagination-nav" id="paginationNav">
-                    <button type="button" id="btnPagePrev" class="btn-pagination" aria-label="Página anterior">
+                    <button
+                        type="button"
+                        id="btnPagePrev"
+                        class="btn-pagination"
+                        aria-label="Página anterior"
+                    >
                         Anterior
                     </button>
-                    <span id="paginationNavStatus" class="pagination-nav-status">Pagina 1 de 1</span>
-                    <button type="button" id="btnPageNext" class="btn-pagination" aria-label="Próxima página">
+                    <span id="paginationNavStatus" class="pagination-nav-status"
+                        >Pagina 1 de 1</span
+                    >
+                    <button
+                        type="button"
+                        id="btnPageNext"
+                        class="btn-pagination"
+                        aria-label="Próxima página"
+                    >
                         Proximos
                     </button>
                 </div>
@@ -244,7 +286,9 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Novo torneio</h2>
-                    <button type="button" id="btnCreateModalCloseX" class="player-modal-close" aria-label="Close">&times;</button>
+                    <button type="button" id="btnCreateCancel" class="btn-cancel button secondary">
+                        Cancelar
+                    </button>
                 </div>
                 <form id="createTournamentForm">
                     <div class="form-group">
@@ -259,13 +303,23 @@
                                     inputmode="url"
                                     autocomplete="off"
                                 />
-                                <button type="button" id="btnImportCreateDigilab" class="btn-add-result">
+                                <button
+                                    type="button"
+                                    id="btnImportCreateDigilab"
+                                    class="btn-add-result"
+                                >
                                     Buscar e preencher
                                 </button>
                             </div>
-                            <small id="createDigilabStatus" class="field-hint" role="status"></small>
+                            <small
+                                id="createDigilabStatus"
+                                class="field-hint"
+                                role="status"
+                            ></small>
                         </div>
-                        <div class="create-import-divider"><span>ou use print da Bandai TCG+</span></div>
+                        <div class="create-import-divider">
+                            <span>ou use print da Bandai TCG+</span>
+                        </div>
                         <input
                             type="file"
                             id="createOcrFilesInput"
@@ -301,6 +355,7 @@
                             <option value="Top 8">Top 8</option>
                             <option value="Win-A-Box">Win-A-Box</option>
                             <option value="Evo Cup">Evo Cup</option>
+                            <option value="2v2">2v2</option>
                             <option value="Regulation Battle">Regulation Battle</option>
                             <option value="For Fun">For Fun</option>
                         </select>
@@ -342,9 +397,6 @@
                     </div>
                     <div class="modal-actions">
                         <button type="submit" class="btn-save">Criar torneio</button>
-                        <button type="button" id="btnCreateCancel" class="btn-cancel">
-                            Cancelar
-                        </button>
                     </div>
                 </form>
             </div>
@@ -355,7 +407,14 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Editar torneio</h2>
-                    <button type="button" id="btnEditModalCloseX" class="player-modal-close" aria-label="Close">&times;</button>
+                    <button
+                        type="button"
+                        id="btnEditModalCloseX"
+                        class="player-modal-close cancel-close"
+                        aria-label="Cancelar"
+                    >
+                        Cancelar
+                    </button>
                 </div>
                 <form id="editTournamentForm">
                     <div class="form-group">
@@ -368,7 +427,11 @@
                             hidden
                         />
                         <div class="ocr-import-actions">
-                            <button type="button" id="btnSelectEditOcrPrints" class="btn-add-result">
+                            <button
+                                type="button"
+                                id="btnSelectEditOcrPrints"
+                                class="btn-add-result"
+                            >
                                 + Carregar print(s) e preencher
                             </button>
                         </div>
@@ -399,6 +462,7 @@
                             <option value="Top 8">Top 8</option>
                             <option value="Win-A-Box">Win-A-Box</option>
                             <option value="Evo Cup">Evo Cup</option>
+                            <option value="2v2">2v2</option>
                             <option value="Regulation Battle">Regulation Battle</option>
                             <option value="For Fun">For Fun</option>
                         </select>
@@ -433,7 +497,9 @@
                     </div>
                     <div class="modal-actions">
                         <button type="submit" class="btn-save">Salvar alterações</button>
-                        <button type="button" id="btnEditCancel" class="btn-cancel">Cancelar</button>
+                        <button type="button" id="btnEditCancel" class="btn-cancel">
+                            Cancelar
+                        </button>
                     </div>
                 </form>
             </div>
@@ -477,7 +543,6 @@
                     </button>
                 </div>
             </div>
-
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>

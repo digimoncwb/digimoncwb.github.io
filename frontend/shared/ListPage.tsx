@@ -156,21 +156,12 @@ export function Dialog({
                 {headerContent || <h2>{title}</h2>}
                 <button
                     type="button"
-                    className="button secondary"
+                    className="button secondary cancel-close"
                     disabled={busy}
                     onClick={onClose}
-                    aria-label="Fechar"
+                    aria-label="Cancelar"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        aria-hidden="true"
-                    >
-                        <path d="m6 6 12 12M18 6 6 18" />
-                    </svg>
+                    Cancelar
                 </button>
             </header>
             <div className="list-dialog-body">{children}</div>

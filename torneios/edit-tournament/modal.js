@@ -98,7 +98,9 @@ async function ensurePlayersRegisteredForEdit() {
         });
         if (!insertRes.ok) {
             const errorText = await insertRes.text();
-            throw new Error(`Erro ao cadastrar player "${playerName}" (${insertRes.status}): ${errorText}`);
+            throw new Error(
+                `Erro ao cadastrar player "${playerName}" (${insertRes.status}): ${errorText}`
+            );
         }
 
         const insertedPlayer = (await insertRes.json())[0];
@@ -114,7 +116,9 @@ async function ensurePlayersRegisteredForEdit() {
 
     editResults.forEach((row) => {
         if (row.player_id) return;
-        const normalizedName = normalizeLookupNameModal(normalizeEditPlayerNameInput(row.player_name));
+        const normalizedName = normalizeLookupNameModal(
+            normalizeEditPlayerNameInput(row.player_name)
+        );
         const player = editPlayers.find(
             (candidate) =>
                 normalizeLookupNameModal(candidate.name) === normalizedName ||
@@ -235,7 +239,9 @@ async function loadEditFormData(id) {
         // Reset cache so format default reflects current DB state
         if (typeof tournamentFormatsLoaded !== 'undefined') tournamentFormatsLoaded = false;
         const formatLoaderPromise =
-            typeof loadTournamentFormats === 'function' ? loadTournamentFormats() : Promise.resolve();
+            typeof loadTournamentFormats === 'function'
+                ? loadTournamentFormats()
+                : Promise.resolve();
         await Promise.all([
             loadStoresToEdit(data.store_id),
             loadPlayersToEdit(),
@@ -316,7 +322,7 @@ async function loadDecksToEdit() {
 
 async function loadResultsToEdit(tournamentId, tournamentData) {
     let res = await fetch(
-        `${modalSupabaseUrl}/rest/v1/tournament_results?tournament_id=eq.${encodeURIComponent(tournamentId)}&select=id,placement,player_id,deck_id,match_points&order=placement.asc`,
+        `${modalSupabaseUrl}/rest/v1/tournament_results?tournament_id=eq.${encodeURIComponent(tournamentId)}&select=id,placement,player_id,deck_id,match_points,team_member&order=placement.asc,team_member.asc`,
         { headers: modalHeaders }
     );
 
@@ -331,7 +337,7 @@ async function loadResultsToEdit(tournamentId, tournamentData) {
     ) {
         // compatibilidade para resultados antigos sem tournament_id
         res = await fetch(
-            `${modalSupabaseUrl}/rest/v1/tournament_results?store_id=eq.${encodeURIComponent(tournamentData.store_id)}&tournament_date=eq.${tournamentData.tournament_date}&select=id,placement,player_id,deck_id,match_points&order=placement.asc`,
+            `${modalSupabaseUrl}/rest/v1/tournament_results?store_id=eq.${encodeURIComponent(tournamentData.store_id)}&tournament_date=eq.${tournamentData.tournament_date}&select=id,placement,player_id,deck_id,match_points,team_member&order=placement.asc,team_member.asc`,
             { headers: modalHeaders }
         );
         if (!res.ok) throw new Error('Erro ao carregar resultados antigos do torneio');
@@ -347,7 +353,6 @@ async function loadResultsToEdit(tournamentId, tournamentData) {
         match_points: r.match_points ?? null,
         ocr_player_unmatched: false
     }));
-
 }
 
 function escapeHtml(value) {
@@ -399,7 +404,11 @@ function bindEditResultsAutocomplete() {
             updateEditResultField(rowIndex, field, '');
             if (type === 'player') {
                 updateEditResultField(rowIndex, 'player_name', input.value.trim());
-                updateEditResultField(rowIndex, 'ocr_player_unmatched', Boolean(input.value.trim()));
+                updateEditResultField(
+                    rowIndex,
+                    'ocr_player_unmatched',
+                    Boolean(input.value.trim())
+                );
             } else {
                 updateEditResultField(rowIndex, 'deck_name', input.value.trim());
             }
@@ -436,6 +445,39 @@ function bindEditResultsAutocomplete() {
 function renderEditResultsRows() {
     const container = document.getElementById('editResultsRows');
     if (!container) return;
+    const team = window.tournamentUtils?.isTeamTournament(
+        document.getElementById('editTournamentName')?.value
+    );
+    const addButton = document.getElementById('btnAddEditResultRow');
+    if (addButton) addButton.textContent = team ? '+ Dupla' : '+ Jogador';
+    if (team && editResults.length % 2) {
+        editResults.push({
+            id: null,
+            player_id: '',
+            deck_id: '',
+            player_name: '',
+            deck_name: '',
+            match_points: null
+        });
+    }
+    if (team) {
+        for (let index = 0; index < editResults.length; index += 2) {
+            const points =
+                editResults[index].match_points ?? editResults[index + 1].match_points ?? null;
+            editResults[index].match_points = editResults[index + 1].match_points = points;
+        }
+    }
+    const form = document.getElementById('editTournamentForm');
+    if (form) form.dataset.team = String(Boolean(team));
+    const importSection = document.getElementById('editTournamentOcrSection');
+    if (importSection) importSection.hidden = false;
+    const digilabImport = form?.querySelector('.create-digilab-import');
+    if (digilabImport) digilabImport.hidden = Boolean(team);
+    const position = (index) =>
+        window.tournamentUtils.resultPlacement(
+            index,
+            document.getElementById('editTournamentName')?.value
+        );
 
     if (editResults.length === 0) {
         container.innerHTML = '';
@@ -447,13 +489,14 @@ function renderEditResultsRows() {
     container.innerHTML = editResults
         .map(
             (row, index) => `
+        ${team && index % 2 === 0 ? '<div class="team-result-group">' : ''}
         <div class="result-row">
             <div class="form-group result-placement-group">
                 <label>Posicao</label>
-                <span class="result-placement-badge ${getResultPlacementClass(index + 1)}" aria-label="${formatOrdinal(index + 1)} lugar">${formatOrdinal(index + 1)}</span>
+                <span class="result-placement-badge ${getResultPlacementClass(position(index))}" aria-label="${formatOrdinal(position(index))} lugar">${formatOrdinal(position(index))}</span>
             </div>
             <div class="form-group">
-                <label>Jogador<span class="required">*</span></label>
+                <label>${team ? `Jogador ${(index % 2) + 1}` : 'Jogador'}<span class="required">*</span></label>
                 <div class="autocomplete-wrapper" data-row-index="${index}">
                     <input
                         type="text"
@@ -469,11 +512,12 @@ function renderEditResultsRows() {
                 </div>
             </div>
             <div class="form-group">
-                <label>Deck</label>
+                <label>Deck${team ? '<span class="required">*</span>' : ''}</label>
                 <div class="autocomplete-wrapper" data-row-index="${index}">
                     <input
                         type="text"
                         class="deck-input"
+                        ${team ? 'required' : ''}
                         data-autocomplete-type="deck"
                         placeholder="Digite o deck..."
                         value="${escapeHtml(getItemNameById(editDecks, row.deck_id) || row.deck_name || '')}"
@@ -495,7 +539,7 @@ function renderEditResultsRows() {
                     value="${row.match_points === null || row.match_points === undefined ? '' : escapeHtml(row.match_points)}"
                 >
             </div>
-            <button type="button" class="btn-remove-result" data-edit-remove-index="${index}" aria-label="Remove result" title="Remove result">
+            <button type="button" class="btn-remove-result" ${team && index % 2 === 1 ? 'hidden' : ''} data-edit-remove-index="${index}" aria-label="${team ? 'Remover dupla' : 'Remover jogador'}" title="${team ? 'Remover dupla' : 'Remover jogador'}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
                     <path d="M3 6h18"></path>
                     <path d="M8 6V4h8v2"></path>
@@ -505,6 +549,7 @@ function renderEditResultsRows() {
                 </svg>
             </button>
         </div>
+        ${team && index % 2 === 1 ? '</div>' : ''}
     `
         )
         .join('');
@@ -562,33 +607,56 @@ function syncEditResultsByTotal() {
 }
 
 function addEditResultRow() {
-    if (editResults.length >= 36) {
-        alert('O limite maximo e 36 jogadores neste modal.');
+    const size = window.tournamentUtils?.isTeamTournament(
+        document.getElementById('editTournamentName')?.value
+    )
+        ? 2
+        : 1;
+    if (editResults.length + size > 36) {
+        alert('O limite é 36 jogadores (18 duplas).');
         return;
     }
-
-    editResults.push({
-        id: null,
-        player_id: '',
-        deck_id: '',
-        player_name: '',
-        deck_name: '',
-        match_points: null,
-        ocr_player_unmatched: false
-    });
-    if (typeof setTournamentFormDirty === 'function') setTournamentFormDirty('edit', true);
+    for (let member = 0; member < size; member++) {
+        editResults.push({
+            id: null,
+            player_id: '',
+            deck_id: '',
+            player_name: '',
+            deck_name: '',
+            match_points: null,
+            ocr_member_id: '',
+            ocr_player_unmatched: false
+        });
+    }
+    window.setTournamentFormDirty?.('edit', true);
     renderEditResultsRows();
 }
 
 function removeEditResultRow(index) {
-    editResults.splice(index, 1);
-    if (typeof setTournamentFormDirty === 'function') setTournamentFormDirty('edit', true);
+    const size = window.tournamentUtils?.isTeamTournament(
+        document.getElementById('editTournamentName')?.value
+    )
+        ? 2
+        : 1;
+    editResults.splice(size === 2 ? Math.floor(index / 2) * 2 : index, size);
+    window.setTournamentFormDirty?.('edit', true);
     renderEditResultsRows();
 }
 
 function updateEditResultField(index, field, value) {
     if (!editResults[index]) return;
     editResults[index][field] = value;
+    if (
+        field === 'match_points' &&
+        window.tournamentUtils?.isTeamTournament(
+            document.getElementById('editTournamentName')?.value
+        )
+    ) {
+        const partner = index % 2 ? index - 1 : index + 1;
+        if (editResults[partner]) editResults[partner].match_points = value;
+        const input = document.querySelector('[data-edit-match-points-index="' + partner + '"]');
+        if (input) input.value = value ?? '';
+    }
 }
 
 function openEditModal() {
@@ -597,6 +665,11 @@ function openEditModal() {
 }
 
 function bindEditModalActions() {
+    const typeSelect = document.getElementById('editTournamentName');
+    if (typeSelect && !typeSelect.dataset.teamBound) {
+        typeSelect.addEventListener('change', renderEditResultsRows);
+        typeSelect.dataset.teamBound = 'true';
+    }
     const btnAddEditResultRow = document.getElementById('btnAddEditResultRow');
     const editTotalPlayers = document.getElementById('editTotalPlayers');
     const btnEditModalCancel = document.getElementById('btnEditModalCancel');
@@ -732,7 +805,9 @@ function extractOcrPlayersModal(payload) {
             points:
                 typeof normalizeOcrMatchPoints === 'function'
                     ? normalizeOcrMatchPoints(item?.points)
-                    : item?.points === null || item?.points === undefined || String(item.points).trim() === ''
+                    : item?.points === null ||
+                        item?.points === undefined ||
+                        String(item.points).trim() === ''
                       ? null
                       : Number(item.points),
             omw: String(item?.omw || '').trim()
@@ -784,7 +859,9 @@ function findPlayerMatchFromOcrModal(ocrPlayer) {
         );
         if (byBandaiNick?.id) return byBandaiNick;
 
-        const byName = editPlayers.find((player) => normalizeLookupNameModal(player.name) === ocrName);
+        const byName = editPlayers.find(
+            (player) => normalizeLookupNameModal(player.name) === ocrName
+        );
         if (byName?.id) return byName;
     }
 
@@ -846,7 +923,11 @@ function extractOcrStoreAndDateModal(payload) {
             payload?.store_name || payload?.store || payload?.shop || payload?.venue || ''
         ).trim(),
         tournamentDate: normalizeOcrTournamentDateModal(
-            payload?.tournament_date || payload?.event_date || payload?.tournament_datetime || payload?.date || ''
+            payload?.tournament_date ||
+                payload?.event_date ||
+                payload?.tournament_datetime ||
+                payload?.date ||
+                ''
         )
     };
 }
@@ -922,7 +1003,8 @@ async function processEditOcrFiles() {
 
     try {
         if (!editPlayers.length) await loadPlayersToEdit();
-        if (!editStores.length) await loadStoresToEdit(document.getElementById('editStoreSelect').value);
+        if (!editStores.length)
+            await loadStoresToEdit(document.getElementById('editStoreSelect').value);
 
         const allPlayers = [];
         const detectedStores = [];
@@ -941,12 +1023,14 @@ async function processEditOcrFiles() {
         }
 
         const hadExistingResults = editResults.length > 0;
+        const tournamentType = document.getElementById('editTournamentName')?.value;
+        const team = window.tournamentUtils.isTeamTournament(tournamentType);
         let updatedPoints = 0;
         let unmatchedOcrRows = 0;
 
         if (hadExistingResults) {
             const usedResultIndexes = new Set();
-            mergedPlayers.forEach((ocrPlayer) => {
+            mergedPlayers.forEach((ocrPlayer, ocrIndex) => {
                 const matchedPlayer = findPlayerMatchFromOcrModal(ocrPlayer);
                 let resultIndex = matchedPlayer?.id
                     ? editResults.findIndex(
@@ -957,7 +1041,7 @@ async function processEditOcrFiles() {
                     : -1;
 
                 if (resultIndex < 0) {
-                    const placementIndex = Number(ocrPlayer.rank) - 1;
+                    const placementIndex = team ? ocrIndex * 2 : Number(ocrPlayer.rank) - 1;
                     if (
                         placementIndex >= 0 &&
                         placementIndex < editResults.length &&
@@ -973,13 +1057,17 @@ async function processEditOcrFiles() {
                 }
 
                 usedResultIndexes.add(resultIndex);
+                const partnerIndex = resultIndex % 2 === 0 ? resultIndex + 1 : resultIndex - 1;
+                if (team) usedResultIndexes.add(partnerIndex);
                 if (ocrPlayer.points !== null) {
                     editResults[resultIndex].match_points = ocrPlayer.points;
+                    if (team && editResults[partnerIndex])
+                        editResults[partnerIndex].match_points = ocrPlayer.points;
                     updatedPoints += 1;
                 }
             });
         } else {
-            editResults = mergedPlayers.map((ocrPlayer) => {
+            const importedResults = mergedPlayers.map((ocrPlayer) => {
                 const matchedPlayer = findPlayerMatchFromOcrModal(ocrPlayer);
                 if (ocrPlayer.points !== null) updatedPoints += 1;
                 return {
@@ -992,6 +1080,10 @@ async function processEditOcrFiles() {
                     ocr_player_unmatched: !matchedPlayer?.id
                 };
             });
+            editResults = window.tournamentUtils.expandTeamOcrResults(
+                importedResults,
+                tournamentType
+            );
         }
 
         renderEditResultsRows();
@@ -1009,20 +1101,27 @@ async function processEditOcrFiles() {
             document.getElementById('editTournamentDate').value = selectedDate;
         }
 
-        const unresolvedPlayers = editResults.filter((row) => !row.player_id).length;
+        const unresolvedPlayers = editResults.filter(
+            (row, index) => (!team || index % 2 === 0) && !row.player_id
+        ).length;
         const pointConflicts = mergedPlayers.filter((row) => row.points_conflict).length;
         const unresolvedStore = selectedStoreName
             ? !resolveStoreFromOcrNameModal(selectedStoreName)
             : false;
         if (hadExistingResults) {
             const details = [
-                `${updatedPoints} jogador(es) com pontos atualizados`,
+                `${updatedPoints} ${team ? 'dupla(s)' : 'jogador(es)'} com pontos atualizados`,
                 unmatchedOcrRows ? `${unmatchedOcrRows} linha(s) sem correspondência` : '',
                 pointConflicts ? `${pointConflicts} conflito(s) entre prints para revisar` : ''
             ].filter(Boolean);
             setEditOcrStatus(
                 `Print processado e pronto para ser armazenado. ${details.join('. ')}. Jogadores e decks foram preservados.`,
                 updatedPoints > 0 && !unmatchedOcrRows && !pointConflicts ? 'success' : 'info'
+            );
+        } else if (team) {
+            setEditOcrStatus(
+                `Print importado: ${mergedPlayers.length} duplas.${unresolvedPlayers ? ` ${unresolvedPlayers} jogador(es) do print sem correspondência.` : ''} Preencha o segundo jogador e os dois decks de cada dupla.${pointConflicts ? ` Revise ${pointConflicts} conflito(s) de pontos.` : ''}${unresolvedStore ? ' Loja não identificada.' : ''}`,
+                'info'
             );
         } else if (unresolvedPlayers) {
             setEditOcrStatus(
@@ -1069,7 +1168,11 @@ async function deleteEditingTournament() {
     const typedConfirmation = window.prompt(
         'Para confirmar a exclusão definitiva, digite "excluir" abaixo:'
     );
-    if (String(typedConfirmation || '').trim().toLowerCase() !== 'excluir') {
+    if (
+        String(typedConfirmation || '')
+            .trim()
+            .toLowerCase() !== 'excluir'
+    ) {
         if (typedConfirmation !== null) {
             alert('Confirmação incorreta. O torneio não foi excluído.');
         }
@@ -1235,6 +1338,14 @@ async function editTournamentFormSubmit(e) {
         }
 
         const hasInvalidResult = editResults.some((r) => !r.player_id);
+        const teamError = window.tournamentUtils.validateTeamResults(
+            editResults,
+            updated.tournament_name
+        );
+        if (teamError) {
+            alert(teamError);
+            return;
+        }
         const validInstagram = window.validation
             ? window.validation.isValidOptionalUrl(updated.instagram_link)
             : true;
@@ -1271,19 +1382,16 @@ async function editTournamentFormSubmit(e) {
             player_id: row.player_id,
             match_points: row.match_points ?? null
         }));
-        const saveRes = await fetch(
-            `${modalSupabaseUrl}/rest/v1/rpc/save_tournament_transaction`,
-            {
-                method: 'POST',
-                headers: modalHeaders,
-                body: JSON.stringify({
-                    p_tournament_id: editingTournamentId,
-                    p_tournament: updated,
-                    p_results: resultsPayload,
-                    p_ocr_files: ocrBatchForRollback?.metadata || []
-                })
-            }
-        );
+        const saveRes = await fetch(`${modalSupabaseUrl}/rest/v1/rpc/save_tournament_transaction`, {
+            method: 'POST',
+            headers: modalHeaders,
+            body: JSON.stringify({
+                p_tournament_id: editingTournamentId,
+                p_tournament: updated,
+                p_results: resultsPayload,
+                p_ocr_files: ocrBatchForRollback?.metadata || []
+            })
+        });
         if (!saveRes.ok) {
             const detail = await saveRes.text();
             const friendlyMessage =

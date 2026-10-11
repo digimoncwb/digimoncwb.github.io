@@ -6,6 +6,12 @@ export const POST_FORMAT = Object.freeze({
     mime: 'image/png'
 });
 const imageCache = new Map();
+export function postDeckName(name) {
+    return String(name || '')
+        .replace(/\bDATA\s+SQUAD\b/gi, 'DATS')
+        .replace(/\bShineGreymon\b/gi, 'Shine');
+}
+
 export function postEventTitle(event) {
     const title = String(event?.title || '').trim();
     const key = title.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
@@ -213,70 +219,68 @@ function paintSocialIcon(ctx, name, x, y, size) {
     ctx.restore();
 }
 
-function postFooter(ctx, hazard, accent, language) {
+function postFooter(ctx, hazard, accent, dividerY = 1164) {
+    const titleSize = 34;
+    const subtitleBaseSize = 22;
+    const brandGap = 8;
+    const handleSize = 24;
     ctx.save();
     ctx.save();
     ctx.globalAlpha = 0.35;
     ctx.strokeStyle = accent;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(64, 1164);
-    ctx.lineTo(1016, 1164);
+    ctx.moveTo(64, dividerY);
+    ctx.lineTo(1016, dividerY);
     ctx.stroke();
     ctx.restore();
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 40px "Arial Black", Arial';
+    ctx.font = `900 ${titleSize}px "Arial Black", Arial`;
     const brandWidth = ctx.measureText('DIGIMON CWB').width;
     const titleMetrics = ctx.measureText('DIGIMON CWB');
-    ctx.font = '600 28px Arial';
+    ctx.font = `600 ${subtitleBaseSize}px Arial`;
     const subtitle = 'Digimon Card Game Community';
     const subtitleSize = Math.min(
-        28,
-        (28 * brandWidth) / Math.max(1, ctx.measureText(subtitle).width)
+        subtitleBaseSize,
+        (subtitleBaseSize * brandWidth) / Math.max(1, ctx.measureText(subtitle).width)
     );
     ctx.font = `600 ${subtitleSize}px Arial`;
     const subtitleMetrics = ctx.measureText(subtitle);
-    const titleAscent = titleMetrics.actualBoundingBoxAscent || 30;
+    const titleAscent = titleMetrics.actualBoundingBoxAscent || titleSize * 0.75;
     const titleDescent = titleMetrics.actualBoundingBoxDescent || 1;
     const subtitleAscent = subtitleMetrics.actualBoundingBoxAscent || subtitleSize * 0.75;
     const subtitleDescent = subtitleMetrics.actualBoundingBoxDescent || subtitleSize * 0.2;
-    const brandHeight = titleAscent + titleDescent + 10 + subtitleAscent + subtitleDescent;
-    const footerCenter = (1164 + POST_FORMAT.height) / 2;
+    const brandHeight = titleAscent + titleDescent + brandGap + subtitleAscent + subtitleDescent;
+    const footerCenter = (dividerY + POST_FORMAT.height) / 2;
     const brandTop = footerCenter - brandHeight / 2;
-    const brandTextLeft = 64 + brandHeight + 24;
+    const brandTextLeft = 64 + brandHeight + 18;
     paintHazard(ctx, hazard, 64, brandTop, brandHeight, accent, 1, true);
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 40px "Arial Black", Arial';
+    ctx.font = `900 ${titleSize}px "Arial Black", Arial`;
     ctx.fillText('DIGIMON CWB', brandTextLeft, brandTop + titleAscent, brandWidth);
     ctx.fillStyle = '#aab1b5';
     ctx.font = `600 ${subtitleSize}px Arial`;
     ctx.fillText(
         subtitle,
         brandTextLeft,
-        brandTop + titleAscent + titleDescent + 10 + subtitleAscent
+        brandTop + titleAscent + titleDescent + brandGap + subtitleAscent
     );
     ctx.textBaseline = 'middle';
-    ctx.font = '700 26px Arial';
+    ctx.font = `700 ${handleSize}px Arial`;
     const handles = ['@digimoncwb', '@digimon_cwb'];
-    const iconSize = 26,
+    const iconSize = 22,
         gap = 12;
     const socialWidth =
         iconSize + gap + Math.max(...handles.map((handle) => ctx.measureText(handle).width));
     const socialLeft = 1012 - socialWidth;
     ctx.textAlign = 'left';
-    ctx.font = '600 20px Arial';
-    ctx.fillStyle = '#aab1b5';
-    ctx.fillText(
-        language === 'en' ? 'Follow us:' : 'Siga nas redes',
-        socialLeft,
-        footerCenter - 35
-    );
     ['instagram', 'x'].forEach((network, index) => {
-        const baseline = footerCenter + 2 + index * 34;
+        const spacing = 30;
+        const baseline = footerCenter + (index - 0.5) * spacing;
         paintSocialIcon(ctx, network, socialLeft, baseline - iconSize / 2, iconSize);
-        ctx.font = '700 26px Arial';
+        ctx.font = `700 ${handleSize}px Arial`;
         ctx.fillStyle = '#e0e3e5';
         ctx.fillText(handles[index], socialLeft + iconSize + gap, baseline);
     });
@@ -301,7 +305,7 @@ function paintPodiumIdentity(ctx, player, portrait, isWinner) {
     const top = portrait.textY - 20;
     ctx.textAlign = 'center';
     ctx.fillStyle = portrait.color;
-    const deckName = player.deck.toUpperCase();
+    const deckName = postDeckName(player.deck).toUpperCase();
     fitPostText(ctx, deckName, portrait.width, isWinner ? 36 : 29, 800);
     ctx.fillText(deckName, portrait.x, top + 38, portrait.width);
     ctx.fillStyle = '#e0e3e5';
@@ -309,21 +313,99 @@ function paintPodiumIdentity(ctx, player, portrait, isWinner) {
     ctx.fillText(player.name, portrait.x, top + 74, portrait.width);
 }
 
-function paintPodium(ctx, event, title, images, hazard, accent, storeLogo, language) {
-    const english = language === 'en';
-    const winnerCenter = { x: 540, y: 665 };
-    const watermarkSize = 1100;
-    // Align the symbol's central ring (137, 128 in the 274-square viewBox),
-    // rather than the center of its asymmetric overall bounding box.
-    paintHazard(
-        ctx,
-        hazard,
-        winnerCenter.x - (watermarkSize * 137) / 274,
-        winnerCenter.y - (watermarkSize * 128) / 274,
-        watermarkSize,
-        accent,
-        0.16
-    );
+function paintTeamPodium(ctx, event, images, english) {
+    const rows = [
+        {
+            centerX: 540,
+            labelY: 300,
+            portraitY: 480,
+            radius: 125,
+            deckY: 665,
+            width: 820,
+            color: '#e2bb68'
+        },
+        {
+            centerX: 225,
+            labelY: 815,
+            portraitY: 940,
+            radius: 95,
+            deckY: 1092,
+            width: 390,
+            color: '#c8ced5'
+        },
+        {
+            centerX: 855,
+            labelY: 815,
+            portraitY: 940,
+            radius: 95,
+            deckY: 1092,
+            width: 390,
+            color: '#cb7b43'
+        }
+    ];
+    rows.forEach((row, index) => {
+        const members = event.podium[index]?.members || [];
+        const label =
+            index === 0
+                ? english
+                    ? 'WINNER'
+                    : 'CAMPEÃO'
+                : english
+                  ? index === 1
+                      ? '2nd'
+                      : '3rd'
+                  : `${index + 1}º`;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = row.color;
+        fitPostText(ctx, label, Math.min(row.width, 600), index === 0 ? 75 : 64, 900);
+        ctx.fillText(label, row.centerX, row.labelY, Math.min(row.width, 600));
+        const pair = [0, 1].map((memberIndex) => members[memberIndex] || { name: '—', deck: '—' });
+        pair.forEach((member, memberIndex) =>
+            paintPortrait(
+                ctx,
+                images[index]?.[memberIndex],
+                row.centerX + (memberIndex ? row.radius + 2 : -row.radius - 2),
+                row.portraitY,
+                row.radius,
+                row.color,
+                member.deck.slice(0, 2)
+            )
+        );
+        const decks = pair.map(
+            (member, memberIndex) =>
+                postDeckName(member.deck || '—') + (memberIndex === 0 ? ' &' : '')
+        );
+        const names = pair.map(
+            (member, memberIndex) => (member.name.trim() || '—') + (memberIndex === 0 ? ' &' : '')
+        );
+        const deckSpacing = index === 0 ? 36 : 32;
+        const nameY = row.deckY + deckSpacing + 38;
+        const nameSpacing = index === 0 ? 32 : 30;
+        ctx.textAlign = 'center';
+        ctx.fillStyle = row.color;
+        const deckSize = Math.min(
+            ...decks.map((deck) =>
+                fitPostText(ctx, deck, row.width, index === 0 ? 36 : 32, 800, 24)
+            )
+        );
+        ctx.font = `800 ${deckSize}px Arial, Helvetica, sans-serif`;
+        decks.forEach((deck, lineIndex) =>
+            ctx.fillText(deck, row.centerX, row.deckY + lineIndex * deckSpacing, row.width)
+        );
+        ctx.fillStyle = '#c7cbd0';
+        const nameSize = Math.min(
+            ...names.map((name) =>
+                fitPostText(ctx, name, row.width, index === 0 ? 29 : 28, 700, 20)
+            )
+        );
+        ctx.font = `700 ${nameSize}px Arial, Helvetica, sans-serif`;
+        names.forEach((name, lineIndex) =>
+            ctx.fillText(name, row.centerX, nameY + lineIndex * nameSpacing, row.width)
+        );
+    });
+}
+
+function paintEventHeader(ctx, event, title, hazard, accent, storeLogo, english) {
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
     const words = title.trim().toUpperCase().split(/\s+/);
@@ -367,6 +449,42 @@ function paintPodium(ctx, event, title, images, hazard, accent, storeLogo, langu
         610
     );
     paintStoreLogo(ctx, storeLogo, 728, 50, 280, 144);
+}
+
+function paintPodium(
+    ctx,
+    event,
+    title,
+    images,
+    hazard,
+    accent,
+    storeLogo,
+    language,
+    showBackgroundIcon = true,
+    background = {}
+) {
+    const english = language === 'en';
+    const winnerCenter = { x: 540, y: 665 };
+    const watermarkCenter = winnerCenter;
+    const watermarkSize = 1100 * (background.scale ?? 1);
+    // Align the symbol's central ring (137, 128 in the 274-square viewBox),
+    // rather than the center of its asymmetric overall bounding box.
+    if (showBackgroundIcon)
+        paintHazard(
+            ctx,
+            hazard,
+            watermarkCenter.x + (background.offsetX ?? 0) - (watermarkSize * 137) / 274,
+            watermarkCenter.y + (background.offsetY ?? 0) - (watermarkSize * 128) / 274,
+            watermarkSize,
+            accent,
+            background.opacity ?? (event.team ? 0.08 : 0.16)
+        );
+    paintEventHeader(ctx, event, title, hazard, accent, storeLogo, english);
+    if (event.team) {
+        paintTeamPodium(ctx, event, images, english);
+        postFooter(ctx, hazard, accent, 1240);
+        return;
+    }
     const portraits = [
         {
             ...winnerCenter,
@@ -407,7 +525,7 @@ function paintPodium(ctx, event, title, images, hazard, accent, storeLogo, langu
         if (!event.deckless)
             paintPortrait(
                 ctx,
-                images[index],
+                images[index]?.[0],
                 portrait.x,
                 portrait.y,
                 portrait.radius,
@@ -420,10 +538,136 @@ function paintPodium(ctx, event, title, images, hazard, accent, storeLogo, langu
             ctx.fillText(player.name, portrait.x, portrait.labelY + 85, portrait.width);
         } else paintPodiumIdentity(ctx, player, portrait, index === 0);
     });
-    postFooter(ctx, hazard, accent, language);
+    postFooter(ctx, hazard, accent);
 }
 
-function paintWeekly(ctx, hazard, accent, images, storeLogos, events, weekEvents, settings) {
+export function teamStandings(event) {
+    if (!event?.team) return [];
+    const teams = new Map();
+    for (const member of event.results || []) {
+        if (!teams.has(member.placement)) teams.set(member.placement, []);
+        teams.get(member.placement).push(member);
+    }
+    return [...teams.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([placement, members]) => ({ placement, members }));
+}
+
+export function teamStandingsPages(event) {
+    const standings = teamStandings(event);
+    return Array.from({ length: Math.ceil(standings.length / 9) }, (_, index) =>
+        standings.slice(index * 9, index * 9 + 9)
+    );
+}
+
+function paintTeamStandings(ctx, event, standings, images, hazard, accent, settings, pageCount) {
+    const english = settings.language === 'en';
+    paintHazard(ctx, hazard, 52, 54, 78, accent);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 68px Arial';
+    ctx.fillText('2V2', 158, 112);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = accent;
+    ctx.font = '800 34px Arial';
+    ctx.fillText(liveData.displayDate(event.isoDate), 1008, 88);
+    ctx.fillStyle = '#c7cbd0';
+    const metadata = `${event.format} · ${event.players} ${english ? 'PLAYERS' : 'JOGADORES'}`;
+    fitPostText(ctx, metadata, 610, 28, 700);
+    ctx.fillText(metadata, 1008, 134, 610);
+    ctx.fillStyle = accent;
+    ctx.font = '700 26px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(english ? 'PLACE' : 'POSIÇÃO', 110, 212);
+    ctx.fillText(english ? 'DECKS / PLAYERS' : 'DECKS / JOGADORES', 600, 212);
+    if (pageCount > 1) {
+        ctx.textAlign = 'right';
+        ctx.font = '700 24px Arial';
+        ctx.fillText(
+            `${english ? 'PAGE' : 'PÁGINA'} ${Number(settings.page || 0) + 1} / ${pageCount}`,
+            1008,
+            180
+        );
+    }
+    standings.forEach((team, index) => {
+        const y = 236 + index * 108;
+        const podium = team.placement <= 3;
+        const color = ['#e2bb68', '#c8ced5', '#cb7b43'][team.placement - 1] || '#b9bec5';
+        ctx.fillStyle = '#1b1e21';
+        ctx.beginPath();
+        ctx.roundRect(52, y, 976, 100, 20);
+        ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = color;
+        const rank = english
+            ? `${team.placement}${team.placement % 100 >= 11 && team.placement % 100 <= 13 ? 'th' : { 1: 'st', 2: 'nd', 3: 'rd' }[team.placement % 10] || 'th'}`
+            : `${team.placement}º`;
+        fitPostText(ctx, rank, 88, 36, podium ? 900 : 700, 28);
+        ctx.fillText(rank, 110, y + 63, 88);
+        team.members.forEach((member, memberIndex) => {
+            const portraitX = 222 + memberIndex * 426;
+            const textX = 280 + memberIndex * 426;
+            paintPortrait(
+                ctx,
+                images[index]?.[memberIndex],
+                portraitX,
+                y + 50,
+                40,
+                color,
+                member.deck.slice(0, 2)
+            );
+            ctx.textAlign = 'left';
+            ctx.fillStyle = color;
+            const deck = postDeckName(member.deck);
+            fitPostText(ctx, deck, 290, 30, 800, 20);
+            ctx.fillText(deck, textX, y + 42, 290);
+            ctx.fillStyle = podium ? '#c7cbd0' : '#a4abb3';
+            fitPostText(ctx, member.name, 290, 26, podium ? 700 : 600, 18);
+            ctx.fillText(member.name, textX, y + 77, 290);
+        });
+        ctx.strokeStyle = '#ffffff0c';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(600, y + 18);
+        ctx.lineTo(600, y + 82);
+        ctx.stroke();
+    });
+    postFooter(ctx, hazard, accent, 1240);
+}
+
+export function weeklyPostPages(allEvents, week) {
+    if (!week) return [];
+    const events = allEvents
+        .filter((event) => event.isoDate >= week && event.isoDate <= liveData.weekEnd(week))
+        .sort((a, b) => a.isoDate.localeCompare(b.isoDate) || a.id.localeCompare(b.id));
+    const pages = [];
+    let page = [],
+        usedRows = 0;
+    events.forEach((event) => {
+        const rows = event.team ? 2 : 1;
+        if (usedRows + rows > 5) {
+            pages.push(page);
+            page = [];
+            usedRows = 0;
+        }
+        page.push(event);
+        usedRows += rows;
+    });
+    if (page.length) pages.push(page);
+    return pages;
+}
+
+function paintWeekly(
+    ctx,
+    hazard,
+    accent,
+    images,
+    storeLogos,
+    events,
+    weekEvents,
+    settings,
+    pageCount
+) {
     const english = settings.language === 'en';
     paintHazard(ctx, hazard, 52, 64, 78, accent);
     ctx.textAlign = 'left';
@@ -445,15 +689,15 @@ function paintWeekly(ctx, hazard, accent, images, storeLogos, events, weekEvents
     const columns = [
         { label: english ? 'DAY' : 'DIA', x: 118, align: 'center' },
         { label: english ? 'DECK / PLAYER' : 'DECK / JOGADOR', x: 410, align: 'left' },
-        { label: english ? 'STORE' : 'LOJA', x: 902, align: 'center' }
+        { label: english ? 'TOURNAMENT / STORE' : 'TORNEIO / LOJA', x: 865, align: 'center' }
     ];
     ctx.fillStyle = accent;
     ctx.font = '700 26px Arial';
     columns.forEach(({ label, x, align }) => {
         ctx.textAlign = align;
-        ctx.fillText(label, x, 268);
+        if (x === 865) fitPostText(ctx, label, 286, 26, 700, 22);
+        ctx.fillText(label, x, 268, x === 865 ? 286 : undefined);
     });
-    const pageCount = Math.ceil(weekEvents.length / 5);
     if (pageCount > 1) {
         ctx.font = '500 24px Arial';
         ctx.textAlign = 'right';
@@ -463,16 +707,20 @@ function paintWeekly(ctx, hazard, accent, images, storeLogos, events, weekEvents
             197
         );
     }
+    let nextY = 300;
     events.forEach((event, index) => {
         const winner = event.winner || {
             deck: english ? 'Result not recorded' : 'Resultado não registrado',
             name: '',
             image: ''
         };
-        const y = 300 + index * 142;
+        const y = nextY;
+        const height = event.team ? 268 : 126;
+        const centerOffset = (height - 126) / 2;
+        nextY += height + 16;
         ctx.fillStyle = '#1b1e21';
         ctx.beginPath();
-        ctx.roundRect(52, y, 976, 126, 24);
+        ctx.roundRect(52, y, 976, height, 24);
         ctx.fill();
         ctx.textAlign = 'center';
         ctx.fillStyle = '#ffffff';
@@ -484,39 +732,105 @@ function paintWeekly(ctx, hazard, accent, images, storeLogos, events, weekEvents
                   ]
                 : event.day,
             118,
-            y + 54
+            y + 54 + centerOffset
         );
         ctx.fillStyle = '#b9bec2';
         ctx.font = '700 26px Arial';
-        ctx.fillText(liveData.displayDate(event.isoDate), 118, y + 89);
-        if (!event.deckless)
-            paintPortrait(ctx, images[index], 320, y + 63, 49, accent, winner.deck.slice(0, 2));
+        ctx.fillText(liveData.displayDate(event.isoDate), 118, y + 89 + centerOffset);
+        if (!event.deckless && !event.team)
+            paintPortrait(
+                ctx,
+                images[index]?.[0],
+                320,
+                y + 63,
+                49,
+                accent,
+                winner.deck.slice(0, 2)
+            );
         ctx.textAlign = 'left';
         ctx.fillStyle = '#ffffff';
-        if (event.deckless) {
-            fitPostText(ctx, winner.name, 530, 34, 800, 24);
-            ctx.fillText(winner.name, 265, y + 72, 530);
+        if (event.team) {
+            const members = (winner.members || []).slice(0, 2);
+            members.forEach((member, memberIndex) => {
+                paintPortrait(
+                    ctx,
+                    images[index]?.[memberIndex],
+                    320,
+                    y + 63 + memberIndex * 142,
+                    49,
+                    accent,
+                    member.deck.slice(0, 2)
+                );
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#ffffff';
+                const deck = postDeckName(member.deck);
+                fitPostText(ctx, deck, 288, 34, 800, 24);
+                ctx.fillText(deck, 410, y + 54 + memberIndex * 142, 288);
+                ctx.fillStyle = '#c7cbd0';
+                fitPostText(ctx, member.name, 288, 29, 700, 24);
+                ctx.fillText(member.name, 410, y + 92 + memberIndex * 142, 288);
+            });
+            ctx.strokeStyle = '#ffffff0c';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(265, y + 134);
+            ctx.lineTo(698, y + 134);
+            ctx.stroke();
+        } else if (event.deckless) {
+            fitPostText(ctx, winner.name, 433, 34, 800, 24);
+            ctx.fillText(winner.name, 265, y + 72, 433);
         } else {
-            fitPostText(ctx, winner.deck, 385, 34, 800, 24);
-            ctx.fillText(winner.deck, 410, y + 54, 385);
+            const deck = postDeckName(winner.deck);
+            fitPostText(ctx, deck, 288, 34, 800, 24);
+            ctx.fillText(deck, 410, y + 54, 288);
             ctx.fillStyle = '#c7cbd0';
-            fitPostText(ctx, winner.name, 385, 29, 700, 24);
-            ctx.fillText(winner.name, 410, y + 92, 385);
+            fitPostText(ctx, winner.name, 288, 29, 700, 24);
+            ctx.fillText(winner.name, 410, y + 92, 288);
         }
         ctx.textAlign = 'center';
-        paintStoreLogo(ctx, storeLogos[index], 814, y + 12, 176, 70);
-        if (!storeLogos[index]) {
-            ctx.fillStyle = accent;
-            fitPostText(ctx, event.store.toUpperCase(), 172, 24, 800, 18);
-            ctx.fillText(event.store.toUpperCase(), 902, y + 57, 172);
+        const title = postEventTitle(event);
+        ctx.font = '800 28px Arial';
+        const titleLines = [title];
+        if (ctx.measureText(title).width > 166 && title.includes(' ')) {
+            const words = title.split(' ');
+            let split = 1;
+            let bestWidth = Infinity;
+            for (let wordIndex = 1; wordIndex < words.length; wordIndex++) {
+                const width = Math.max(
+                    ctx.measureText(words.slice(0, wordIndex).join(' ')).width,
+                    ctx.measureText(words.slice(wordIndex).join(' ')).width
+                );
+                if (width < bestWidth) {
+                    bestWidth = width;
+                    split = wordIndex;
+                }
+            }
+            titleLines.splice(0, 1, words.slice(0, split).join(' '), words.slice(split).join(' '));
         }
-        ctx.font = '700 21px Arial';
+        ctx.fillStyle = accent;
+        titleLines.forEach((line, lineIndex) => {
+            fitPostText(ctx, line, 166, 28, 800, 22);
+            ctx.fillText(
+                line,
+                805,
+                y + centerOffset + (titleLines.length > 1 ? 38 : 54) + lineIndex * 30,
+                166
+            );
+        });
+        ctx.font = '700 24px Arial';
         ctx.fillStyle = '#b9bec2';
         ctx.fillText(
             `${event.players} ${event.players === 1 ? 'player' : 'players'}`,
-            902,
-            y + 108
+            805,
+            y + centerOffset + (titleLines.length > 1 ? 100 : 88),
+            166
         );
+        paintStoreLogo(ctx, storeLogos[index], 904, y + 15 + centerOffset, 104, 96);
+        if (!storeLogos[index]) {
+            ctx.fillStyle = accent;
+            fitPostText(ctx, event.store.toUpperCase(), 104, 24, 800, 18);
+            ctx.fillText(event.store.toUpperCase(), 956, y + 70 + centerOffset, 104);
+        }
     });
     const totals = [
         { value: weekEvents.length, label: english ? 'TOURNAMENTS' : 'TORNEIOS' },
@@ -534,12 +848,12 @@ function paintWeekly(ctx, hazard, accent, images, storeLogos, events, weekEvents
         ctx.textAlign = 'center';
         ctx.fillStyle = accent;
         fitPostText(ctx, String(value), 290, 42, 800, 24);
-        ctx.fillText(String(value), x, 1120, 290);
+        ctx.fillText(String(value), x, 1188, 290);
         ctx.fillStyle = '#c0c5ca';
         ctx.font = '700 24px Arial';
-        ctx.fillText(label, x, 1067);
+        ctx.fillText(label, x, 1135);
     });
-    postFooter(ctx, hazard, accent, settings.language);
+    postFooter(ctx, hazard, accent, 1240);
 }
 
 export async function renderPost(canvas, settings, allEvents, hazardUrl, isCurrent) {
@@ -547,24 +861,35 @@ export async function renderPost(canvas, settings, allEvents, hazardUrl, isCurre
     const event =
         allEvents.find((event) => event.id === settings.tournament) ||
         allEvents.find((event) => event.winner);
-    const weekEvents = allEvents
-        .filter(
-            (event) =>
-                event.isoDate >= settings.week && event.isoDate <= liveData.weekEnd(settings.week)
-        )
-        .sort((a, b) => a.isoDate.localeCompare(b.isoDate) || a.id.localeCompare(b.id));
-    const weeklyRows = weekEvents.slice(settings.page * 5, settings.page * 5 + 5);
-    if (settings.template === 'weekly' ? !weeklyRows.length : !event?.winner)
+    const weeklyPages = weeklyPostPages(allEvents, settings.week);
+    const weekEvents = weeklyPages.flat();
+    const weeklyRows = weeklyPages[Number(settings.page) || 0] || [];
+    const teamPages = teamStandingsPages(event);
+    const teamRows = teamPages[Number(settings.page) || 0] || [];
+    if (
+        settings.template === 'teams'
+            ? !teamRows.length
+            : settings.template === 'weekly'
+              ? !weeklyRows.length
+              : !event?.winner
+    )
         return { ready: false, message: 'Nenhum resultado disponível para este modelo.' };
     const events = settings.template === 'weekly' ? weeklyRows : [event];
-    const sources =
-        settings.template === 'weekly'
-            ? weeklyRows.map((event) => event.winner?.image || '')
-            : event.podium.map((player) => player?.image || '');
+    const standings =
+        settings.template === 'teams'
+            ? teamRows
+            : settings.template === 'weekly'
+              ? weeklyRows.map((event) => event.winner)
+              : event.podium;
+    const sources = standings.map((result) =>
+        (result?.members || [result]).map((member) => member?.image || '')
+    );
     const [hazard, images, logos] = await Promise.all([
         loadPostImage(hazardUrl),
-        Promise.all(sources.map(loadPostPortrait)),
-        Promise.all(events.map((event) => loadPostImage(event.logo)))
+        Promise.all(sources.map((members) => Promise.all(members.map(loadPostPortrait)))),
+        settings.template === 'teams'
+            ? []
+            : Promise.all(events.map((event) => loadPostImage(event.logo)))
     ]);
     if (!isCurrent()) return { ready: false, message: '' };
     if (canvas.width !== POST_FORMAT.width) canvas.width = POST_FORMAT.width;
@@ -575,7 +900,28 @@ export async function renderPost(canvas, settings, allEvents, hazardUrl, isCurre
     ctx.fillRect(0, 0, POST_FORMAT.width, POST_FORMAT.height);
     ctx.textBaseline = 'alphabetic';
     if (settings.template === 'weekly')
-        paintWeekly(ctx, hazard, settings.accent, images, logos, weeklyRows, weekEvents, settings);
+        paintWeekly(
+            ctx,
+            hazard,
+            settings.accent,
+            images,
+            logos,
+            weeklyRows,
+            weekEvents,
+            settings,
+            weeklyPages.length
+        );
+    else if (settings.template === 'teams')
+        paintTeamStandings(
+            ctx,
+            event,
+            teamRows,
+            images,
+            hazard,
+            settings.accent,
+            settings,
+            teamPages.length
+        );
     else
         paintPodium(
             ctx,
@@ -585,14 +931,16 @@ export async function renderPost(canvas, settings, allEvents, hazardUrl, isCurre
             hazard,
             settings.accent,
             logos[0],
-            settings.language
+            settings.language,
+            settings.showBackgroundIcon !== false,
+            settings.background
         );
     const missing =
         !hazard ||
         logos.some((image) => !image) ||
         images.some(
-            (image, index) =>
-                !image &&
+            (members, index) =>
+                members.some((image) => !image) &&
                 !(settings.template === 'weekly' ? weeklyRows[index].deckless : event.deckless)
         );
     return {

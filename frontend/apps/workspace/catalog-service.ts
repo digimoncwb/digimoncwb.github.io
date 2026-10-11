@@ -36,6 +36,7 @@ export interface HistoryRecord {
 export interface TournamentResultRecord {
     id: string;
     placement: number;
+    team_member?: number;
     match_points?: number;
     player?: { name: string; bandai_id?: string; digilab_name?: string };
     deck?: { name: string };
@@ -60,7 +61,7 @@ export async function loadTournamentResults(
     signal?: AbortSignal
 ) {
     const fields =
-        '&select=id,placement,match_points,player:players(name,bandai_id,digilab_name),deck:decks(name)&order=placement.asc';
+        '&select=id,placement,team_member,match_points,player:players(name,bandai_id,digilab_name),deck:decks(name)&order=placement.asc,team_member.asc';
     const requests = [
         request<TournamentResultRecord[]>(
             `/rest/v1/tournament_results?tournament_id=eq.${encodeURIComponent(event.id)}` + fields,
@@ -81,7 +82,7 @@ export async function loadTournamentResults(
     }
     const rows = (await Promise.all(requests)).flat();
     return [...new Map(rows.map((row) => [String(row.id), row])).values()].sort(
-        (a, b) => a.placement - b.placement
+        (a, b) => a.placement - b.placement || (a.team_member || 1) - (b.team_member || 1)
     );
 }
 export const deckColors = [

@@ -262,13 +262,19 @@ Deno.serve(async (req) => {
 async function loadLocalTournament(supabase: any, tournamentId: number) {
     const { data: tournament, error: tournamentError } = await supabase
         .from('tournament')
-        .select('id,tournament_date,total_players,rounds,store_id,format_id')
+        .select('id,tournament_name,tournament_date,total_players,rounds,store_id,format_id')
         .eq('id', tournamentId)
         .maybeSingle();
 
     if (tournamentError)
         return { error: 'Não foi possível carregar o torneio local.', status: 500 };
     if (!tournament) return { error: 'Torneio local não encontrado.', status: 404 };
+    if (
+        String(tournament.tournament_name || '')
+            .trim()
+            .toLowerCase() === '2v2'
+    )
+        return { error: 'O torneio 2v2 é exclusivamente local.', status: 422 };
     if (!tournament.tournament_date || !tournament.store_id || !tournament.total_players) {
         return { error: 'Torneio local sem data, loja ou quantidade de jogadores.', status: 422 };
     }

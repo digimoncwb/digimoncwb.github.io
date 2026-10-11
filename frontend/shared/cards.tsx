@@ -225,8 +225,8 @@ export function EventDialog({
                         </p>
                     </div>
                 </div>
-                <button className="icon-button" aria-label="Fechar detalhes" onClick={onClose}>
-                    ×
+                <button className="button secondary cancel-close" onClick={onClose}>
+                    Cancelar
                 </button>
             </header>
             {event && (

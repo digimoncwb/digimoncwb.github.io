@@ -78,22 +78,10 @@ export function ThemePicker() {
                     <h2 id="theme-dialog-title">Aparência</h2>
                     <button
                         type="button"
-                        className="icon-button"
-                        aria-label="Fechar aparência"
+                        className="button secondary cancel-close"
                         onClick={cancel}
                     >
-                        <svg
-                            viewBox="0 0 24 24"
-                            width="18"
-                            height="18"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            aria-hidden="true"
-                        >
-                            <path d="m6 6 12 12M18 6 6 18" />
-                        </svg>
+                        Cancelar
                     </button>
                 </div>
                 <p className="muted">

@@ -124,11 +124,8 @@
                                     </svg>
                                 </button>
                                 <div class="decklist-search-actions">
-                                    <button type="button" id="btnCardSearchReset" class="btn-secondary btn-icon-only" aria-label="Reset search" title="Reset search">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                            <path d="M6 6l12 12"></path>
-                                            <path d="M18 6l-12 12"></path>
-                                        </svg>
+                                    <button type="button" id="btnCardSearchReset" class="btn-secondary clear-action" aria-label="Limpar busca" title="Limpar busca">
+                                        Limpar
                                     </button>
                                 </div>
                             </div>
@@ -206,9 +203,7 @@
             <div class="decklist-import-dialog" role="dialog" aria-modal="true" aria-labelledby="decklistImportTitle">
                 <div class="decklist-import-header">
                     <h2 id="decklistImportTitle">Importar deck</h2>
-                    <button type="button" id="btnDecklistImportClose" class="decklist-import-close" aria-label="Close import modal">
-                        &times;
-                    </button>
+                    <button type="button" id="btnDecklistImportClose" class="decklist-import-close cancel-close" aria-label="Cancelar">Cancelar</button>
                 </div>
                 <div class="decklist-import-body">
                     <label for="decklistImportTextarea">Cole a decklist</label>
@@ -229,9 +224,7 @@
             <div class="decklist-import-dialog" role="dialog" aria-modal="true" aria-labelledby="decklistClearTitle">
                 <div class="decklist-import-header">
                     <h2 id="decklistClearTitle">Limpar decklist</h2>
-                    <button type="button" id="btnDecklistClearClose" class="decklist-import-close" aria-label="Close">
-                        &times;
-                    </button>
+                    <button type="button" id="btnDecklistClearClose" class="decklist-import-close cancel-close" aria-label="Cancelar">Cancelar</button>
                 </div>
                 <div class="decklist-import-body">
                     <p>Deseja remover todas as cartas desta decklist?</p>
@@ -247,9 +240,7 @@
             <div class="decklist-import-dialog" role="dialog" aria-modal="true" aria-labelledby="decklistSaveWarningTitle">
                 <div class="decklist-import-header">
                     <h2 id="decklistSaveWarningTitle">Deck incompleto</h2>
-                    <button type="button" id="btnDecklistSaveWarningClose" class="decklist-import-close" aria-label="Close">
-                        &times;
-                    </button>
+                    <button type="button" id="btnDecklistSaveWarningClose" class="decklist-import-close cancel-close" aria-label="Cancelar">Cancelar</button>
                 </div>
                 <div class="decklist-import-body">
                     <p id="decklistSaveWarningMsg"></p>
@@ -263,9 +254,7 @@
 
         <div id="deckCardZoomModal" class="deck-card-zoom-modal" aria-hidden="true">
             <div class="deck-card-zoom-dialog" role="dialog" aria-modal="true" aria-label="Card zoom preview">
-                <button type="button" id="btnDeckCardZoomClose" class="deck-card-zoom-close" aria-label="Close preview">
-                    &times;
-                </button>
+                <button type="button" id="btnDeckCardZoomClose" class="deck-card-zoom-close cancel-close" aria-label="Cancelar">Cancelar</button>
                 <div class="deck-card-zoom-content">
                     <div id="deckCardZoomImageWrap" class="deck-card-zoom-image-wrap">
                         <img id="deckCardZoomImage" src="" alt="Card preview" />

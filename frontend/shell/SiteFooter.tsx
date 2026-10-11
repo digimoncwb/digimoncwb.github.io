@@ -172,12 +172,11 @@ export function SiteFooter() {
                               : 'Enviar sugestão'}
                     </h2>
                     <button
-                        className="icon-button"
-                        aria-label="Fechar"
+                        className="button secondary cancel-close"
                         disabled={sending}
                         onClick={close}
                     >
-                        ×
+                        Cancelar
                     </button>
                 </div>
                 {panel === 'privacy' ? (

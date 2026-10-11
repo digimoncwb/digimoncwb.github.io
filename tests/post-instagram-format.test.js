@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const renderer = vm.runInNewContext(
     fs.readFileSync('shared/posts/renderer.js', 'utf8').replace(/export /g, '') +
-        '\n({ renderPost, POST_FORMAT, paintSocialIcon, postEventTitle })',
+        '\n({ renderPost, POST_FORMAT, paintSocialIcon, postEventTitle, postFooter })',
     {
         Path2D: class {
             constructor(path) {
@@ -13,6 +13,52 @@ const renderer = vm.runInNewContext(
         }
     }
 );
+
+test('compact footer leaves comfortable margins while retaining community and social handles', () => {
+    for (const dividerY of [1164, 1240]) {
+        const texts = [];
+        const ctx = new Proxy(
+            {
+                measureText(text) {
+                    const size = Number(this.font.match(/([\d.]+)px/)[1]);
+                    return {
+                        width: text.length * size * 0.55,
+                        actualBoundingBoxAscent: size * 0.75,
+                        actualBoundingBoxDescent: size * 0.2
+                    };
+                },
+                fillText(text, x, y) {
+                    const metrics = this.measureText(text);
+                    const size = Number(this.font.match(/([\d.]+)px/)[1]);
+                    texts.push({
+                        text,
+                        font: this.font,
+                        x,
+                        top:
+                            y -
+                            (this.textBaseline === 'middle'
+                                ? size / 2
+                                : metrics.actualBoundingBoxAscent),
+                        bottom:
+                            y +
+                            (this.textBaseline === 'middle'
+                                ? size / 2
+                                : metrics.actualBoundingBoxDescent)
+                    });
+                }
+            },
+            { get: (target, key) => (key in target ? target[key] : () => {}) }
+        );
+        renderer.postFooter(ctx, null, '#66a7f5', dividerY);
+        assert.ok(texts.some((row) => row.text === 'DIGIMON CWB'));
+        assert.ok(texts.some((row) => row.text === 'Digimon Card Game Community'));
+        assert.ok(texts.some((row) => row.text === '@digimoncwb'));
+        assert.ok(texts.some((row) => row.text === '@digimon_cwb'));
+        assert.ok(!texts.some((row) => row.text === 'Follow us:'));
+        assert.match(texts.find((row) => row.text === 'DIGIMON CWB').font, /34px/);
+        assert.ok(texts.every((row) => row.top >= dividerY + 20 && row.bottom <= 1350 - 20));
+    }
+});
 test('post titles use the tournament type with canonical event names', () => {
     for (const title of [
         'Locals',
@@ -106,8 +152,7 @@ test('podium and weekly posts export at feed dimensions with aligned community a
             assert.equal(xProfile.align, 'left');
             assert.equal(xProfile.x, social.x);
             assert.equal(xProfile.font, social.font);
-            const follow = texts.find((item) => item.text === 'Follow us:');
-            assert.ok(follow.y < social.y);
+            assert.ok(!texts.some((item) => item.text === 'Follow us:'));
             const icons = [];
             renderer.paintSocialIcon(
                 {
@@ -145,7 +190,7 @@ test('podium and weekly posts export at feed dimensions with aligned community a
             assert.equal(name.align, 'left');
             assert.equal(subtitle.maxWidth, undefined);
             const brandCenter = (name.y - 20 + subtitle.y + 5) / 2;
-            const socialCenter = (follow.y - 10 + xProfile.y + 13) / 2;
+            const socialCenter = (social.y + xProfile.y) / 2;
             assert.ok(Math.abs(brandCenter - socialCenter) < 3);
             assert.ok(texts.every((item) => item.y < canvas.height));
             assert.ok(texts.some((item) => item.text === '02/Oct'));
@@ -154,7 +199,8 @@ test('podium and weekly posts export at feed dimensions with aligned community a
                 assert.ok(texts.some((item) => item.text.includes('PLAYERS')));
             } else {
                 assert.ok(texts.some((item) => item.text === 'WEEKLY RECAP'));
-                assert.ok(texts.some((item) => item.text === '2 players' && item.x === 902));
+                assert.ok(texts.some((item) => item.text === 'TOURNAMENT / STORE'));
+                assert.ok(texts.some((item) => item.text === '2 players' && item.x === 805));
                 assert.ok(texts.some((item) => item.text === '28/Sep — 04/Oct'));
             }
         }

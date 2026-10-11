@@ -21,7 +21,7 @@
                 <span class="edit-deck-modal-eyebrow">Configuração do arquétipo</span>
                 <h2 id="editDeckTitle">Editar Deck</h2>
             </div>
-            <button type="button" class="edit-deck-modal-close" data-close-edit-deck aria-label="Fechar" title="Fechar">&times;</button>
+            <button type="button" class="edit-deck-modal-close cancel-close" data-close-edit-deck aria-label="Cancelar" title="Cancelar">Cancelar</button>
         </div>
         <form id="editDeckForm" class="edit-deck-form">
             <input id="editDeckId" type="hidden">

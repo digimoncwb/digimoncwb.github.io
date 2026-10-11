@@ -16,7 +16,8 @@ const TOURNAMENT_NAME_OPTIONS = [
     'Win-A-Box',
     'Evo Cup',
     'Regulation Battle',
-    'For Fun'
+    'For Fun',
+    '2v2'
 ];
 
 const SORT_STORAGE_KEY = 'tournamentsSort';
@@ -677,9 +678,10 @@ function populateTournamentFormatSelect(selectId, options = {}) {
         select.appendChild(blankOption);
     }
 
-    const sortedItems = optionItems.sort((a, b) =>
-        String(b.created_at || '').localeCompare(String(a.created_at || '')) ||
-        b.code.localeCompare(a.code)
+    const sortedItems = optionItems.sort(
+        (a, b) =>
+            String(b.created_at || '').localeCompare(String(a.created_at || '')) ||
+            b.code.localeCompare(a.code)
     );
     sortedItems.forEach((item) => {
         const option = document.createElement('option');
@@ -779,8 +781,14 @@ function setTournamentFormDirty(mode, isDirty) {
 
 function updateTournamentPlayerCount(mode, count) {
     const value = Math.max(0, Number(count) || 0);
+    const team = window.tournamentUtils?.isTeamTournament(
+        document.getElementById(`${mode}TournamentName`)?.value
+    );
     const counter = document.getElementById(`${mode}TournamentPlayerCount`);
-    if (counter) counter.textContent = `${value} ${value === 1 ? 'jogador' : 'jogadores'}`;
+    if (counter)
+        counter.textContent = team
+            ? `${value / 2} ${value === 2 ? 'dupla' : 'duplas'} · ${value} jogadores`
+            : `${value} ${value === 1 ? 'jogador' : 'jogadores'}`;
 }
 window.updateTournamentPlayerCount = updateTournamentPlayerCount;
 
@@ -1000,6 +1008,9 @@ async function initializeTournamentTools() {
         .addEventListener('submit', createTournamentFormSubmit);
     document.getElementById('btnAddResultRow').addEventListener('click', addCreateResultRow);
     document
+        .getElementById('createTournamentName')
+        .addEventListener('change', renderCreateResultsRows);
+    document
         .getElementById('createTotalPlayers')
         .addEventListener('input', syncCreateResultsByTotal);
     document.getElementById('createTournamentDate').addEventListener('change', (event) => {
@@ -1056,7 +1067,11 @@ function waitForMobileShellFirstPaint() {
 
 async function restoreDashboardReturnContext() {
     const params = new URLSearchParams(window.location.search);
-    const requestedView = params.get('view') || (window.DIGISTATS_MICRO_FRONTENDS && params.has('returnTournamentId') ? 'tournaments' : null);
+    const requestedView =
+        params.get('view') ||
+        (window.DIGISTATS_MICRO_FRONTENDS && params.has('returnTournamentId')
+            ? 'tournaments'
+            : null);
     const tournamentId = String(params.get('returnTournamentId') || '').trim();
     const requestedMode = params.get('returnMode');
 
@@ -1106,10 +1121,6 @@ function bindStaticActions() {
 
     if (btnCreateCancel) {
         btnCreateCancel.addEventListener('click', closeCreateModal);
-    }
-    const btnCreateModalCloseX = document.getElementById('btnCreateModalCloseX');
-    if (btnCreateModalCloseX) {
-        btnCreateModalCloseX.addEventListener('click', closeCreateModal);
     }
     if (btnEditCancel) {
         btnEditCancel.addEventListener('click', closeEditModal);
@@ -6726,7 +6737,7 @@ function renderMetaOverview(host, metaRows, colorRows, isMobile, rawMetaRows) {
                         <div class="meta-deck-modal-stats-row"></div>
                         <div class="meta-deck-score-breakdown"></div>
                     </div>
-                    <button class="meta-deck-modal-close" type="button" aria-label="Fechar">✕</button>
+                    <button class="meta-deck-modal-close cancel-close" type="button" aria-label="Cancelar">Cancelar</button>
                 </div>
                 <div class="meta-deck-modal-body">
                     <div class="meta-deck-modal-pilots-wrap">
@@ -8987,7 +8998,11 @@ async function openCreateTournamentModal(defaultDate = '') {
     document.getElementById('createStoreSelect').value = '';
     const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(defaultDate) ? defaultDate : getTodayInSaoPaulo();
     document.getElementById('createTournamentDate').value = safeDate;
-    document.getElementById('createTournamentName').value = document.querySelector('#createTournamentName option[value="Locals"]') ? 'Locals' : 'Semanal';
+    document.getElementById('createTournamentName').value = document.querySelector(
+        '#createTournamentName option[value="Locals"]'
+    )
+        ? 'Locals'
+        : 'Semanal';
     document.getElementById('createTotalPlayers').value = '';
     document.getElementById('createInstagramLink').value = '';
 
@@ -9084,8 +9099,20 @@ function mapDigilabEventTypeToTournamentName(eventType) {
         .trim()
         .toLowerCase()
         .replace(/[\s-]+/g, '_');
-    const names = { locals: 'Locals', online: 'Online', evo_cup: 'Evo Cup', store_championship: 'Store Championship', regulation_battle: 'Regulation Battle', release_event: 'release_event' };
-    return names[normalized] || (document.querySelector('#createTournamentName option[value="Locals"]') ? 'Locals' : 'Semanal');
+    const names = {
+        locals: 'Locals',
+        online: 'Online',
+        evo_cup: 'Evo Cup',
+        store_championship: 'Store Championship',
+        regulation_battle: 'Regulation Battle',
+        release_event: 'release_event'
+    };
+    return (
+        names[normalized] ||
+        (document.querySelector('#createTournamentName option[value="Locals"]')
+            ? 'Locals'
+            : 'Semanal')
+    );
 }
 
 function applyDigilabPreviewToCreateForm(preview) {
@@ -9162,7 +9189,13 @@ function applyDigilabPreviewToCreateForm(preview) {
 }
 
 async function importCreateTournamentFromDigilab() {
-    if (createDigilabImportInProgress) return;
+    if (
+        createDigilabImportInProgress ||
+        window.tournamentUtils?.isTeamTournament(
+            document.getElementById('createTournamentName')?.value
+        )
+    )
+        return;
     const input = document.getElementById('createDigilabTournamentUrl');
     const button = document.getElementById('btnImportCreateDigilab');
     const externalId = parseDigilabTournamentId(input?.value);
@@ -9673,7 +9706,9 @@ async function processCreateOcrFiles() {
 
         await loadInactivePlayersMatchingOcr(mergedPlayers);
 
-        createResults = mergedPlayers.map((ocrPlayer) => {
+        const tournamentType = document.getElementById('createTournamentName')?.value;
+        const team = window.tournamentUtils.isTeamTournament(tournamentType);
+        const importedResults = mergedPlayers.map((ocrPlayer) => {
             const matchedPlayer = findPlayerMatchFromOcr(ocrPlayer);
             const ocrMemberId = normalizeMemberId(ocrPlayer.member_id);
             return {
@@ -9686,6 +9721,10 @@ async function processCreateOcrFiles() {
                 ocr_player_unmatched: !matchedPlayer?.id
             };
         });
+        createResults = window.tournamentUtils.expandTeamOcrResults(
+            importedResults,
+            tournamentType
+        );
 
         renderCreateResultsRows();
         document.getElementById('createTotalPlayers').value = String(createResults.length);
@@ -9702,13 +9741,18 @@ async function processCreateOcrFiles() {
             applyScheduledStoreToCreate(selectedDate);
         }
 
-        const unresolvedPlayers = createResults.filter((row) => !row.player_id).length;
+        const unresolvedPlayers = importedResults.filter((row) => !row.player_id).length;
         const pointConflicts = mergedPlayers.filter((row) => row.points_conflict).length;
         const unresolvedStore = selectedStoreName
             ? !resolveStoreFromOcrName(selectedStoreName)
             : false;
         const dateDetected = Boolean(selectedDate);
-        if (unresolvedPlayers) {
+        if (team) {
+            setCreateOcrStatus(
+                `Print importado: ${mergedPlayers.length} duplas.${unresolvedPlayers ? ` ${unresolvedPlayers} jogador(es) do print sem correspondência.` : ''} Preencha o segundo jogador e os dois decks de cada dupla.${pointConflicts ? ` Revise ${pointConflicts} conflito(s) de pontos.` : ''}${unresolvedStore ? ' Loja não identificada.' : ''}${dateDetected ? ' Data preenchida.' : ''}`,
+                'info'
+            );
+        } else if (unresolvedPlayers) {
             setCreateOcrStatus(
                 `Print importado: ${createResults.length} players, ${unresolvedPlayers} sem correspondência${unresolvedStore ? ', loja não identificada' : ''}${dateDetected ? ', data preenchida' : ''}${pointConflicts ? `, ${pointConflicts} conflito(s) de pontos` : ''}.`,
                 'info'
@@ -10059,6 +10103,7 @@ async function copyTextToClipboard(content) {
 }
 
 async function copyTournamentDataForDigilab(tournament, button) {
+    if (window.tournamentUtils?.isTeamTournament(tournament.tournament_name)) return;
     const digilabApi = window.digilabExport;
     if (!digilabApi) {
         showFriendlyErrorModal(
@@ -10204,13 +10249,17 @@ async function renderTournamentDetails(tournament, targetContainer = null) {
                         </div>                        
                     </div>
                     <div class="details-header-actions">
-                        <button type="button" class="btn-create-filter details-export-digilab-btn" data-action="copy-digilab-data" aria-label="Copiar dados do torneio para o DigiLab">
+                        ${
+                            window.tournamentUtils?.isTeamTournament(tournament.tournament_name)
+                                ? ''
+                                : `<button type="button" class="btn-create-filter details-export-digilab-btn" data-action="copy-digilab-data" aria-label="Copiar dados do torneio para o DigiLab">
                             <svg class="btn-create-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                                 <rect x="9" y="9" width="11" height="11" rx="2"></rect>
                                 <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"></path>
                             </svg>
                             <span>Copiar dados (DigiLab)</span>
-                        </button>
+                        </button>`
+                        }
                         <button type="button" class="btn-create-filter details-generate-post-btn" data-action="generate-post-details" aria-label="Generate post">
                             <svg class="btn-create-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                             <rect x="3" y="5" width="18" height="14" rx="2"></rect>
@@ -10508,33 +10557,56 @@ async function loadDecksToCreate() {
 }
 
 function addCreateResultRow() {
-    if (createResults.length >= 36) {
-        alert('O limite maximo e 36 jogadores neste modal.');
+    const size = window.tournamentUtils?.isTeamTournament(
+        document.getElementById('createTournamentName')?.value
+    )
+        ? 2
+        : 1;
+    if (createResults.length + size > 36) {
+        alert('O limite é 36 jogadores (18 duplas).');
         return;
     }
-
-    createResults.push({
-        player_id: '',
-        deck_id: '',
-        player_name: '',
-        deck_name: '',
-        match_points: null,
-        ocr_member_id: '',
-        ocr_player_unmatched: false
-    });
-    setTournamentFormDirty('create', true);
+    for (let member = 0; member < size; member++) {
+        createResults.push({
+            id: null,
+            player_id: '',
+            deck_id: '',
+            player_name: '',
+            deck_name: '',
+            match_points: null,
+            ocr_member_id: '',
+            ocr_player_unmatched: false
+        });
+    }
+    window.setTournamentFormDirty?.('create', true);
     renderCreateResultsRows();
 }
 
 function removeCreateResultRow(index) {
-    createResults.splice(index, 1);
-    setTournamentFormDirty('create', true);
+    const size = window.tournamentUtils?.isTeamTournament(
+        document.getElementById('createTournamentName')?.value
+    )
+        ? 2
+        : 1;
+    createResults.splice(size === 2 ? Math.floor(index / 2) * 2 : index, size);
+    window.setTournamentFormDirty?.('create', true);
     renderCreateResultsRows();
 }
 
 function updateCreateResultField(index, field, value) {
     if (!createResults[index]) return;
     createResults[index][field] = value;
+    if (
+        field === 'match_points' &&
+        window.tournamentUtils?.isTeamTournament(
+            document.getElementById('createTournamentName')?.value
+        )
+    ) {
+        const partner = index % 2 ? index - 1 : index + 1;
+        if (createResults[partner]) createResults[partner].match_points = value;
+        const input = document.querySelector('[data-create-match-points-index="' + partner + '"]');
+        if (input) input.value = value ?? '';
+    }
 }
 
 function escapeHtml(value) {
@@ -11039,6 +11111,48 @@ function bindCreateResultsAutocomplete() {
 function renderCreateResultsRows() {
     const container = document.getElementById('createResultsRows');
     if (!container) return;
+    const team = window.tournamentUtils?.isTeamTournament(
+        document.getElementById('createTournamentName')?.value
+    );
+    const addButton = document.getElementById('btnAddResultRow');
+    if (addButton) addButton.textContent = team ? '+ Dupla' : '+ Jogador';
+    if (team && createResults.length % 2) {
+        createResults.push({
+            id: null,
+            player_id: '',
+            deck_id: '',
+            player_name: '',
+            deck_name: '',
+            match_points: null
+        });
+    }
+    if (team) {
+        for (let index = 0; index < createResults.length; index += 2) {
+            const points =
+                createResults[index].match_points ?? createResults[index + 1].match_points ?? null;
+            createResults[index].match_points = createResults[index + 1].match_points = points;
+        }
+    }
+    const form = document.getElementById('createTournamentForm');
+    if (form) form.dataset.team = String(Boolean(team));
+    const importSection = document.getElementById('createTournamentOcrSection');
+    if (importSection) {
+        importSection.hidden = false;
+        const description = importSection.querySelector('summary span');
+        if (description)
+            description.textContent = team
+                ? 'Print da Bandai · segundo jogador manual'
+                : 'DigiLab ou print da Bandai';
+    }
+    const digilabImport = form?.querySelector('.create-digilab-import');
+    if (digilabImport) digilabImport.hidden = Boolean(team);
+    const importDivider = form?.querySelector('.create-import-divider');
+    if (importDivider) importDivider.hidden = Boolean(team);
+    const position = (index) =>
+        window.tournamentUtils.resultPlacement(
+            index,
+            document.getElementById('createTournamentName')?.value
+        );
     if (createResults.length === 0) {
         container.innerHTML = '';
         document.getElementById('createTotalPlayers').value = '';
@@ -11049,13 +11163,14 @@ function renderCreateResultsRows() {
     container.innerHTML = createResults
         .map(
             (row, index) => `
+        ${team && index % 2 === 0 ? '<div class="team-result-group">' : ''}
         <div class="result-row">
             <div class="form-group result-placement-group">
                 <label>Posicao</label>
-                <span class="result-placement-badge ${getResultPlacementClass(index + 1)}" aria-label="${formatOrdinal(index + 1)} lugar">${formatOrdinal(index + 1)}</span>
+                <span class="result-placement-badge ${getResultPlacementClass(position(index))}" aria-label="${formatOrdinal(position(index))} lugar">${formatOrdinal(position(index))}</span>
             </div>
             <div class="form-group">
-                <label>Jogador<span class="required">*</span></label>
+                <label>${team ? `Jogador ${(index % 2) + 1}` : 'Jogador'}<span class="required">*</span></label>
                 <div class="autocomplete-wrapper" data-row-index="${index}">
                     <input
                         type="text"
@@ -11071,11 +11186,12 @@ function renderCreateResultsRows() {
                 </div>
             </div>
             <div class="form-group">
-                <label>Deck</label>
+                <label>Deck${team ? '<span class="required">*</span>' : ''}</label>
                 <div class="autocomplete-wrapper" data-row-index="${index}">
                     <input
                         type="text"
                         class="deck-input"
+                        ${team ? 'required' : ''}
                         data-autocomplete-type="deck"
                         placeholder="Digite o deck..."
                         value="${escapeHtml(getItemNameById(createDecks, row.deck_id) || row.deck_name || '')}"
@@ -11097,7 +11213,7 @@ function renderCreateResultsRows() {
                     value="${row.match_points === null || row.match_points === undefined ? '' : escapeHtml(row.match_points)}"
                 >
             </div>
-            <button type="button" class="btn-remove-result" data-create-remove-index="${index}" aria-label="Remove result" title="Remove result">
+            <button type="button" class="btn-remove-result" ${team && index % 2 === 1 ? 'hidden' : ''} data-create-remove-index="${index}" aria-label="${team ? 'Remover dupla' : 'Remover jogador'}" title="${team ? 'Remover dupla' : 'Remover jogador'}">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
                     <path d="M3 6h18"></path>
                     <path d="M8 6V4h8v2"></path>
@@ -11107,6 +11223,7 @@ function renderCreateResultsRows() {
                 </svg>
             </button>
         </div>
+        ${team && index % 2 === 1 ? '</div>' : ''}
     `
         )
         .join('');
@@ -11137,12 +11254,7 @@ async function createTournamentFormSubmit(e) {
     submitBtn.textContent = 'Criando...';
     createTournamentSaveInProgress = true;
     document.getElementById('createTournamentForm')?.setAttribute('aria-busy', 'true');
-    [
-        'btnCreateCancel',
-        'btnCreateModalCloseX',
-        'btnSelectOcrPrints',
-        'btnImportCreateDigilab'
-    ].forEach((id) => {
+    ['btnCreateCancel', 'btnSelectOcrPrints', 'btnImportCreateDigilab'].forEach((id) => {
         const button = document.getElementById(id);
         if (button) button.disabled = true;
     });
@@ -11196,6 +11308,14 @@ async function createTournamentFormSubmit(e) {
             return;
         }
         const hasInvalidResult = createResults.some((r) => !r.player_id);
+        const teamError = window.tournamentUtils.validateTeamResults(
+            createResults,
+            payload.tournament_name
+        );
+        if (teamError) {
+            alert(teamError);
+            return;
+        }
         if (
             !payload.store_id ||
             !payload.tournament_date ||
@@ -11270,12 +11390,7 @@ async function createTournamentFormSubmit(e) {
     } finally {
         createTournamentSaveInProgress = false;
         document.getElementById('createTournamentForm')?.removeAttribute('aria-busy');
-        [
-            'btnCreateCancel',
-            'btnCreateModalCloseX',
-            'btnSelectOcrPrints',
-            'btnImportCreateDigilab'
-        ].forEach((id) => {
+        ['btnCreateCancel', 'btnSelectOcrPrints', 'btnImportCreateDigilab'].forEach((id) => {
             const button = document.getElementById(id);
             if (button) button.disabled = false;
         });

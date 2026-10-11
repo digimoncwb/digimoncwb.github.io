@@ -2867,7 +2867,7 @@
         errorBox.style.display = 'flex';
         errorBox.innerHTML = `
             <span class="decklist-builder-errors-text">${escapeHtml(message)}</span>
-            <button type="button" class="decklist-builder-errors-close" aria-label="Dismiss error">&times;</button>
+            <button type="button" class="decklist-builder-errors-close cancel-close" aria-label="Cancelar">Cancelar</button>
         `;
         errorBox.querySelector('.decklist-builder-errors-close')
             ?.addEventListener('click', () => clearDeckErrors(errorBox));

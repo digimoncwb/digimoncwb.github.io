@@ -77,6 +77,10 @@
         });
         return data.tournaments
             .map((event) => {
+                const team =
+                    String(event.tournament_name || '')
+                        .trim()
+                        .toLowerCase() === '2v2';
                 const deckless =
                     String(event.tournament_name || '')
                         .trim()
@@ -87,21 +91,41 @@
                 const rows = [
                     ...(resultsByEvent.get(String(event.id)) || []),
                     ...(dates.get(key) === 1 ? legacyResults.get(key) || [] : [])
-                ].sort((a, b) => Number(a.placement) - Number(b.placement));
+                ].sort(
+                    (a, b) =>
+                        Number(a.placement) - Number(b.placement) ||
+                        Number(a.team_member || 1) - Number(b.team_member || 1)
+                );
                 const player = (row) =>
                     row
                         ? {
+                              id: String(row.id),
                               name: row.player || 'Jogador não informado',
                               deck: deckless ? '' : row.deck || 'Deck não informado',
                               image: deckless ? '' : validImage(row.image_url),
                               placement: Number(row.placement)
                           }
                         : null;
+                const standing = (place) => {
+                    const members = rows
+                        .filter((row) => Number(row.placement) === place)
+                        .map(player);
+                    if (!members.length) return null;
+                    return team
+                        ? {
+                              ...members[0],
+                              name: members.map((member) => member.name).join(' & '),
+                              deck: members.map((member) => member.deck).join(' / '),
+                              members
+                          }
+                        : members[0];
+                };
                 return {
                     id: String(event.id),
                     storeId: String(event.store_id),
                     title: deckless ? 'Release Event' : event.tournament_name || 'Torneio',
                     deckless,
+                    team,
                     store: store?.name || 'Loja não informada',
                     logo: validImage(store?.logo_url),
                     isoDate: event.tournament_date,
@@ -109,10 +133,8 @@
                     day: weekdays[new Date(`${event.tournament_date}T12:00:00Z`).getUTCDay()],
                     players: Number(event.total_players) || 0,
                     format: formats.get(String(event.format_id))?.code || 'Não informado',
-                    winner: player(rows.find((row) => Number(row.placement) === 1)),
-                    podium: [1, 2, 3].map((place) =>
-                        player(rows.find((row) => Number(row.placement) === place))
-                    ),
+                    winner: standing(1),
+                    podium: [1, 2, 3].map(standing),
                     results: rows.map(player),
                     instagram: validImage(event.instagram_link)
                 };
@@ -153,7 +175,7 @@
             ),
             readAll(
                 'v_podium_full',
-                'id,tournament_id,store_id,tournament_date,placement,player,deck,image_url,format_code',
+                'id,tournament_id,store_id,tournament_date,placement,player,deck,image_url,format_code,team_member',
                 request,
                 signal
             ),

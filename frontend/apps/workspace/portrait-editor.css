@@ -30,8 +30,8 @@
     appearance: none;
     -webkit-appearance: none;
     width: 100%;
-    min-height: 24px;
-    height: 24px;
+    min-height: 44px;
+    height: 44px;
     padding: 0;
     border: 0;
     background: transparent !important;
@@ -39,38 +39,37 @@
     box-shadow: none;
 }
 :root.v2-tools #v2Tools .portrait-editor input[type='range']::-webkit-slider-runnable-track {
-    height: 6px;
+    height: 4px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 35%, var(--panel));
+    background: var(--line);
 }
 :root.v2-tools #v2Tools .portrait-editor input[type='range']::-moz-range-track {
-    height: 6px;
+    height: 4px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 35%, var(--panel));
+    background: var(--line);
 }
 :root.v2-tools #v2Tools .portrait-editor input[type='range']::-webkit-slider-thumb {
     appearance: none;
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
-    margin-top: -7px;
-    border: 2px solid #858b91;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border: 0;
     border-radius: 50%;
-    background: #454b52;
-    box-shadow: 0 2px 5px #0005;
+    background: var(--accent);
+    box-shadow: none;
 }
 :root.v2-tools #v2Tools .portrait-editor input[type='range']::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #858b91;
+    width: 14px;
+    height: 14px;
+    border: 0;
     border-radius: 50%;
-    background: #454b52;
-    box-shadow: 0 2px 5px #0005;
+    background: var(--accent);
+    box-shadow: none;
 }
 :root.v2-tools #v2Tools .portrait-editor input[type='range']:focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 3px;
-    border-radius: 6px;
+    outline-offset: 2px;
 }
 :root.v2-tools #v2Tools .portrait-editor input[type='range']:disabled {
     opacity: 0.5;

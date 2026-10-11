@@ -14,16 +14,19 @@ export interface Route {
     params: URLSearchParams;
 }
 export interface Result {
+    id?: string;
     name: string;
     deck: string;
     image: string;
     placement: number;
+    members?: Result[];
 }
 export interface Tournament {
     id: string;
     storeId: string;
     title: string;
     deckless: boolean;
+    team?: boolean;
     store: string;
     logo: string;
     isoDate: string;

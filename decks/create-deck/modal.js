@@ -18,7 +18,7 @@
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="createDeckTitle">
         <div class="modal-header">
             <h2 id="createDeckTitle">Criar Deck</h2>
-            <button type="button" id="btnCloseCreateDeckModalX" class="player-modal-close" aria-label="Fechar">&times;</button>
+            <button type="button" id="btnCloseCreateDeckModalX" class="player-modal-close cancel-close" aria-label="Cancelar">Cancelar</button>
         </div>
         <form id="createDeckForm">
             <div class="form-group">

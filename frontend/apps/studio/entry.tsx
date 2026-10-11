@@ -1,11 +1,34 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MicroContext } from '../../contracts';
 import { mountReact, useData } from '../../shared/runtime';
-import { renderPost, POST_FORMAT, postEventTitle } from '../../../shared/posts/renderer.js';
+import {
+    renderPost,
+    POST_FORMAT,
+    postEventTitle,
+    teamStandingsPages,
+    weeklyPostPages
+} from '../../../shared/posts/renderer.js';
 import { PageHeading } from '../../shared/PageHeading';
 import { Select } from '../../shared/Select';
-import { buildPodiumCaption, loadStandingsUrl } from './caption';
+import {
+    buildPodiumCaption,
+    buildTeamStandingsCaption,
+    buildWeeklyCaption,
+    loadStandingsUrl
+} from './caption';
 import './studio.css';
+const defaultBackground = {
+    offsetX: 0,
+    offsetY: 0,
+    scale: 1,
+    opacity: undefined as number | undefined
+};
+const backgroundControls = [
+    { key: 'offsetX', label: 'Horizontal', min: -540, max: 540, factor: 1, unit: ' px' },
+    { key: 'offsetY', label: 'Vertical', min: -675, max: 675, factor: 1, unit: ' px' },
+    { key: 'scale', label: 'Tamanho', min: 25, max: 175, factor: 100, unit: '%' },
+    { key: 'opacity', label: 'Opacidade', min: 0, max: 100, factor: 100, unit: '%' }
+] as const;
 export const apiVersion = 1;
 export const mount = (element: HTMLElement, context: MicroContext) =>
     mountReact(Studio, element, context);
@@ -21,6 +44,8 @@ function Studio({ context }: { context: MicroContext }) {
     const [template, setTemplate] = useState('podium'),
         [tournament, setTournament] = useState(''),
         [accent, setAccent] = useState('#ef646b'),
+        [showBackgroundIcon, setShowBackgroundIcon] = useState(true),
+        [backgroundAdjustments, setBackground] = useState(defaultBackground),
         [week, setWeek] = useState(''),
         [page, setPage] = useState(0),
         [ready, setReady] = useState(false),
@@ -30,18 +55,43 @@ function Studio({ context }: { context: MicroContext }) {
         ...new Set(data.events.map((event) => window.liveData.weekStart(event.isoDate)))
     ];
     const currentEvent = events.find((event) => event.id === tournament) || events[0];
+    useEffect(() => {
+        if (template === 'teams' && !currentEvent?.team) {
+            setTemplate('podium');
+            setPage(0);
+        }
+    }, [template, currentEvent?.team]);
+    const background = useMemo(
+        () => ({
+            ...backgroundAdjustments,
+            opacity: backgroundAdjustments.opacity ?? (currentEvent?.team ? 0.08 : 0.16)
+        }),
+        [backgroundAdjustments, currentEvent?.team]
+    );
     const [captionLink, setCaptionLink] = useState({ eventId: '', url: '', error: '' });
     const [copyStatus, setCopyStatus] = useState('');
     const captionField = useRef<HTMLTextAreaElement>(null);
-    const captionLoaded = captionLink.eventId === currentEvent?.id;
-    const caption = currentEvent
-        ? buildPodiumCaption(currentEvent, captionLoaded ? captionLink.url : '')
-        : '';
+    const currentWeek = week || weeks[0] || '';
+    const captionLoaded =
+        template === 'weekly' || currentEvent?.team || captionLink.eventId === currentEvent?.id;
+    const caption =
+        template === 'weekly'
+            ? buildWeeklyCaption(data.events, currentWeek)
+            : currentEvent
+              ? template === 'teams'
+                  ? buildTeamStandingsCaption(currentEvent)
+                  : buildPodiumCaption(currentEvent, captionLoaded ? captionLink.url : '')
+              : '';
+    useEffect(() => setCopyStatus(''), [caption]);
     useEffect(() => {
         setCopyStatus('');
         if (template !== 'podium' || !currentEvent || !context.active) return;
         const controller = new AbortController();
         const eventId = currentEvent.id;
+        if (currentEvent.team) {
+            setCaptionLink({ eventId, url: '', error: '' });
+            return;
+        }
         loadStandingsUrl(eventId, controller.signal)
             .then((url) => {
                 if (!controller.signal.aborted) setCaptionLink({ eventId, url, error: '' });
@@ -55,7 +105,7 @@ function Studio({ context }: { context: MicroContext }) {
                     });
             });
         return () => controller.abort();
-    }, [currentEvent?.id, template, context.active]);
+    }, [currentEvent?.id, currentEvent?.team, template, context.active]);
     async function copyCaption() {
         try {
             await navigator.clipboard.writeText(caption);
@@ -66,16 +116,13 @@ function Studio({ context }: { context: MicroContext }) {
             setCopyStatus('Selecionei a legenda. Use Ctrl+C ou copie pelo menu do dispositivo.');
         }
     }
-    const currentWeek = week || weeks[0] || '';
     const pageCount = Math.max(
         1,
-        Math.ceil(
-            data.events.filter(
-                (event) =>
-                    event.isoDate >= currentWeek &&
-                    event.isoDate <= window.liveData.weekEnd(currentWeek || '2000-01-03')
-            ).length / 5
-        )
+        template === 'teams'
+            ? teamStandingsPages(currentEvent).length
+            : template === 'weekly'
+              ? weeklyPostPages(data.events, currentWeek).length
+              : 1
     );
     useEffect(() => {
         const selected = context.route.params.get('tournament');
@@ -87,7 +134,12 @@ function Studio({ context }: { context: MicroContext }) {
     useEffect(() => {
         let current = true;
         setReady(false);
-        if (!context.active || !canvas.current || !currentEvent || !currentWeek) return;
+        if (!context.active || !canvas.current) return;
+        if (!currentEvent || !currentWeek) {
+            canvas.current.getContext('2d')?.clearRect(0, 0, POST_FORMAT.width, POST_FORMAT.height);
+            setStatus('Nenhum resultado disponível para este modelo.');
+            return;
+        }
         setStatus('Gerando prévia…');
         renderPost(
             canvas.current,
@@ -96,6 +148,8 @@ function Studio({ context }: { context: MicroContext }) {
                 tournament: currentEvent.id,
                 title: postEventTitle(currentEvent),
                 accent,
+                showBackgroundIcon,
+                background,
                 language: 'en',
                 week: currentWeek,
                 page: Math.min(page, pageCount - 1)
@@ -122,6 +176,8 @@ function Studio({ context }: { context: MicroContext }) {
         template,
         tournament,
         accent,
+        showBackgroundIcon,
+        background,
         currentWeek,
         page,
         pageCount,
@@ -144,7 +200,12 @@ function Studio({ context }: { context: MicroContext }) {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `digimon-cwb-${template}-${template === 'weekly' ? currentWeek + '-' + (page + 1) : currentEvent?.isoDate || 'post'}.png`;
+            const date = template === 'weekly' ? currentWeek : currentEvent?.isoDate || 'post';
+            const pageSuffix =
+                template === 'weekly' || template === 'teams'
+                    ? `-${Math.min(page, pageCount - 1) + 1}`
+                    : '';
+            link.download = `digimon-cwb-${template}-${date}${pageSuffix}.png`;
             link.click();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
             setStatus('Post exportado em PNG.');
@@ -159,89 +220,113 @@ function Studio({ context }: { context: MicroContext }) {
             <PageHeading
                 eyebrow="Compartilhe os resultados"
                 title="Estúdio de posts"
-                description="Crie posts com os resultados e o resumo da semana."
+                description=""
             />
-            <div className={template === 'podium' ? 'studio studio-with-caption' : 'studio'}>
+            <div className="studio studio-with-caption">
                 <div className="studio-controls">
-                    <h2>Configurar publicação</h2>
-                    <fieldset className="studio-group">
-                        <legend>
-                            <span>01</span> Conteúdo
-                        </legend>
-                        <Select
-                            label="Modelo"
-                            value={template}
-                            onChange={setTemplate}
-                            options={[
-                                { value: 'podium', label: 'Pódio — Top 3' },
-                                { value: 'weekly', label: 'Resumo da semana' }
-                            ]}
-                        />
-                        {template === 'podium' ? (
-                            <>
-                                <Select
-                                    label="Torneio"
-                                    value={currentEvent?.id || ''}
-                                    onChange={setTournament}
-                                    options={events.map((event) => ({
-                                        value: event.id,
-                                        label:
-                                            event.store + ' · ' + event.date + ' · ' + event.title
-                                    }))}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <Select
-                                    label="Semana"
-                                    value={currentWeek}
-                                    onChange={(value) => {
-                                        setWeek(value);
-                                        setPage(0);
-                                    }}
-                                    options={weeks.map((week) => ({
-                                        value: week,
-                                        label:
-                                            window.liveData.displayDate(week) +
-                                            ' — ' +
-                                            window.liveData.displayDate(
-                                                window.liveData.weekEnd(week)
-                                            )
-                                    }))}
-                                />
-                                {pageCount > 1 && (
+                    <div className="studio-control-options">
+                        <fieldset className="studio-group">
+                            <legend>
+                                <span>01</span> Conteúdo
+                            </legend>
+                            <Select
+                                overlay
+                                label="Modelo"
+                                value={template}
+                                onChange={(value) => {
+                                    setTemplate(value);
+                                    setPage(0);
+                                }}
+                                options={[
+                                    { value: 'podium', label: 'Pódio — Top 3' },
+                                    { value: 'weekly', label: 'Resumo da semana' },
+                                    ...(currentEvent?.team
+                                        ? [{ value: 'teams', label: 'Classificação — Duplas' }]
+                                        : [])
+                                ]}
+                            />
+                            {template !== 'weekly' ? (
+                                <>
                                     <Select
-                                        label="Página"
-                                        value={String(Math.min(page, pageCount - 1))}
-                                        onChange={(value) => setPage(Number(value))}
-                                        options={Array.from({ length: pageCount }, (_, index) => ({
-                                            value: String(index),
-                                            label: index + 1 + ' de ' + pageCount
+                                        overlay
+                                        label="Torneio"
+                                        value={currentEvent?.id || ''}
+                                        onChange={(value) => {
+                                            setTournament(value);
+                                            setPage(0);
+                                            if (
+                                                template === 'teams' &&
+                                                !events.find((event) => event.id === value)?.team
+                                            )
+                                                setTemplate('podium');
+                                        }}
+                                        options={events.map((event) => ({
+                                            value: event.id,
+                                            label:
+                                                event.store +
+                                                ' · ' +
+                                                event.date +
+                                                ' · ' +
+                                                event.title
                                         }))}
                                     />
-                                )}
-                            </>
-                        )}
-                    </fieldset>
-                    <fieldset className="studio-group">
-                        <legend>
-                            <span>02</span> Aparência
-                        </legend>
-                        <Select
-                            label="Cor de destaque"
-                            value={accent}
-                            onChange={setAccent}
-                            options={[
-                                { value: '#ef646b', label: 'Vermelho' },
-                                { value: '#66a7f5', label: 'Azul' },
-                                { value: '#4edb9b', label: 'Verde' },
-                                { value: '#f1cc5b', label: 'Amarelo' }
-                            ]}
-                        />
-                        <p className="studio-brand-note">
-                            Assinatura da comunidade, Instagram e X incluídos no post.
-                        </p>
-                    </fieldset>
+                                </>
+                            ) : (
+                                <>
+                                    <Select
+                                        overlay
+                                        label="Semana"
+                                        value={currentWeek}
+                                        onChange={(value) => {
+                                            setWeek(value);
+                                            setPage(0);
+                                        }}
+                                        options={weeks.map((week) => ({
+                                            value: week,
+                                            label:
+                                                window.liveData.displayDate(week) +
+                                                ' — ' +
+                                                window.liveData.displayDate(
+                                                    window.liveData.weekEnd(week)
+                                                )
+                                        }))}
+                                    />
+                                </>
+                            )}
+                            {(template === 'weekly' || template === 'teams') && pageCount > 1 && (
+                                <Select
+                                    overlay
+                                    label="Página"
+                                    value={String(Math.min(page, pageCount - 1))}
+                                    onChange={(value) => setPage(Number(value))}
+                                    options={Array.from({ length: pageCount }, (_, index) => ({
+                                        value: String(index),
+                                        label: index + 1 + ' de ' + pageCount
+                                    }))}
+                                />
+                            )}
+                        </fieldset>
+                        <fieldset className="studio-group">
+                            <legend>
+                                <span>02</span> Aparência
+                            </legend>
+                            <Select
+                                overlay
+                                label="Cor de destaque"
+                                value={accent}
+                                onChange={setAccent}
+                                options={[
+                                    { value: '#ef646b', label: 'Vermelho' },
+                                    { value: '#66a7f5', label: 'Azul' },
+                                    { value: '#4edb9b', label: 'Verde' },
+                                    { value: '#f1cc5b', label: 'Amarelo' }
+                                ]}
+                            />
+                            <p className="studio-brand-note">
+                                Assinatura da comunidade, Instagram e X incluídos no post.
+                            </p>
+                        </fieldset>
+                    </div>
                     <section className="studio-export" aria-label="Exportação">
                         <h3>
                             <span>03</span> Exportação
@@ -267,7 +352,13 @@ function Studio({ context }: { context: MicroContext }) {
                 <div className="post-preview">
                     <div className="preview-caption">
                         <span>PRÉVIA · FEED {POST_FORMAT.ratio}</span>
-                        <span>{template === 'weekly' ? 'RESUMO SEMANAL' : 'PÓDIO / TOP 3'}</span>
+                        <span>
+                            {template === 'weekly'
+                                ? 'RESUMO SEMANAL'
+                                : template === 'teams'
+                                  ? 'CLASSIFICAÇÃO / DUPLAS'
+                                  : 'PÓDIO / TOP 3'}
+                        </span>
                     </div>
                     <canvas
                         ref={canvas}
@@ -276,34 +367,122 @@ function Studio({ context }: { context: MicroContext }) {
                         aria-label="Prévia do post gerado"
                     />
                 </div>
-                {template === 'podium' && (
-                    <div className="studio-post-caption">
-                        <label htmlFor="studio-caption">Legenda para X / Instagram</label>
-                        <textarea
-                            id="studio-caption"
-                            ref={captionField}
-                            value={caption}
-                            readOnly
-                            rows={12}
-                        />
-                        <button
-                            className="button"
-                            disabled={!caption || loading || !captionLoaded}
-                            onClick={() => void copyCaption()}
+                <aside className="studio-side" aria-label="Ajustes e legenda do post">
+                    {template === 'podium' && (
+                        <section
+                            className="studio-background-controls"
+                            aria-labelledby="studio-background-title"
                         >
-                            Copiar legenda
-                        </button>
-                        <p className="muted" role="status">
-                            {copyStatus ||
-                                (captionLoaded
-                                    ? captionLink.error ||
-                                      (!captionLink.url
-                                          ? 'Este torneio ainda não tem um link do DigiLab.'
-                                          : '')
-                                    : 'Consultando link do DigiLab…')}
-                        </p>
-                    </div>
-                )}
+                            <h2 id="studio-background-title">Background do post</h2>
+                            <label className="studio-checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={showBackgroundIcon}
+                                    onChange={(event) =>
+                                        setShowBackgroundIcon(event.target.checked)
+                                    }
+                                />
+                                Mostrar ícone no fundo
+                            </label>
+                            <fieldset
+                                disabled={!showBackgroundIcon}
+                                aria-label="Ajustar background do post"
+                            >
+                                {backgroundControls.map((control) => {
+                                    const value = Math.round(
+                                        background[control.key] * control.factor
+                                    );
+                                    const id = `studio-background-${control.key}`;
+                                    return (
+                                        <label
+                                            key={control.key}
+                                            className="studio-background-control"
+                                        >
+                                            <span>
+                                                {control.label}
+                                                <output htmlFor={id}>
+                                                    {value}
+                                                    {control.unit}
+                                                </output>
+                                            </span>
+                                            <input
+                                                id={id}
+                                                type="range"
+                                                min={control.min}
+                                                max={control.max}
+                                                step={1}
+                                                value={value}
+                                                onChange={(event) => {
+                                                    const next =
+                                                        Number(event.target.value) / control.factor;
+                                                    setBackground((previous) => ({
+                                                        ...previous,
+                                                        [control.key]: next
+                                                    }));
+                                                }}
+                                            />
+                                        </label>
+                                    );
+                                })}
+                            </fieldset>
+                            <button
+                                type="button"
+                                className="button primary"
+                                onClick={() => {
+                                    setBackground(defaultBackground);
+                                    setShowBackgroundIcon(true);
+                                }}
+                            >
+                                Restaurar padrão
+                            </button>
+                        </section>
+                    )}
+                    <section className="studio-post-caption" aria-label="Legenda do post">
+                        <header className="studio-caption-header">
+                            <label htmlFor="studio-caption">Legenda para X / Instagram</label>
+                            <p>Texto pronto para acompanhar a publicação.</p>
+                        </header>
+                        <div className="studio-caption-body">
+                            <textarea
+                                id="studio-caption"
+                                ref={captionField}
+                                value={caption}
+                                readOnly
+                                rows={16}
+                            />
+                            <button
+                                className="button primary"
+                                disabled={!caption || loading || !captionLoaded}
+                                onClick={() => void copyCaption()}
+                            >
+                                Copiar legenda
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    aria-hidden="true"
+                                >
+                                    <rect x="9" y="9" width="12" height="12" rx="2" />
+                                    <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+                                </svg>
+                            </button>
+                            <p className="muted studio-caption-status" role="status">
+                                {copyStatus ||
+                                    (template === 'weekly' || currentEvent?.team
+                                        ? ''
+                                        : captionLoaded
+                                          ? captionLink.error ||
+                                            (!captionLink.url
+                                                ? 'Este torneio ainda não tem um link do DigiLab.'
+                                                : '')
+                                          : 'Consultando link do DigiLab…')}
+                            </p>
+                        </div>
+                    </section>
+                </aside>
             </div>
         </section>
     );

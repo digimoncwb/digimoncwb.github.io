@@ -549,15 +549,22 @@ async function loadLocalTournaments(supabase: any, dateFrom: string, dateTo: str
     const formats = new Map(
         (formatsResult.data || []).map((row: JsonRecord) => [row.id, String(row.code || '')])
     );
-    return tournaments.map((row: JsonRecord) => ({
-        tournament_id: Number(row.id),
-        tournament_name: row.tournament_name || null,
-        event_date: String(row.tournament_date || ''),
-        player_count: Number(row.total_players),
-        rounds: row.rounds == null ? null : Number(row.rounds),
-        store_name: stores.get(row.store_id) || null,
-        format: formats.get(row.format_id) || null
-    }));
+    return tournaments
+        .filter(
+            (row: JsonRecord) =>
+                String(row.tournament_name || '')
+                    .trim()
+                    .toLowerCase() !== '2v2'
+        )
+        .map((row: JsonRecord) => ({
+            tournament_id: Number(row.id),
+            tournament_name: row.tournament_name || null,
+            event_date: String(row.tournament_date || ''),
+            player_count: Number(row.total_players),
+            rounds: row.rounds == null ? null : Number(row.rounds),
+            store_name: stores.get(row.store_id) || null,
+            format: formats.get(row.format_id) || null
+        }));
 }
 
 function rankLocalCandidates(external: JsonRecord, localRows: JsonRecord[]) {

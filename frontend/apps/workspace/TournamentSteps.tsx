@@ -116,7 +116,12 @@ export function TournamentSteps({ mode, token }: { mode: 'create' | 'edit'; toke
                                     ['Data', value(`${mode}TournamentDate`)],
                                     ['Tipo', value(`${mode}TournamentName`)],
                                     ['Formato', value(`${mode}TournamentFormat`)],
-                                    ['Resultados', `${rows.length} jogadores`]
+                                    [
+                                        'Resultados',
+                                        value(`${mode}TournamentName`).startsWith('2v2')
+                                            ? `${rows.length / 2} duplas · ${rows.length} jogadores`
+                                            : `${rows.length} jogadores`
+                                    ]
                                 ].map(([label, text]) => (
                                     <div key={label}>
                                         <dt>{label}</dt>
@@ -126,7 +131,14 @@ export function TournamentSteps({ mode, token }: { mode: 'create' | 'edit'; toke
                             </dl>
                             <ol>
                                 {Array.from(rows).map((row, index) => (
-                                    <li key={index}>
+                                    <li
+                                        key={index}
+                                        value={
+                                            hosts.form.dataset.team === 'true'
+                                                ? Math.floor(index / 2) + 1
+                                                : index + 1
+                                        }
+                                    >
                                         {row.querySelector<HTMLInputElement>('.player-input')
                                             ?.value || `Jogador ${index + 1}`}
                                         <span>

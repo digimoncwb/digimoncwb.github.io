@@ -52,6 +52,16 @@ This creates timestamped migration files under `supabase/migrations/`.
 
 `database/migrations/20261005000000_correct_format_release_dates.sql` corrects `formats.created_at` and product names for the 14 cataloged formats, plus EX09 if present, using official English release dates. It updates existing rows only and preserves the default, activation and tournament links. The researched dates, Bandai sources, timezone convention and verification query are documented in [format-release-dates.md](../docs/data/format-release-dates.md).
 
+## Local 2v2 tournaments
+
+Apply `database/migrations/20261010000000_local_2v2_tournaments.sql` before releasing the 2v2 frontend. Each teammate keeps their own result ID and decklist; two results share the same placement using `team_member` (1 or 2). `total_players` counts people, so four players occupy two team placements. The save RPC validates complete pairs, distinct players, required decks and shared match points in one transaction.
+
+The migration also scopes result uniqueness to `tournament_id`, allowing solo and 2v2 events at the same store/date. Legacy unlinked rows retain their unique indexes. Database guards prohibit DigiLab links and imports for 2v2. Redeploy `preview-digilab-import` and `verify-digilab-tournament` with this release so the inventory omits 2v2 candidates and verification returns the local-only message.
+
+Daily posts display both members of each podium team. Weekly recaps show the tournament type for every event and both winning decks/players for 2v2. The weekly caption describes all events in the selected week, including every page of a recap carousel.
+
+Bandai screenshot imports support 2v2: each recognized entry starts a separate team with its points shared by both members. The second player and both decks are completed manually. Importing a screenshot while editing an existing event updates team points and preserves the players and decks.
+
 ## DigiLab synchronization
 
 The integration state is defined by:

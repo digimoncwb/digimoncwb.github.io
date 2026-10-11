@@ -222,3 +222,23 @@ test('tournament details retain legacy results only when the store/date identifi
     assert.equal(ambiguous.calls.length, 1);
     assert.match(ambiguous.calls[0].url, /tournament_id=eq.9/);
 });
+
+test('team results keep both result IDs ordered by placement and member', async () => {
+    const app = setup(() =>
+        json([
+            { id: 'second-b', placement: 2, team_member: 2 },
+            { id: 'first-b', placement: 1, team_member: 2 },
+            { id: 'second-a', placement: 2, team_member: 1 },
+            { id: 'first-a', placement: 1, team_member: 1 }
+        ])
+    );
+    const event = { id: '9', storeId: '3', isoDate: '2026-10-02', team: true };
+    const rows = await app.api.loadTournamentResults(event, [event, { ...event, id: '10' }]);
+    assert.deepEqual(
+        Array.from(rows, (row) => row.id),
+        ['first-a', 'first-b', 'second-a', 'second-b']
+    );
+    const query = new URL(app.calls[0].url).searchParams;
+    assert.ok(query.get('select').split(',').includes('team_member'));
+    assert.equal(query.get('order'), 'placement.asc,team_member.asc');
+});

@@ -270,19 +270,35 @@ export function TournamentsPage({
                                     <span className="tournament-list-meta">
                                         <span className="catalog-badge">{event.format || '—'}</span>
                                         <span>{event.players} jogadores</span>
+                                        {event.team && <span>{event.players / 2} duplas</span>}
                                     </span>
                                     <span className="tournament-list-winner">
-                                        <Portrait image={event.winner?.image} />
+                                        {(event.winner?.members || [event.winner]).map(
+                                            (member, index) => (
+                                                <Portrait key={index} image={member?.image} />
+                                            )
+                                        )}
                                         <span>
                                             <strong>
                                                 {event.winner?.name || 'Sem resultados'}
                                             </strong>
-                                            <span>
-                                                {event.deckless
-                                                    ? 'Vencedor'
-                                                    : event.winner?.deck ||
-                                                      'Classificação pendente'}
-                                            </span>
+                                            {event.team && event.winner?.members ? (
+                                                <span className="tournament-list-decks">
+                                                    {event.winner.members.map((member, index) => (
+                                                        <span key={member.id || index}>
+                                                            {index ? '& ' : ''}
+                                                            {member.deck}
+                                                        </span>
+                                                    ))}
+                                                </span>
+                                            ) : (
+                                                <span>
+                                                    {event.deckless
+                                                        ? 'Vencedor'
+                                                        : event.winner?.deck ||
+                                                          'Classificação pendente'}
+                                                </span>
+                                            )}
                                         </span>
                                     </span>
                                 </button>
@@ -409,6 +425,7 @@ function TournamentCalendar({
                                     <strong>{event.store}</strong>
                                     <span>
                                         {event.title} · {event.players} jogadores
+                                        {event.team ? ` · ${event.players / 2} duplas` : ''}
                                     </span>
                                 </button>
                             ))}
@@ -447,15 +464,58 @@ function TournamentDetails({
               placement: row.placement,
               name:
                   row.player?.name ||
+                  event.results.find((result) => result.id === row.id)?.name ||
                   event.results.find((result) => result.placement === row.placement)?.name ||
                   'Jogador não informado',
               deck:
                   row.deck?.name ||
+                  event.results.find((result) => result.id === row.id)?.deck ||
                   event.results.find((result) => result.placement === row.placement)?.deck ||
                   'Deck não informado',
-              image: event.results.find((result) => result.deck === row.deck?.name)?.image || ''
+              id: row.id,
+              image: event.results.find((result) => result.id === row.id)?.image || ''
           }))
         : event.results;
+    const resultGroups = event.team
+        ? [...new Set(results.map((result) => result.placement))].map((placement) =>
+              results.filter((result) => result.placement === placement)
+          )
+        : results.map((result) => [result]);
+    const renderMember = (result: (typeof results)[number]) => {
+        const row =
+            ids.find((row) => row.id === result.id) ||
+            ids.find(
+                (row) => row.placement === result.placement && row.player?.name === result.name
+            ) ||
+            (!event.team ? ids.find((row) => row.placement === result.placement) : undefined);
+        return (
+            <>
+                {!event.deckless && <Portrait image={result.image} />}
+                <div className="catalog-result-identity">
+                    <strong>{result.name}</strong>
+                    {!event.deckless && <span>{result.deck}</span>}
+                </div>
+                {!event.deckless && row && (
+                    <button
+                        className="button secondary"
+                        onClick={() =>
+                            context.navigate('builder', {
+                                resultId: String(row.id),
+                                deck: result.deck,
+                                player: result.name,
+                                store: event.store,
+                                date: event.isoDate,
+                                returnTournamentId: event.id,
+                                returnView: 'tournaments'
+                            })
+                        }
+                    >
+                        Decklist ↗
+                    </button>
+                )}
+            </>
+        );
+    };
     return (
         <Dialog title={`${event.title} · ${event.date}`} onClose={onClose} wide>
             <div className="tournament-detail-heading">
@@ -463,7 +523,8 @@ function TournamentDetails({
                 <div>
                     <strong>{event.store}</strong>
                     <span>
-                        {event.players} jogadores · {event.format}
+                        {event.players} jogadores
+                        {event.team ? ` · ${event.players / 2} duplas` : ''} · {event.format}
                     </span>
                 </div>
             </div>
@@ -487,29 +548,31 @@ function TournamentDetails({
                         Instagram ↗
                     </a>
                 )}
-                <button
-                    className="button secondary"
-                    disabled={!ids.length}
-                    onClick={async () => {
-                        try {
-                            await context.loadScript('config/digilab-export.js');
-                            const rows = window.digilabExport.normalizeDigilabExportRows(ids);
-                            setExportText(window.digilabExport.buildDigilabClipboardText(rows));
-                            const missing = window.digilabExport.getMissingMemberNames(rows);
-                            setExportNotice(
-                                missing.length
-                                    ? `ID Bandai não cadastrado: ${missing.join(', ')}.`
-                                    : 'Dados prontos para copiar para o DigiLab.'
-                            );
-                        } catch {
-                            setExportNotice(
-                                'Não foi possível preparar a exportação. Tente novamente.'
-                            );
-                        }
-                    }}
-                >
-                    Exportar para DigiLab
-                </button>
+                {!event.team && (
+                    <button
+                        className="button secondary"
+                        disabled={!ids.length}
+                        onClick={async () => {
+                            try {
+                                await context.loadScript('config/digilab-export.js');
+                                const rows = window.digilabExport.normalizeDigilabExportRows(ids);
+                                setExportText(window.digilabExport.buildDigilabClipboardText(rows));
+                                const missing = window.digilabExport.getMissingMemberNames(rows);
+                                setExportNotice(
+                                    missing.length
+                                        ? `ID Bandai não cadastrado: ${missing.join(', ')}.`
+                                        : 'Dados prontos para copiar para o DigiLab.'
+                                );
+                            } catch {
+                                setExportNotice(
+                                    'Não foi possível preparar a exportação. Tente novamente.'
+                                );
+                            }
+                        }}
+                    >
+                        Exportar para DigiLab
+                    </button>
+                )}
             </div>
             {exportNotice && (
                 <p role="status" className="muted">
@@ -543,43 +606,29 @@ function TournamentDetails({
                 </p>
             )}
             <div className="catalog-results">
-                {results.map((result, index) => {
-                    const row =
-                        ids.find(
-                            (row) =>
-                                row.placement === result.placement &&
-                                row.player?.name === result.name
-                        ) || ids.find((row) => row.placement === result.placement);
+                {resultGroups.map((members, index) => {
+                    const placement = members[0].placement;
                     return (
                         <article
-                            className="catalog-result-row"
-                            key={`${result.placement}:${index}`}
+                            className={`catalog-result-row${event.team ? ' catalog-team-result-row' : ''}`}
+                            key={`${placement}:${index}`}
                         >
-                            <span className={`catalog-placement rank-${result.placement}`}>
-                                {result.placement}º
+                            <span className={`catalog-placement rank-${placement}`}>
+                                {placement}º
                             </span>
-                            {!event.deckless && <Portrait image={result.image} />}
-                            <div>
-                                <strong>{result.name}</strong>
-                                {!event.deckless && <span>{result.deck}</span>}
-                            </div>
-                            {!event.deckless && row && (
-                                <button
-                                    className="button secondary"
-                                    onClick={() =>
-                                        context.navigate('builder', {
-                                            resultId: String(row.id),
-                                            deck: result.deck,
-                                            player: result.name,
-                                            store: event.store,
-                                            date: event.isoDate,
-                                            returnTournamentId: event.id,
-                                            returnView: 'tournaments'
-                                        })
-                                    }
-                                >
-                                    Decklist ↗
-                                </button>
+                            {event.team ? (
+                                <div className="catalog-team-members">
+                                    {members.map((member, memberIndex) => (
+                                        <div
+                                            className="catalog-team-member"
+                                            key={member.id || memberIndex}
+                                        >
+                                            {renderMember(member)}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                renderMember(members[0])
                             )}
                         </article>
                     );
