@@ -219,7 +219,7 @@ function paintSocialIcon(ctx, name, x, y, size) {
     ctx.restore();
 }
 
-function postFooter(ctx, hazard, accent, dividerY = 1164) {
+function postFooter(ctx, hazard, accent, dividerY = 1240) {
     const titleSize = 34;
     const subtitleBaseSize = 22;
     const brandGap = 8;
@@ -255,8 +255,9 @@ function postFooter(ctx, hazard, accent, dividerY = 1164) {
     const brandHeight = titleAscent + titleDescent + brandGap + subtitleAscent + subtitleDescent;
     const footerCenter = (dividerY + POST_FORMAT.height) / 2;
     const brandTop = footerCenter - brandHeight / 2;
-    const brandTextLeft = 64 + brandHeight + 18;
-    paintHazard(ctx, hazard, 64, brandTop, brandHeight, accent, 1, true);
+    const brandIconSize = brandHeight;
+    const brandTextLeft = 64 + brandIconSize + 18;
+    paintHazard(ctx, hazard, 64, brandTop, brandIconSize, accent, 1, true);
     ctx.fillStyle = '#ffffff';
     ctx.font = `900 ${titleSize}px "Arial Black", Arial`;
     ctx.fillText('DIGIMON CWB', brandTextLeft, brandTop + titleAscent, brandWidth);
@@ -562,10 +563,13 @@ export function teamStandingsPages(event) {
 
 function paintTeamStandings(ctx, event, standings, images, hazard, accent, settings, pageCount) {
     const english = settings.language === 'en';
-    paintHazard(ctx, hazard, 52, 54, 78, accent);
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
     ctx.font = '900 68px Arial';
+    const titleBounds = ctx.measureText('2V2');
+    const titleCenterY =
+        112 + (titleBounds.actualBoundingBoxDescent - titleBounds.actualBoundingBoxAscent) / 2;
+    paintHazard(ctx, hazard, 52, titleCenterY - 39, 78, accent);
     ctx.fillText('2V2', 158, 112);
     ctx.textAlign = 'right';
     ctx.fillStyle = accent;

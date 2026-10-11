@@ -146,6 +146,7 @@ test('podium and weekly posts export at feed dimensions with aligned community a
             assert.equal(canvas.width / canvas.height, 4 / 5);
             assert.ok(backgrounds.some((rect) => rect.join(',') === '0,0,1080,1350'));
             const name = texts.find((item) => item.text === 'DIGIMON CWB');
+            assert.ok(name.y > 1240, 'every post uses the smaller footer area at the bottom');
             const subtitle = texts.find((item) => item.text === 'Digimon Card Game Community');
             const social = texts.find((item) => item.text === '@digimoncwb');
             const xProfile = texts.find((item) => item.text === '@digimon_cwb');
