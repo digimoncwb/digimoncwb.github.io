@@ -33,6 +33,20 @@
     font-family: inherit;
     overflow-x: hidden;
 }
+.studio-deck-line-control {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+    font-size: 12px;
+}
+.studio-deck-line-control input {
+    width: 100%;
+    min-height: 40px;
+}
+.studio-deck-line-control small {
+    color: var(--muted);
+    line-height: 1.5;
+}
 .studio-select-options [role='option'] > span:first-child {
     min-width: 0;
     overflow-wrap: anywhere;

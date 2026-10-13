@@ -74,6 +74,84 @@ test('post titles use the tournament type with canonical event names', () => {
     assert.equal(renderer.postEventTitle({ title: 'release_event' }), 'Release Event');
 });
 
+test('podium deck names wrap at the configured limit and leave room for player names', async () => {
+    const event = {
+        id: 'wrapped',
+        isoDate: '2026-10-12',
+        title: 'Semanal',
+        players: 3,
+        format: 'BT26',
+        podium: ['Ana', 'Bia', 'Caio'].map((name) => ({
+            name,
+            deck: 'VEGETATION CERESMON',
+            image: ''
+        }))
+    };
+    event.winner = event.podium[0];
+    for (const limit of [undefined, 11, 24, 8, 1]) {
+        const texts = [];
+        const ctx = new Proxy(
+            {
+                measureText(text) {
+                    const size = Number(this.font.match(/([\d.]+)px/)[1]);
+                    return { width: String(text).length * size * 0.55 };
+                },
+                fillText(text, x, y) {
+                    texts.push({ text, x, y, font: this.font });
+                }
+            },
+            { get: (target, key) => (key in target ? target[key] : () => {}) }
+        );
+        const result = await renderer.renderPost(
+            { getContext: () => ctx },
+            {
+                template: 'podium',
+                tournament: event.id,
+                accent: '#ef646b',
+                week: '2026-10-12',
+                deckNameLineLength: limit
+            },
+            [event],
+            '',
+            () => true
+        );
+        assert.ok(result.ready);
+        for (const [index, x] of [540, 202, 878].entries()) {
+            const player = texts.find((row) => row.text === event.podium[index].name);
+            const lines = texts.filter(
+                (row) =>
+                    row.x === x &&
+                    row.y >= (index === 0 ? 906 : 1045) &&
+                    row.font.startsWith('800 ')
+            );
+            assert.ok(lines.length);
+            assert.ok(lines.every((line) => line.text.length <= (limit || 11)));
+            assert.equal(
+                lines
+                    .map((line) => line.text)
+                    .join('')
+                    .replace(/ /g, ''),
+                'VEGETATIONCERESMON'
+            );
+            assert.ok(lines.every((line) => line.font === lines[0].font));
+            assert.ok(player.y >= lines.at(-1).y + 36);
+            assert.ok(player.y <= 1200, 'player stays clear of the footer');
+            if (limit === undefined || limit === 11) {
+                assert.deepEqual(
+                    lines.map((line) => line.text),
+                    ['VEGETATION', 'CERESMON']
+                );
+                assert.ok(lines[1].y > lines[0].y);
+            } else if (limit === 24) {
+                assert.deepEqual(
+                    lines.map((line) => line.text),
+                    ['VEGETATION CERESMON']
+                );
+            }
+        }
+    }
+});
+
 test('podium and weekly posts export at feed dimensions with aligned community and Instagram branding', async () => {
     const event = {
         id: '1',

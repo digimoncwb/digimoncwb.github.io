@@ -5,6 +5,7 @@ export const POST_FORMAT = Object.freeze({
     ratio: '4:5',
     mime: 'image/png'
 });
+export const DEFAULT_DECK_NAME_LINE_LENGTH = 11;
 const imageCache = new Map();
 export function postDeckName(name) {
     return String(name || '')
@@ -302,16 +303,53 @@ function paintStoreLogo(ctx, image, x, y, width, height) {
     );
 }
 
-function paintPodiumIdentity(ctx, player, portrait, isWinner) {
+function podiumDeckLines(name, lineLength) {
+    const limit = Math.max(1, Math.floor(Number(lineLength) || DEFAULT_DECK_NAME_LINE_LENGTH));
+    const words = postDeckName(name).toUpperCase().trim().split(/\s+/);
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+        const candidate = current ? `${current} ${word}` : word;
+        if (Array.from(candidate).length <= limit) {
+            current = candidate;
+            continue;
+        }
+        if (current) lines.push(current);
+        const characters = Array.from(word);
+        while (characters.length > limit) lines.push(characters.splice(0, limit).join(''));
+        current = characters.join('');
+    }
+    if (current || !lines.length) lines.push(current);
+    return lines;
+}
+
+function paintPodiumIdentity(ctx, player, portrait, isWinner, deckNameLineLength) {
     const top = portrait.textY - 20;
     ctx.textAlign = 'center';
     ctx.fillStyle = portrait.color;
-    const deckName = postDeckName(player.deck).toUpperCase();
-    fitPostText(ctx, deckName, portrait.width, isWinner ? 36 : 29, 800);
-    ctx.fillText(deckName, portrait.x, top + 38, portrait.width);
+    const lines = podiumDeckLines(player.deck, deckNameLineLength);
+    const firstLineY = top + 38;
+    // Keep the player's name above the footer even with a short line limit.
+    const initialSize = Math.min(
+        isWinner ? 36 : 29,
+        (1200 - firstLineY - 36) / Math.max(1, (lines.length - 1) * 1.2)
+    );
+    const size = Math.min(
+        ...lines.map((line) => fitPostText(ctx, line, portrait.width, initialSize, 800))
+    );
+    const spacing = size * 1.2;
+    ctx.font = `800 ${size}px Arial, Helvetica, sans-serif`;
+    lines.forEach((line, index) =>
+        ctx.fillText(line, portrait.x, firstLineY + index * spacing, portrait.width)
+    );
     ctx.fillStyle = '#e0e3e5';
     fitPostText(ctx, player.name, portrait.width, isWinner ? 29 : 27, 700, 20);
-    ctx.fillText(player.name, portrait.x, top + 74, portrait.width);
+    ctx.fillText(
+        player.name,
+        portrait.x,
+        firstLineY + (lines.length - 1) * spacing + 36,
+        portrait.width
+    );
 }
 
 function paintTeamPodium(ctx, event, images, english) {
@@ -462,7 +500,8 @@ function paintPodium(
     storeLogo,
     language,
     showBackgroundIcon = true,
-    background = {}
+    background = {},
+    deckNameLineLength = DEFAULT_DECK_NAME_LINE_LENGTH
 ) {
     const english = language === 'en';
     const winnerCenter = { x: 540, y: 665 };
@@ -537,7 +576,7 @@ function paintPodium(
             ctx.fillStyle = portrait.color;
             fitPostText(ctx, player.name, portrait.width, index === 0 ? 38 : 30, 800, 24);
             ctx.fillText(player.name, portrait.x, portrait.labelY + 85, portrait.width);
-        } else paintPodiumIdentity(ctx, player, portrait, index === 0);
+        } else paintPodiumIdentity(ctx, player, portrait, index === 0, deckNameLineLength);
     });
     postFooter(ctx, hazard, accent);
 }
@@ -937,7 +976,8 @@ export async function renderPost(canvas, settings, allEvents, hazardUrl, isCurre
             logos[0],
             settings.language,
             settings.showBackgroundIcon !== false,
-            settings.background
+            settings.background,
+            settings.deckNameLineLength
         );
     const missing =
         !hazard ||

@@ -4,6 +4,7 @@ import { mountReact, useData } from '../../shared/runtime';
 import {
     renderPost,
     POST_FORMAT,
+    DEFAULT_DECK_NAME_LINE_LENGTH,
     postEventTitle,
     teamStandingsPages,
     weeklyPostPages
@@ -44,12 +45,19 @@ function Studio({ context }: { context: MicroContext }) {
     const [template, setTemplate] = useState('podium'),
         [tournament, setTournament] = useState(''),
         [accent, setAccent] = useState('#ef646b'),
+        [deckNameLineLengthInput, setDeckNameLineLengthInput] = useState(
+            String(DEFAULT_DECK_NAME_LINE_LENGTH)
+        ),
         [showBackgroundIcon, setShowBackgroundIcon] = useState(true),
         [backgroundAdjustments, setBackground] = useState(defaultBackground),
         [week, setWeek] = useState(''),
         [page, setPage] = useState(0),
         [ready, setReady] = useState(false),
         [status, setStatus] = useState('');
+    const deckNameLineLength = Math.max(
+        1,
+        Math.min(40, Math.floor(Number(deckNameLineLengthInput) || DEFAULT_DECK_NAME_LINE_LENGTH))
+    );
     const events = data.events.filter((event) => event.winner);
     const weeks = [
         ...new Set(data.events.map((event) => window.liveData.weekStart(event.isoDate)))
@@ -148,6 +156,7 @@ function Studio({ context }: { context: MicroContext }) {
                 tournament: currentEvent.id,
                 title: postEventTitle(currentEvent),
                 accent,
+                deckNameLineLength,
                 showBackgroundIcon,
                 background,
                 language: 'en',
@@ -176,6 +185,7 @@ function Studio({ context }: { context: MicroContext }) {
         template,
         tournament,
         accent,
+        deckNameLineLength,
         showBackgroundIcon,
         background,
         currentWeek,
@@ -305,6 +315,32 @@ function Studio({ context }: { context: MicroContext }) {
                                     }))}
                                 />
                             )}
+                            {template === 'podium' &&
+                                !currentEvent?.team &&
+                                !currentEvent?.deckless && (
+                                    <label className="studio-deck-line-control">
+                                        <span>Nome do deck: caracteres por linha</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={40}
+                                            step={1}
+                                            value={deckNameLineLengthInput}
+                                            onChange={(event) =>
+                                                setDeckNameLineLengthInput(event.target.value)
+                                            }
+                                            onBlur={() =>
+                                                setDeckNameLineLengthInput(
+                                                    String(deckNameLineLength)
+                                                )
+                                            }
+                                            aria-describedby="studio-deck-line-hint"
+                                        />
+                                        <small id="studio-deck-line-hint">
+                                            Padrão: 11. A quebra se aplica aos três decks do pódio.
+                                        </small>
+                                    </label>
+                                )}
                         </fieldset>
                         <fieldset className="studio-group">
                             <legend>
