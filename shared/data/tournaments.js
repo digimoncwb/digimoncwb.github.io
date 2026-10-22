@@ -59,6 +59,7 @@
     function normalize(data) {
         const stores = new Map(data.stores.map((store) => [String(store.id), store]));
         const formats = new Map(data.formats.map((format) => [String(format.id), format]));
+        const deckFormats = new Map((data.deckFormats || []).map((format) => [String(format.id), format]));
         const dates = new Map();
         data.tournaments.forEach((event) => {
             const key = `${event.store_id}:${event.tournament_date}`;
@@ -133,6 +134,8 @@
                     day: weekdays[new Date(`${event.tournament_date}T12:00:00Z`).getUTCDay()],
                     players: Number(event.total_players) || 0,
                     format: formats.get(String(event.format_id))?.code || 'Não informado',
+                    deckFormatId: String(event.deck_format_id || ''),
+                    deckFormat: deckFormats.get(String(event.deck_format_id))?.name || 'Padrão',
                     winner: standing(1),
                     podium: [1, 2, 3].map(standing),
                     results: rows.map(player),
@@ -166,10 +169,10 @@
         }
     }
     async function load(request, signal) {
-        const [tournaments, results, stores, formats, schedule] = await Promise.all([
+        const [tournaments, results, stores, formats, schedule, deckFormats] = await Promise.all([
             readAll(
                 'tournament',
-                'id,store_id,tournament_date,tournament_name,total_players,format_id,instagram_link',
+                'id,store_id,tournament_date,tournament_name,total_players,format_id,deck_format_id,instagram_link',
                 request,
                 signal
             ),
@@ -181,12 +184,14 @@
             ),
             readAll('stores', 'id,name,logo_url,is_active,bandai_nick', request, signal),
             readAll('formats', 'id,code,name,is_active,is_default,created_at', request, signal),
-            readAll('tournament_weekly_schedule', 'weekday,store_id,is_active', request, signal)
+            readAll('tournament_weekly_schedule', 'weekday,store_id,is_active', request, signal),
+            readAll('deck_formats', 'id,code,name,is_active,is_default,created_at,description,rules_text,rules_url,is_community_highlight,validation_rules,rules_revision,rules_status,updated_at,change_note', request, signal)
         ]);
         return {
-            events: normalize({ tournaments, results, stores, formats }),
+            events: normalize({ tournaments, results, stores, formats, deckFormats }),
             stores,
             formats: orderFormats(formats),
+            deckFormats,
             schedule
         };
     }

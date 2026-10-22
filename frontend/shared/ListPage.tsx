@@ -53,7 +53,9 @@ export function Pagination({
     size,
     total,
     onPage,
-    onSize
+    onSize,
+    sizes = [10, 20, 40, 80],
+    compact = false
 }: {
     page: number;
     pages: number;
@@ -61,19 +63,23 @@ export function Pagination({
     total: number;
     onPage(page: number): void;
     onSize(size: number): void;
+    sizes?: number[];
+    compact?: boolean;
 }) {
     return (
-        <div className="list-pagination">
-            <p role="status">
-                {total
-                    ? `${(page - 1) * size + 1}–${Math.min(page * size, total)} de ${total}`
-                    : 'Nenhum resultado'}
-            </p>
+        <div className={`list-pagination${compact ? ' is-compact' : ''}`}>
+            {!compact && (
+                <p role="status">
+                    {total
+                        ? `${(page - 1) * size + 1}–${Math.min(page * size, total)} de ${total}`
+                        : 'Nenhum resultado'}
+                </p>
+            )}
             <Select
                 label="Por página"
                 value={String(size)}
                 onChange={(value) => onSize(Number(value))}
-                options={[10, 20, 40, 80].map((value) => ({
+                options={sizes.map((value) => ({
                     value: String(value),
                     label: String(value)
                 }))}

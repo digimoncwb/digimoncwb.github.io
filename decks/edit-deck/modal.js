@@ -1,8 +1,8 @@
 (function () {
-    const IMAGE_BASE_URL = 'https://images.digimoncard.io/images/cards/';
+    const IMAGE_BASE_URL = 'https://digimon.digilab.cards/api/card/';
     const LEGACY_IMAGE_BASE_URL = 'https://deckbuilder.egmanevents.com/card_images/digimon/';
     const FANDOM_BASE_URL = 'https://digimoncardgame.fandom.com/wiki/Special:FilePath/';
-    const DIGILAB_CARD_IMAGE_BASE_URL = 'https://digilab.cards/api/card/';
+    const DIGILAB_CARD_IMAGE_BASE_URL = 'https://digimon.digilab.cards/api/card/';
     const COLOR_OPTIONS = [
         { code: 'r', label: 'Red', className: 'is-red' },
         { code: 'u', label: 'Blue', className: 'is-blue' },
@@ -178,7 +178,6 @@
         const candidates = [
             `${DIGILAB_CARD_IMAGE_BASE_URL}${deckCode}.jpg`,
             `https://digimoncardgame.fandom.com/wiki/Special:FilePath/${deckCode}-Sample.png`,
-            `${IMAGE_BASE_URL}${deckCode}.webp`,
             `${IMAGE_BASE_URL}${deckCode}.jpg`,
             `${LEGACY_IMAGE_BASE_URL}${deckCode}.webp`,
         ];
@@ -216,7 +215,7 @@
         includeFamily
     ) {
         const storedUrl = await uploadDeckImageToStorage(supabaseUrl, headers, deckCode);
-        const imageUrl = storedUrl || (IMAGE_BASE_URL + deckCode + '.webp');
+        const imageUrl = storedUrl || (IMAGE_BASE_URL + deckCode + '.jpg');
 
         const deckRes = await fetch(
             `${supabaseUrl}/rest/v1/decks?id=eq.${encodeURIComponent(deckId)}`,

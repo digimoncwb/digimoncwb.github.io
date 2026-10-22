@@ -850,7 +850,7 @@
                                 DigiLab
                             </button>
                             <button type="button" class="admin-tab-btn" data-admin-tab="formats">
-                                Formatos
+                                Coleções
                             </button>
                             <button type="button" class="admin-tab-btn" data-admin-tab="banlist">
                                 Lista de restrições
@@ -1080,9 +1080,9 @@
                     >
                         <div class="admin-panel-header">
                             <div>
-                                <h2 class="admin-panel-title">Formatos</h2>
+                                <h2 class="admin-panel-title">Coleções</h2>
                                 <p class="admin-panel-desc">
-                                    O formato padrão é usado ao criar torneios.
+                                    A coleção padrão é usada ao criar torneios.
                                 </p>
                             </div>
                             <button
@@ -1090,7 +1090,7 @@
                                 class="btn-primary"
                                 data-admin-action="create-format"
                             >
-                                + Novo formato
+                                + Nova coleção
                             </button>
                         </div>
                         <div class="admin-table-wrapper">
@@ -1099,9 +1099,8 @@
                                     <tr>
                                         <th>Código</th>
                                         <th>Nome</th>
-                                        <th>Padrão</th>
+                                        <th>Coleção padrão</th>
                                         <th>Status</th>
-                                        <th>Imagem de fundo</th>
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
@@ -1534,7 +1533,7 @@
                         <div class="modal-content">
                             <div class="admin-modal-heading">
                                 <h3 id="adminFormatTitle" class="admin-modal-title">
-                                    Novo formato / Meta
+                                    Nova coleção
                                 </h3>
                                 <button
                                     type="button"
@@ -1565,7 +1564,7 @@
                                     <input
                                         type="text"
                                         id="adminFormatName"
-                                        placeholder="Ex.: Meta BT19"
+                                        placeholder="Ex.: Fable Waltz"
                                         autocomplete="off"
                                     />
                                 </div>
@@ -1579,7 +1578,7 @@
                                         "
                                     >
                                         <input type="checkbox" id="adminFormatIsActive" />
-                                        Ativo
+                                        Ativa
                                     </label>
                                     <label
                                         style="
@@ -1590,73 +1589,12 @@
                                         "
                                     >
                                         <input type="checkbox" id="adminFormatIsDefault" />
-                                        Definir como padrão
+                                        Coleção padrão
                                     </label>
-                                </div>
-                                <div class="form-group">
-                                    <label>Imagem de fundo</label>
-                                    <div
-                                        class="admin-bg-selected-preview"
-                                        id="adminFormatBgSelectedWrap"
-                                        style="display: none"
-                                    >
-                                        <img
-                                            id="adminFormatBgPreview"
-                                            alt="Imagem de fundo selecionada"
-                                        />
-                                        <button
-                                            type="button"
-                                            class="admin-bg-clear-btn clear-action"
-                                            data-admin-action="clear-format-bg"
-                                            title="Limpar imagem de fundo"
-                                        >
-                                            Limpar
-                                        </button>
-                                    </div>
-                                    <input type="hidden" id="adminFormatBgUrl" />
-                                    <input type="hidden" id="adminFormatBgPath" />
-                                    <div
-                                        style="
-                                            display: flex;
-                                            gap: 8px;
-                                            margin-top: 6px;
-                                            flex-wrap: wrap;
-                                        "
-                                    >
-                                        <label class="btn-secondary admin-upload-label">
-                                            Enviar nova
-                                            <input
-                                                type="file"
-                                                id="adminFormatFile"
-                                                accept="image/*"
-                                                style="display: none"
-                                            />
-                                        </label>
-                                        <button
-                                            type="button"
-                                            class="btn-secondary"
-                                            data-admin-action="browse-bucket-images"
-                                        >
-                                            Procurar existente
-                                        </button>
-                                    </div>
-                                    <div
-                                        id="adminBucketBrowser"
-                                        class="admin-bucket-browser is-hidden"
-                                    >
-                                        <div id="adminBucketImages" class="admin-bucket-grid"></div>
-                                    </div>
                                 </div>
                                 <p id="adminFormatStatus" class="admin-form-status"></p>
                                 <div class="modal-actions">
                                     <button type="submit" class="btn-save">Salvar</button>
-                                    <button
-                                        type="button"
-                                        class="btn-cancel"
-                                        data-admin-action="close-format-modal"
-                                    >
-                                        Cancelar
-                                    </button>
                                 </div>
                             </form>
                         </div>

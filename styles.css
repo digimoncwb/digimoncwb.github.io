@@ -15768,6 +15768,22 @@ body[data-theme='dark'] .admin-change-password-modal input {
     transform: rotate(45deg);
 }
 
+#adminFormatModal .admin-checkbox-options input[type="checkbox"] {
+    appearance: auto !important;
+    -webkit-appearance: checkbox !important;
+    accent-color: var(--accent, #f45e6c);
+    width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    min-width: 20px !important;
+    margin: 0;
+    padding: 0 !important;
+    flex: 0 0 20px;
+}
+#adminFormatModal .admin-checkbox-options input[type="checkbox"]::after {
+    content: none !important;
+}
+
 /* ============================================================
    DARK MODE - TOURNAMENT DETAILS SECTION
 ============================================================ */

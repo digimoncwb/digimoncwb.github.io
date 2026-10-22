@@ -114,7 +114,7 @@ const manifest = {
                               'shared/workspace/native.css',
                               ...(name === 'workspace'
                                   ? ['demo-v2/mfe/workspace/digimon-dashboard.css']
-                                  : [])
+                                  : ['demo-v2/mfe/builder/digimon-dashboard.css'])
                           ]
                         : name === 'dashboard'
                           ? ['demo-v2/mfe/dashboard/digimon-dashboard.css']

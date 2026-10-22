@@ -46,7 +46,7 @@ function adminListPage(key, rows, render) {
         controls.className = 'admin-list-controls';
         const hasSearch = key === 'BanList';
         const noun =
-            key === 'Formats' ? 'formato' : key === 'Digilab' ? 'torneio, loja ou formato' : 'loja';
+            key === 'Formats' ? 'coleção' : key === 'Digilab' ? 'torneio, loja ou formato' : 'loja';
         controls.innerHTML = `${hasSearch ? '' : `<input type="search" aria-label="Buscar ${noun}" placeholder="Buscar ${noun}…" />`}
             ${hasSearch || key === 'Digilab' ? '' : '<select aria-label="Filtrar por status"><option value="all">Todos os status</option><option value="active">Ativos</option><option value="inactive">Inativos</option></select>'}
             <span class="admin-list-count" role="status"></span><button type="button" class="btn-secondary" data-page="prev" aria-label="Página anterior">‹</button><button type="button" class="btn-secondary" data-page="next" aria-label="Próxima página">›</button>`;
@@ -415,31 +415,6 @@ function setupAdminActions() {
         banSearch.addEventListener('input', () => {
             adminListPages.BanList = 1;
             renderAdminBanList();
-        });
-    }
-
-    // Background file input — upload new
-    const fileInput = document.getElementById('adminFormatFile');
-    if (fileInput) {
-        fileInput.addEventListener('change', () => {
-            const file = fileInput.files[0];
-            if (!file) return;
-            setFormatBgPreview(URL.createObjectURL(file), null, null);
-            const browser = document.getElementById('adminBucketBrowser');
-            if (browser) browser.classList.add('is-hidden');
-        });
-    }
-
-    // Auto-detect background when code changes
-    const codeInput = document.getElementById('adminFormatCode');
-    if (codeInput) {
-        codeInput.addEventListener('input', () => {
-            const urlInput = document.getElementById('adminFormatBgUrl');
-            // Only auto-detect if no background is currently chosen
-            if (urlInput && urlInput.value) return;
-            const code = codeInput.value.trim().toUpperCase();
-            if (!code) return;
-            autoDetectFormatBackground(code);
         });
     }
 }
@@ -2335,7 +2310,7 @@ function renderAdminFormats() {
 
     if (!adminFormats.length) {
         host.innerHTML =
-            '<tr><td colspan="6" class="admin-empty">Nenhum formato cadastrado.</td></tr>';
+            '<tr><td colspan="5" class="admin-empty">Nenhuma coleção cadastrada.</td></tr>';
         return;
     }
 
@@ -2357,7 +2332,6 @@ function renderAdminFormats() {
             <td>${escapeAdminHtml(f.name || '—')}</td>
             <td>${f.is_default ? '<span class="admin-badge admin-badge--default">Padrão</span>' : ''}</td>
             <td>${f.is_active ? '<span class="admin-badge admin-badge--active">Ativo</span>' : '<span class="admin-badge admin-badge--inactive">Inativo</span>'}</td>
-            <td>${f.background_url ? `<a href="${escapeAdminHtml(f.background_url)}" target="_blank" rel="noopener" class="admin-link">Ver imagem</a>` : '<span class="admin-dim">—</span>'}</td>
             <td class="admin-actions-cell">
                 ${!f.is_default ? `<button class="player-history-register-btn" data-admin-action="set-default-format" data-id="${f.id}">Definir padrão</button>` : ''}
                 <button class="player-history-register-btn" data-admin-action="edit-format" data-id="${f.id}">Editar</button>
@@ -2368,7 +2342,7 @@ function renderAdminFormats() {
     `
             )
             .join('') ||
-        '<tr><td colspan="6" class="admin-empty">Nenhum formato encontrado.</td></tr>';
+        '<tr><td colspan="5" class="admin-empty">Nenhuma coleção encontrada.</td></tr>';
     labelAdminList(host);
 }
 
@@ -2382,30 +2356,11 @@ function openFormatModal(id) {
     modal.querySelector('#adminFormatName').value = format?.name || '';
     modal.querySelector('#adminFormatIsActive').checked = format ? format.is_active : true;
     modal.querySelector('#adminFormatIsDefault').checked = format?.is_default || false;
-    modal.querySelector('#adminFormatFile').value = '';
     modal.querySelector('#adminFormatStatus').textContent = '';
 
-    // Reset bucket browser
-    const browser = modal.querySelector('#adminBucketBrowser');
-    if (browser) browser.classList.add('is-hidden');
-
-    // Set existing background if any, otherwise try to auto-detect from code
-    if (format?.background_url) {
-        // Strip legacy /formats/ prefix from DB records that predate bucket restructure
-        const bgUrl = format.background_url.replace(
-            /(\/storage\/v1\/object\/public\/[^/]+\/)formats\//,
-            '$1'
-        );
-        const bgPath = (format.background_path || '').replace(/^formats\//, '');
-        setFormatBgPreview(bgUrl, bgUrl, bgPath || null);
-    } else {
-        clearFormatBackground();
-        if (format?.code) autoDetectFormatBackground(format.code);
-    }
-
     modal.querySelector('.admin-modal-title').textContent = format
-        ? 'Editar formato / Meta'
-        : 'Novo formato / Meta';
+        ? 'Editar coleção'
+        : 'Nova coleção';
     showAdminModal(modal, 'adminFormatCode');
 }
 
@@ -2449,10 +2404,6 @@ async function saveFormat(e) {
     const name = modal.querySelector('#adminFormatName').value.trim();
     const isActive = modal.querySelector('#adminFormatIsActive').checked;
     const isDefault = modal.querySelector('#adminFormatIsDefault').checked;
-    const fileInput = modal.querySelector('#adminFormatFile');
-    const file = fileInput?.files?.[0] || null;
-    const existingBgUrl = modal.querySelector('#adminFormatBgUrl')?.value || null;
-    const existingBgPath = modal.querySelector('#adminFormatBgPath')?.value || null;
 
     if (!code) {
         statusEl.textContent = 'Code is required.';
@@ -2464,24 +2415,10 @@ async function saveFormat(e) {
     statusEl.textContent = 'Salvando…';
 
     try {
+        await refreshAdminSessionIfNeeded();
         const payload = { code, name: name || null, is_active: isActive, is_default: isDefault };
 
-        if (file) {
-            // New file uploaded — send to storage
-            const uploaded = await uploadFormatBackground(file, code);
-            payload.background_path = uploaded.path;
-            payload.background_url = uploaded.url;
-        } else {
-            // Use existing value or empty string if cleared
-            payload.background_url = existingBgUrl || '';
-            payload.background_path = existingBgPath || '';
-        }
-
-        const headers = {
-            ...window.createSupabaseHeaders(),
-            'Content-Type': 'application/json',
-            Prefer: 'return=representation'
-        };
+        const headers = createAuthenticatedAdminHeaders({ Prefer: 'return=representation' });
 
         if (isDefault) await clearOtherDefaults(id || null);
 
@@ -2864,8 +2801,7 @@ async function removeBanEntry(cardCode) {
 // BAN CARD PREVIEW
 // ============================================================
 const CARD_IMAGE_CDNS = [
-    (code) => `https://images.digimoncard.io/images/cards/${code}.webp`,
-    (code) => `https://images.digimoncard.io/images/cards/${code}.jpg`,
+    (code) => `https://digimon.digilab.cards/api/card/${code}.jpg`,
     (code) => `https://deckbuilder.egmanevents.com//card_images/digimon/${code}.webp`
 ];
 

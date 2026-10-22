@@ -1,7 +1,7 @@
 {
 const SUPABASE_URL = window.APP_CONFIG?.SUPABASE_URL || 'https://vllqakohumoinpdwnsqa.supabase.co';
 const SUPABASE_ANON_KEY = window.APP_CONFIG?.SUPABASE_ANON_KEY || '';
-const IMAGE_BASE_URL = 'https://images.digimoncard.io/images/cards/';
+const IMAGE_BASE_URL = 'https://digimon.digilab.cards/api/card/';
 const LEGACY_IMAGE_BASE_URL = 'https://deckbuilder.egmanevents.com/card_images/digimon/';
 const headers = window.createSupabaseHeaders
     ? window.createSupabaseHeaders()
@@ -292,7 +292,7 @@ function renderDecklistMvpBoard(errors = []) {
 
     board.innerHTML = decklistMvpEntries
         .map((entry) => {
-            const imageUrl = `${IMAGE_BASE_URL}${entry.code}.webp`;
+            const imageUrl = `${IMAGE_BASE_URL}${entry.code}.jpg`;
             return `
                 <article class="decklist-mvp-card" data-code="${escapeHtmlAttribute(entry.code)}">
                     <div class="decklist-mvp-count">${entry.count}</div>
@@ -1298,7 +1298,7 @@ function escapeHtmlAttribute(value) {
 
 function extractCodeFromUrl(url) {
     if (!url) return null;
-    const match = url.match(/\/([A-Z0-9-]+)\.webp$/);
+    const match = url.match(/\/([A-Z0-9-]+)\.(?:webp|jpe?g|png)(?:[?#].*)?$/i);
     return match ? match[1] : null;
 }
 
@@ -1552,7 +1552,6 @@ function renderDeckHistoryCardsHtml(cards) {
         const code = String(card.card_code || '').split('_')[0];
         const qty = Number(card.qty) || 1;
         const candidates = [
-            `${IMAGE_BASE_URL}${code}.webp`,
             `${IMAGE_BASE_URL}${code}.jpg`,
             `${LEGACY_IMAGE_BASE_URL}${code}.webp`,
             `https://card-list.prodigi.dev/images/cards/${code}.webp`,

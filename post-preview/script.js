@@ -2995,8 +2995,7 @@ async function loadDeckCardImage(code) {
     const candidates = [
         supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/deck-images/${encodeURIComponent(code)}.webp?t=${Date.now()}` : null,
         `https://digimoncardgame.fandom.com/wiki/Special:FilePath/${code}-Sample.png`,
-        `https://images.digimoncard.io/images/cards/${code}.webp`,
-        `https://images.digimoncard.io/images/cards/${code}.jpg`,
+        `https://digimon.digilab.cards/api/card/${code}.jpg`,
     ].filter(Boolean);
 
     for (const src of candidates) {

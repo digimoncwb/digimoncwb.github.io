@@ -1,9 +1,9 @@
 {
   "apiVersion": 1,
-  "version": "mv60lrwl",
+  "version": "mvixv57k",
   "modules": {
     "dashboard": {
-      "entry": "demo-v2/mfe/dashboard/remote.js?v=mv60lrwl",
+      "entry": "demo-v2/mfe/dashboard/remote.js?v=mvixv57k",
       "routes": [
         "overview",
         "meta"
@@ -13,7 +13,7 @@
       ]
     },
     "workspace": {
-      "entry": "demo-v2/mfe/workspace/remote.js?v=mv60lrwl",
+      "entry": "demo-v2/mfe/workspace/remote.js?v=mvixv57k",
       "routes": [
         "tournaments",
         "manage",
@@ -30,7 +30,7 @@
       ]
     },
     "studio": {
-      "entry": "demo-v2/mfe/studio/remote.js?v=mv60lrwl",
+      "entry": "demo-v2/mfe/studio/remote.js?v=mvixv57k",
       "routes": [
         "posts"
       ],
@@ -39,14 +39,15 @@
       ]
     },
     "builder": {
-      "entry": "demo-v2/mfe/builder/remote.js?v=mv60lrwl",
+      "entry": "demo-v2/mfe/builder/remote.js?v=mvixv57k",
       "routes": [
         "builder"
       ],
       "styles": [
         "demo-v2/mfe/workspace/legacy-scoped.css",
         "shared/workspace/tools.css",
-        "shared/workspace/native.css"
+        "shared/workspace/native.css",
+        "demo-v2/mfe/builder/digimon-dashboard.css"
       ]
     }
   }

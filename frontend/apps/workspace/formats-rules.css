@@ -1,0 +1,216 @@
+.formats-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 30fr) minmax(0, 70fr);
+    gap: 22px;
+    align-items: start;
+}
+.formats-selection {
+    min-width: 0;
+}
+.formats-options {
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+}
+.formats-layout .format-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 18px;
+    border: 1px solid var(--ds-line);
+    border-radius: 9px;
+    background: var(--ds-panel);
+    color: var(--ds-text);
+}
+.format-option > div,
+.format-details-heading {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+.format-option strong {
+    font-size: 18px;
+}
+.format-option p {
+    color: var(--ds-muted);
+    line-height: 1.6;
+    font-size: 13px;
+    margin: 10px 0 0;
+}
+.formats-layout .format-option[aria-pressed='true'] {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 9%, var(--ds-panel));
+}
+.format-status {
+    display: inline-flex;
+    border: 1px solid var(--ds-line);
+    border-radius: 999px;
+    font-size: 12px;
+    padding: 6px 11px;
+    white-space: nowrap;
+}
+.format-status.defining {
+    border-color: #b98b26;
+    color: #f1c358;
+    background: #b98b2610;
+}
+.format-status.available {
+    border-color: #34754e;
+    color: #65df99;
+    background: #34754e10;
+}
+.format-details {
+    background: var(--ds-panel);
+    border: 1px solid var(--ds-line);
+    border-radius: 10px;
+    padding: 24px;
+}
+.format-details-heading {
+    justify-content: flex-start;
+}
+.format-details-heading h3 {
+    font-size: clamp(23px, 2vw, 30px);
+    margin: 0;
+}
+.format-details-heading button {
+    margin-left: auto;
+}
+.format-details > p {
+    color: var(--ds-muted);
+    line-height: 1.7;
+}
+.format-version-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 24px;
+    color: var(--ds-muted);
+    font-size: 13px;
+    margin: 18px 0;
+}
+.format-pending {
+    border: 1px solid #b98b26;
+    background: #b98b260d;
+    border-radius: 8px;
+    padding: 16px;
+    color: #f1c358;
+    line-height: 1.6;
+}
+.format-pending p {
+    margin: 6px 0 0;
+    color: var(--ds-muted);
+    font-size: 13px;
+}
+.format-details h4 {
+    font-size: 19px;
+    margin: 24px 0 14px;
+}
+.format-rules-list {
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.format-rule-row {
+    display: flex;
+    gap: 18px;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--ds-line);
+    padding: 14px;
+    font-size: 14px;
+}
+.format-rule-row:last-child {
+    border-bottom: 0;
+}
+.format-rule-row strong {
+    flex-shrink: 0;
+    font-weight: 550;
+}
+.format-rule-row > span {
+    color: var(--ds-muted);
+    text-align: right;
+    font-size: 13px;
+}
+.format-card-restrictions {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0;
+}
+.format-card-restrictions details,
+.format-history,
+.format-regulation {
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    padding: 14px;
+}
+.format-details summary {
+    cursor: pointer;
+    line-height: 1.6;
+    font-size: 14px;
+}
+.format-details details p,
+.format-details details ul {
+    color: var(--ds-muted);
+    line-height: 1.7;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+.format-regulation > div {
+    white-space: pre-wrap;
+    margin-top: 16px;
+    line-height: 1.7;
+    font-size: 14px;
+}
+.format-history {
+    margin: 20px 0;
+}
+.format-history ol {
+    padding-left: 22px;
+    margin-bottom: 0;
+}
+.format-history li {
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+.format-detail-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 18px 0 10px;
+}
+.format-detail-actions > .button {
+    flex: 1;
+    justify-content: center;
+    min-height: 46px;
+}
+.formats-mobile-select {
+    display: none !important;
+}
+@media (max-width: 780px) {
+    .formats-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+    .formats-options,
+    .formats-search {
+        display: none !important;
+    }
+    .formats-mobile-select {
+        display: grid !important;
+    }
+    .format-details {
+        padding: 16px;
+    }
+    .format-rule-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .format-rule-row > span {
+        text-align: left;
+    }
+    .format-detail-actions {
+        flex-direction: column;
+    }
+}

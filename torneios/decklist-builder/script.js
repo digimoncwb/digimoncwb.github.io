@@ -2,7 +2,7 @@
 
     // ─── Constants ────────────────────────────────────────────────────────────
 
-    const IMAGE_BASE_URL = 'https://images.digimoncard.io/images/cards/';
+    const IMAGE_BASE_URL = 'https://digimon.digilab.cards/api/card/';
     const LEGACY_IMAGE_BASE_URL = 'https://deckbuilder.egmanevents.com/card_images/digimon/';
     const DIGIMON_CARD_API_URL = 'https://digimoncard.io/api-public/search';
     const DIGIMON_ALL_CARDS_API = 'https://digimoncard.io/api-public/getAllCards';
@@ -88,7 +88,7 @@
     // ─── State ────────────────────────────────────────────────────────────────
 
     let entries = [];
-    let context = { resultId: '', deck: '', player: '', store: '', date: '', format: '' };
+    let context = { resultId: '', decklistId: '', deck: '', player: '', store: '', date: '', format: '' };
     let dragSrcIndex = -1;
 
     let cardSearchResults = [];
@@ -135,6 +135,27 @@
     }
     window.initializeDeckbuilder = initializeDeckbuilder;
     window.refreshDeckbuilderContext = applyContextFromQuery;
+    // React owns the editor UI; keep the existing catalog/image pipeline reusable.
+    window.digistatsBuilderAssets = {
+        loadCatalog,
+        details: ensureCardDetailsForZoom,
+        systemRules: () => ({ main_count: MAX_MAIN_DECK_CARDS, egg_max: MAX_DIGI_EGG_CARDS,
+            copies: MAX_COPIES_PER_CARD, banned_codes: [...BANNED_CODES],
+            limited_cards: Object.fromEntries([...RESTRICTED_CODES].map((code) => [code, 1])),
+            unlimited_codes: [...UNLIMITED_CODES], choice_groups: CHOICE_RESTRICTION_GROUPS }),
+        async exportImage(cards, metadata) {
+            entries = cards.map((card) => ({ code: card.code, count: card.qty }));
+            context = { ...context, ...metadata };
+            await hydrateCardMetadata(entries, { allowRerender: false });
+            const canvas = await buildDeckImageCanvas(entries);
+            const blob = await canvasToBlob(canvas);
+            if (!blob) throw new Error('Não foi possível gerar a imagem.');
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url; link.download = buildDeckImageFilename(); link.click();
+            URL.revokeObjectURL(url);
+        }
+    };
     if (!window.DIGISTATS_MICRO_FRONTENDS)
         document.addEventListener('DOMContentLoaded', initializeDeckbuilder);
 
@@ -190,7 +211,7 @@
         }
         if (!CATALOG_BUCKET_URL) return [];
         try {
-            const res = await fetch(CATALOG_BUCKET_URL);
+            const res = await fetch(CATALOG_BUCKET_URL, { signal: AbortSignal.timeout(20000) });
             if (!res.ok) return [];
             const data = await res.json();
             catalogCache = Array.isArray(data) ? data : [];
@@ -450,6 +471,7 @@
 
         context = {
             resultId,
+            decklistId: resultId ? '' : String(params.get('decklistId') || '').trim(),
             deck: params.get('deck') || '',
             player: params.get('player') || '',
             store: params.get('store') || '',
@@ -457,12 +479,25 @@
             format: params.get('format') || '',
         };
 
-        if (!context.resultId) {
+        entries = [];
+        cardHydrationToken++;
+        closeImportModal();
+        closeSaveWarningModal();
+        render([]);
+        setSaveStatus('');
+        if (!context.resultId && !context.decklistId) {
             setSaveStatus('Select a result in Full Results to save this decklist.', 'warn');
         }
 
         renderContextMeta(context);
         await loadExistingDecklist();
+        renderContextMeta(context);
+        if (params.get('openImport') === '1') {
+            openImportModal();
+            const url = new URL(window.location.href);
+            url.searchParams.delete('openImport');
+            window.history.replaceState(window.history.state, '', url.href);
+        }
     }
 
     function renderContextMeta(meta) {
@@ -1200,7 +1235,6 @@
         if (!code) return [];
         const encodedCode = encodeURIComponent(code);
         const guessedUrls = [
-            `${IMAGE_BASE_URL}${encodedCode}.webp`,
             `${IMAGE_BASE_URL}${encodedCode}.jpg`,
             `${LEGACY_IMAGE_BASE_URL}${encodedCode}.webp`,
             `${LEGACY_IMAGE_BASE_URL}${encodedCode}.png`,
@@ -1286,15 +1320,13 @@
 
     function getCardImageUrl(rawCode) {
         const code = normalizeDeckCode(rawCode || '');
-        return LEGACY_IMAGE_CODES.has(code)
-            ? `${LEGACY_IMAGE_BASE_URL}${code}.webp`
-            : `${IMAGE_BASE_URL}${code}.webp`;
+        return `${IMAGE_BASE_URL}${code}.jpg`;
     }
 
     function getCardZoomImageUrls(rawCode) {
         const code = normalizeDeckCode(rawCode || '');
         if (!code) return ['', ''];
-        return [`${LEGACY_IMAGE_BASE_URL}${code}.webp`, `${IMAGE_BASE_URL}${code}.webp`];
+        return [`${IMAGE_BASE_URL}${code}.jpg`, `${LEGACY_IMAGE_BASE_URL}${code}.webp`];
     }
 
     function loadImageWithCors(url) {
@@ -1979,7 +2011,7 @@
     // ─── Supabase persistence ─────────────────────────────────────────────────
 
     async function loadExistingDecklist() {
-        if (!context.resultId || !SUPABASE_URL) return false;
+        if ((!context.resultId && !context.decklistId) || !SUPABASE_URL) return false;
 
         const structured = await fetchDecklistFromStructured(context.resultId);
         if (structured) {
@@ -1990,6 +2022,8 @@
             await autoSortAndSaveIfNeeded();
             return true;
         }
+
+        if (context.decklistId) throw new Error('Não foi possível carregar o deck livre. Volte à biblioteca e tente novamente.');
 
         const legacy = await fetchDecklistFromLegacyColumn(context.resultId);
         if (!legacy?.decklistText) return false;
@@ -2002,7 +2036,7 @@
     }
 
     async function autoSortAndSaveIfNeeded() {
-        if (!context.resultId || !SUPABASE_URL) return;
+        if ((!context.resultId && !context.decklistId) || !SUPABASE_URL) return;
         if (!Array.isArray(entries) || entries.length <= 1) return;
 
         const prevOrder = entries.map((e) => e.code).join('|');
@@ -2029,13 +2063,21 @@
 
     async function fetchDecklistFromStructured(resultId) {
         try {
+            const lookup = context.decklistId
+                ? `id=eq.${encodeURIComponent(context.decklistId)}&tournament_result_id=is.null&select=id,name,format:formats(code)`
+                : `tournament_result_id=eq.${encodeURIComponent(resultId)}&select=id`;
             const decklistRes = await fetch(
-                `${SUPABASE_URL}/rest/v1/${DECKLISTS_TABLE}?tournament_result_id=eq.${encodeURIComponent(resultId)}&select=id&limit=1`,
+                `${SUPABASE_URL}/rest/v1/${DECKLISTS_TABLE}?${lookup}&limit=1`,
                 { headers },
             );
             if (!decklistRes.ok) return null;
-            const decklistId = Number((await decklistRes.json())?.[0]?.id);
+            const record = (await decklistRes.json())?.[0];
+            const decklistId = Number(record?.id);
             if (!Number.isFinite(decklistId) || decklistId <= 0) return null;
+            if (context.decklistId) {
+                context.deck = record.name || '';
+                context.format = record.format?.code || '';
+            }
 
             const cardsRes = await fetch(
                 `${SUPABASE_URL}/rest/v1/${DECKLIST_CARDS_TABLE}?decklist_id=eq.${decklistId}&select=position,card_code,qty,card_meta:${DECKLIST_CARD_META_TABLE}(card_type,card_level,is_digi_egg,is_staple)&order=position.asc`,
@@ -2093,7 +2135,7 @@
     }
 
     async function saveDecklist() {
-        if (!context.resultId) { render(['This record has no result_id to save.']); return; }
+        if (!context.resultId && !context.decklistId) { render(['Selecione uma participação ou crie um deck livre para salvar.']); return; }
         if (!SUPABASE_URL) { render(['Supabase is not configured for decklist saving.']); return; }
 
         const validation = validateAggregatedEntries(entries);
@@ -2138,30 +2180,19 @@
         const decklistId = await ensureDecklistRow(resultId);
         if (!decklistId) return false;
 
-        const delRes = await fetch(
-            `${SUPABASE_URL}/rest/v1/${DECKLIST_CARDS_TABLE}?decklist_id=eq.${decklistId}`,
-            { method: 'DELETE', headers },
-        );
-        if (!delRes.ok) {
-            const detail = await readSupabaseError(delRes);
-            throw new Error(`Failed to delete decklist cards (HTTP ${delRes.status}). ${detail}`);
-        }
-
         await upsertDecklistCardMetadata(sourceEntries);
 
         const rows = (Array.isArray(sourceEntries) ? sourceEntries : []).map((entry, i) => {
             return {
-                decklist_id: decklistId, position: i + 1,
+                position: i + 1,
                 card_code: normalizeDeckCode(entry.code),
                 qty: Math.max(1, Math.min(getMaxCopies(entry.code), Number(entry.count) || 1)),
             };
         });
-        if (!rows.length) return true;
-
-        const insRes = await fetch(`${SUPABASE_URL}/rest/v1/${DECKLIST_CARDS_TABLE}`, {
+        const insRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/replace_decklist_cards`, {
             method: 'POST',
             headers: { ...headers, 'Content-Type': 'application/json' },
-            body: JSON.stringify(rows),
+            body: JSON.stringify({ p_decklist_id: decklistId, p_cards: rows }),
         });
         if (!insRes.ok) {
             const detail = await readSupabaseError(insRes);
@@ -2243,6 +2274,7 @@
     }
 
     async function ensureDecklistRow(resultId) {
+        if (!resultId && context.decklistId) return context.decklistId;
         const existRes = await fetch(
             `${SUPABASE_URL}/rest/v1/${DECKLISTS_TABLE}?tournament_result_id=eq.${encodeURIComponent(resultId)}&select=id&limit=1`,
             { headers },
@@ -2262,6 +2294,7 @@
     }
 
     async function patchDecklistLegacy(resultId, decklistText) {
+        if (!resultId) return true;
         for (const col of ['decklist', 'decklist_link']) {
             const res = await fetch(
                 `${SUPABASE_URL}/rest/v1/tournament_results?id=eq.${encodeURIComponent(resultId)}`,
@@ -2463,7 +2496,7 @@
                 // Use limit higher than chunk size — the API may return fewer results
                 // when multiple card codes are passed as a comma-separated list.
                 const query = new URLSearchParams({ card: chunk.join(','), limit: String(chunk.length * 2) });
-                const res = await fetch(`${DIGIMON_CARD_API_URL}?${query}`);
+                const res = await fetch(`${DIGIMON_CARD_API_URL}?${query}`, { signal: AbortSignal.timeout(15000) });
                 if (!res.ok) continue;
                 const rows = await res.json();
                 if (!Array.isArray(rows)) continue;
@@ -2475,7 +2508,7 @@
             for (const code of missed) {
                 try {
                     const query = new URLSearchParams({ card: code, limit: '1' });
-                    const res = await fetch(`${DIGIMON_CARD_API_URL}?${query}`);
+                    const res = await fetch(`${DIGIMON_CARD_API_URL}?${query}`, { signal: AbortSignal.timeout(15000) });
                     if (!res.ok) continue;
                     const rows = await res.json();
                     if (Array.isArray(rows)) rows.forEach(pushRow);

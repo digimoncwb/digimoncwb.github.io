@@ -993,8 +993,7 @@
         const encodedCode = encodeURIComponent(baseCode);
         const candidates = [
             `https://digimoncardgame.fandom.com/wiki/Special:FilePath/${encodedCode}-Sample.png`,
-            `https://images.digimoncard.io/images/cards/${encodedCode}.webp`,
-            `https://images.digimoncard.io/images/cards/${encodedCode}.jpg`,
+            `https://digimon.digilab.cards/api/card/${encodedCode}.jpg`,
             `${CARD_IMAGE_BASE_URL}${encodedCode}.webp`,
             `${CARD_IMAGE_BASE_URL}${encodedCode}.png`,
             `https://card-list.prodigi.dev/images/cards/${encodedCode}.webp`,

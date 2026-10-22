@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { playerStatistics } from './player-statistics';
+import { orderListCards } from '../builder/editor-service';
 import type { MicroContext } from '../../contracts';
 import { Loader } from '../../shared/runtime';
 import { PageHeading } from '../../shared/PageHeading';
@@ -676,7 +677,15 @@ function HistoryEntry({
 }) {
     const [open, setOpen] = useState(false);
     const lists = useRecords(
-        (signal) => loadHistoryDecklists(row.id, signal),
+        async (signal) => {
+            const rows = await loadHistoryDecklists(row.id, signal);
+            return Promise.all(
+                rows.map(async (list) => ({
+                    ...list,
+                    decklist_cards: await orderListCards(list.decklist_cards || [], signal)
+                }))
+            );
+        },
         open,
         String(row.id)
     );
@@ -748,7 +757,7 @@ function HistoryEntry({
                                         .map((card) => (
                                             <figure key={card.card_code}>
                                                 <img
-                                                    src={`https://images.digimoncard.io/images/cards/${card.card_code}.webp`}
+                                                    src={`https://digimon.digilab.cards/api/card/${card.card_code}.jpg`}
                                                     alt={card.card_code}
                                                     loading="lazy"
                                                 />

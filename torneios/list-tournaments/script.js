@@ -3972,9 +3972,8 @@ function getStatisticsCardPreviewImageCandidates(code) {
     if (!encodedCode) return [];
 
     return [
-        `https://images.digimoncard.io/images/cards/${encodedCode}.webp`,
-        `https://images.digimoncard.io/images/cards/${encodedCode}.jpg`,
-        `${IMAGE_BASE_URL}${encodedCode}.webp`
+        `https://digimon.digilab.cards/api/card/${encodedCode}.jpg`,
+        `${IMAGE_BASE_URL}${encodedCode}.jpg`
     ];
 }
 

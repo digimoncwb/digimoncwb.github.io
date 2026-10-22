@@ -23,6 +23,8 @@
  *   node scripts/sync-card-metadata.js                        # only registered decklist cards
  */
 
+const { metadata: canonicalMetadata, complete, GAME_CODE } = require('./sync-builder-card-metadata');
+
 const DIGIMON_API_URL     = 'https://digimoncard.io/api-public/search';
 const DIGIMON_ALL_CARDS   = 'https://digimoncard.io/api-public/getAllCards';
 const SERIES              = 'Digimon Card Game';
@@ -165,17 +167,8 @@ async function fetchMetadataFromApi(codes, size, waitMs) {
         rows.forEach((row) => {
             const code = normalizeCode(row?.id || row?.card || '');
             if (!code) return;
-            const derived = deriveMeta(row);
-            out.push({
-                card_code:    code,
-                id:           row?.id || code,
-                name:         row?.name || code,
-                pack:         row?.pack || row?.set_name?.[0] || '',
-                color:        row?.color || '',
-                card_type:    derived.card_type,
-                card_level:   derived.card_level,
-                card_payload: row || {},
-            });
+            const derived = canonicalMetadata(row);
+            if (complete(derived)) out.push(derived);
         });
 
         if ((i + 1) % 10 === 0 || i + 1 === chunks.length) {
@@ -229,21 +222,9 @@ async function upsertCardMetadata(rows) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function deriveMeta(row) {
-    const typeRaw = String(row?.type || '').trim().toLowerCase();
-    const card_level = Number.isFinite(Number(row?.level)) ? Math.trunc(Number(row?.level)) : null;
-    let card_type = null;
-    if (typeRaw === 'digi-egg' || typeRaw === 'digitama') card_type = 'Digi-Egg';
-    else if (typeRaw === 'digimon') card_type = 'Digimon';
-    else if (typeRaw === 'tamer')   card_type = 'Tamer';
-    else if (typeRaw === 'option')  card_type = 'Option';
-    else if (typeRaw === 'dual')    card_type = 'Dual';
-    if ((card_type === 'Option' || card_type === 'Tamer' || card_type === 'Dual') && card_level === null) card_level = 0;
-    return { card_type, card_level };
-}
-
 function normalizeCode(value) {
-    return String(value || '').trim().toUpperCase();
+    const code = String(value || '').trim().toUpperCase();
+    return GAME_CODE.test(code) ? code : '';
 }
 
 function chunkArray(items, size) {

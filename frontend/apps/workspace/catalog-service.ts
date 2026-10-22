@@ -30,6 +30,7 @@ export interface HistoryRecord {
     player?: { name: string };
     decklists?: {
         id: string;
+        draft_cards?: { code: string; qty: number }[] | null;
         decklist_cards?: { card_code: string; qty: number; position: number }[];
     }[];
 }
@@ -263,10 +264,22 @@ export async function loadHistory(
         signal
     );
 }
-export function loadHistoryDecklists(resultId: string | number, signal?: AbortSignal) {
-    return request<NonNullable<HistoryRecord['decklists']>>(
-        `/rest/v1/decklists?tournament_result_id=eq.${encodeURIComponent(resultId)}&select=id,decklist_cards(card_code,qty,position)`,
+export async function loadHistoryDecklists(resultId: string | number, signal?: AbortSignal) {
+    const rows = await request<NonNullable<HistoryRecord['decklists']>>(
+        `/rest/v1/decklists?tournament_result_id=eq.${encodeURIComponent(resultId)}&select=id,draft_cards,decklist_cards(card_code,qty,position)`,
         { signal }
+    );
+    return rows.map((row) =>
+        row.draft_cards != null
+            ? {
+                  ...row,
+                  decklist_cards: row.draft_cards.map((card, index) => ({
+                      card_code: card.code,
+                      qty: card.qty,
+                      position: index + 1
+                  }))
+              }
+            : row
     );
 }
 export async function saveDeck(

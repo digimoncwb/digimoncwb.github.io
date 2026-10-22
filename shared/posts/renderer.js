@@ -54,7 +54,7 @@ const liveData = {
         return date.toISOString().slice(0, 10);
     }
 };
-function loadPostImage(src) {
+export function loadPostImage(src) {
     if (!src) return Promise.resolve(null);
     if (imageCache.has(src)) return imageCache.get(src);
     const promise = new Promise((resolve) => {
@@ -80,6 +80,63 @@ function loadPostImage(src) {
     return promise;
 }
 
+const cardImageCache = new Map();
+export function loadPostCardImage(code, src) {
+    if (!code) return loadPostImage(src);
+    if (cardImageCache.has(code)) return cardImageCache.get(code);
+    const promise = (async () => {
+        const direct = await loadPostImage(src);
+        if (direct) return direct;
+        const app = globalThis.window;
+        const storage = app?.APP_CONFIG?.SUPABASE_URL;
+        if (storage) {
+            const cached = await loadPostImage(
+                `${storage}/storage/v1/object/public/deck-images/${encodeURIComponent(code)}.webp`
+            );
+            if (cached) return cached;
+            if (typeof globalThis.fetch === 'function' && app.createSupabaseHeaders) {
+                try {
+                    const response = await globalThis.fetch(
+                        `${storage}/functions/v1/upload-card-image`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                ...app.createSupabaseHeaders(),
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ code }),
+                            signal: globalThis.AbortSignal.timeout(45000)
+                        }
+                    );
+                    if (response.ok) {
+                        const result = await response.json();
+                        const url = new globalThis.URL(result.url);
+                        if (
+                            url.origin === new globalThis.URL(storage).origin &&
+                            url.pathname.startsWith('/storage/v1/object/public/deck-images/')
+                        ) {
+                            // Avoid reusing a cached 404 from before the server copied this card.
+                            url.searchParams.set('v', String(Date.now()));
+                            const image = await loadPostImage(url.href);
+                            if (image) return image;
+                        }
+                    }
+                } catch {
+                    // Keep the legacy image as the last fallback if the cache service is unavailable.
+                }
+            }
+        }
+        return loadPostImage(
+            `https://deckbuilder.egmanevents.com/card_images/digimon/${encodeURIComponent(code)}.png`
+        );
+    })();
+    cardImageCache.set(code, promise);
+    promise.then((image) => {
+        if (!image) cardImageCache.delete(code);
+    });
+    return promise;
+}
+
 async function loadPostPortrait(src) {
     if (!src) return null;
     const code = String(src)
@@ -95,8 +152,7 @@ async function loadPostPortrait(src) {
                 `${storage}/storage/v1/object/public/deck-images/${encodeURIComponent(code)}.webp`
             );
         candidates.push(
-            `https://images.digimoncard.io/images/cards/${code}.webp`,
-            `https://images.digimoncard.io/images/cards/${code}.jpg`,
+            `https://digimon.digilab.cards/api/card/${code}.jpg`,
             `https://deckbuilder.egmanevents.com/card_images/digimon/${code}.webp`
         );
     }
@@ -107,7 +163,7 @@ async function loadPostPortrait(src) {
     return null;
 }
 
-function fitPostText(ctx, text, maxWidth, initialSize, weight = 800, minimum = 22) {
+export function fitPostText(ctx, text, maxWidth, initialSize, weight = 800, minimum = 22) {
     let size = initialSize;
     do {
         ctx.font = `${weight} ${size}px Arial, Helvetica, sans-serif`;
@@ -117,7 +173,7 @@ function fitPostText(ctx, text, maxWidth, initialSize, weight = 800, minimum = 2
     return size;
 }
 
-function paintHazard(ctx, image, x, y, size, color, opacity = 1, crop = false) {
+export function paintHazard(ctx, image, x, y, size, color, opacity = 1, crop = false) {
     if (!image) return;
     const tint = document.createElement('canvas');
     tint.width = 560;
@@ -220,7 +276,7 @@ function paintSocialIcon(ctx, name, x, y, size) {
     ctx.restore();
 }
 
-function postFooter(ctx, hazard, accent, dividerY = 1240) {
+export function postFooter(ctx, hazard, accent, dividerY = 1240) {
     const titleSize = 34;
     const subtitleBaseSize = 22;
     const brandGap = 8;

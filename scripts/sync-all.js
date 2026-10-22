@@ -17,6 +17,8 @@
  *   node scripts/sync-all.js --dry-run
  */
 
+const { metadata: canonicalMetadata, complete: metadataComplete } = require('./sync-builder-card-metadata');
+
 const DIGIMON_API_SEARCH  = 'https://digimoncard.io/api-public/search';
 const DIGIMON_ALL_CARDS   = 'https://digimoncard.io/api-public/getAllCards';
 const SERIES              = 'Digimon Card Game';
@@ -129,7 +131,7 @@ async function fetchCompleteCodesFromDb() {
     let offset = 0;
     while (true) {
         const q = new URLSearchParams({
-            select: 'card_code,name',
+            select: 'card_code,name,color,card_type,card_level,card_payload',
             order: 'card_code.asc',
             limit: String(REST_PAGE_SIZE),
             offset: String(offset),
@@ -140,9 +142,7 @@ async function fetchCompleteCodesFromDb() {
         if (!Array.isArray(batch) || !batch.length) break;
         batch.forEach(r => {
             const code = String(r?.card_code || '').trim().toUpperCase();
-            const name = String(r?.name || '').trim();
-            // Complete = has a real name (not null and not equal to the code itself)
-            if (code && name && name !== code) complete.add(code);
+            if (metadataComplete(r)) complete.add(code);
         });
         if (batch.length < REST_PAGE_SIZE) break;
         offset += REST_PAGE_SIZE;
@@ -216,21 +216,11 @@ async function fetchMetadata(codes) {
 
 function pushRow(row, result, found) {
     const code = String(row?.id || row?.card || '').trim().toUpperCase();
-    if (!code || found.has(code)) return;
+    if (!VALID_CODE_RE.test(code) || found.has(code)) return;
+    const normalized = canonicalMetadata(row);
+    if (!metadataComplete(normalized)) return;
     found.add(code);
-    const { card_type, card_level, is_digi_egg } = deriveMeta(row);
-    result.push({
-        card_code: code,
-        id: row?.id || code,
-        name: row?.name || null,
-        pack: row?.pack || code.split('-')[0] || null,
-        color: row?.color || null,
-        card_type,
-        card_level,
-        is_digi_egg,
-        card_payload: row || {},
-        updated_at: new Date().toISOString(),
-    });
+    result.push({ ...normalized, updated_at: new Date().toISOString() });
 }
 
 // ─── Step 4: upsert ───────────────────────────────────────────────────────────
@@ -319,19 +309,7 @@ async function exportCatalog() {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function deriveMeta(row) {
-    const typeRaw = String(row?.type || '').trim().toLowerCase();
-    const card_level = Number.isFinite(Number(row?.level)) && row?.level != null ? Math.trunc(Number(row.level)) : null;
-    let card_type = null;
-    if      (typeRaw === 'digi-egg' || typeRaw === 'digitama') card_type = 'Digi-Egg';
-    else if (typeRaw === 'digimon')  card_type = 'Digimon';
-    else if (typeRaw === 'tamer')    card_type = 'Tamer';
-    else if (typeRaw === 'option')   card_type = 'Option';
-    else if (typeRaw === 'dual')     card_type = 'Dual';
-    if ((card_type === 'Option' || card_type === 'Tamer' || card_type === 'Dual') && card_level === null) card_level = 0;
-    const is_digi_egg = card_type === 'Digi-Egg';
-    return { card_type, card_level, is_digi_egg };
-}
+
 
 function chunkArray(arr, size) {
     const out = [];

@@ -21,6 +21,7 @@
         "db:snapshot": "powershell -ExecutionPolicy Bypass -File scripts/export-supabase-schema.ps1",
         "cards:sync-metadata": "node scripts/sync-card-metadata.js",
         "cards:sync-metadata:apply": "node scripts/sync-card-metadata.js --update-decklist-cards",
+        "cards:sync-builder": "node scripts/sync-builder-card-metadata.js",
         "cards:sync-all": "node scripts/sync-all.js"
     },
     "devDependencies": {

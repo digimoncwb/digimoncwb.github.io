@@ -1,0 +1,45 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {readFileSync}=require('node:fs');const {PGlite}=require('@electric-sql/pglite');
+const first=readFileSync('database/migrations/20261021000000_deck_library.sql','utf8');const migration=readFileSync('database/migrations/20261021010000_deck_editor_drafts.sql','utf8');
+const resultId='20000000-0000-0000-0000-000000000001',adminId='10000000-0000-0000-0000-000000000001';
+test('Padrão backfill is idempotent, preserves releases/cards/links and explicit later modalities; drafts retain invalid cards with RLS and versioned rules',async()=>{
+    const db=new PGlite();try{
+        await db.exec(`create role anon;create role authenticated;create schema auth;
+            create function auth.role() returns text language sql stable as $$select nullif(current_setting('request.jwt.claim.role',true),'')$$;
+            create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+            grant usage on schema auth to anon,authenticated;
+            create table admin_users(user_id uuid primary key);alter table admin_users enable row level security;create policy self_admin on admin_users for select to authenticated using(user_id=auth.uid());grant select on admin_users to authenticated;insert into admin_users values('${adminId}');
+            create table formats(id bigserial primary key,code text,name text);
+            create table tournament(id bigint primary key,format_id bigint references formats,store_id uuid,tournament_date date);
+            create table decks(id bigint primary key,name text);
+            create table tournament_results(id uuid primary key,tournament_id bigint references tournament,decklist text,store_id uuid,tournament_date date);
+            create table decklists(id bigserial primary key,tournament_result_id uuid not null unique references tournament_results,source text default 'builder',updated_at timestamptz default now());
+            create table decklist_cards(id bigserial primary key,decklist_id bigint references decklists,position integer,card_code text,qty integer check(qty between 1 and 4));
+            alter table formats enable row level security;alter table decklists enable row level security;alter table decklist_cards enable row level security;
+            create policy old_formats on formats for all to public using(true) with check(true);create policy old_lists on decklists for all to anon using(true) with check(true);create policy old_cards on decklist_cards for all to anon using(true) with check(true);
+            grant select,insert,update,delete on formats,decklists,decklist_cards,tournament_results to anon;grant select on tournament to anon;grant usage,select on all sequences in schema public to anon;
+            insert into formats(code,name) values('EX13','Release');insert into tournament(id,format_id) values(1,1);insert into decks values(1,'Archetype');
+            insert into tournament_results(id,tournament_id,decklist) values('${resultId}',1,'4 BT1-010');insert into decklists(tournament_result_id) values('${resultId}');insert into decklist_cards(decklist_id,position,card_code,qty) values(1,1,'BT1-010',4);`);
+        await db.exec(first);await db.exec("insert into decklists(name,format_id) values('Legacy free',1)");
+        const before=(await db.query('select id,tournament_result_id,updated_at from decklists order by id')).rows;
+        await db.exec(migration);await db.exec(migration);
+        assert.deepEqual((await db.query('select id,tournament_result_id,updated_at from decklists order by id')).rows,before);
+        assert.equal((await db.query('select name from deck_formats')).rows[0].name,'Padrão');
+        assert.equal((await db.query('select count(*)::int n from decklists where deck_format_id=(select id from deck_formats where code=\'STANDARD\')')).rows[0].n,2);
+        assert.equal((await db.query('select format_id from tournament')).rows[0].format_id,1);
+        await db.exec("set role anon;set request.jwt.claim.role='anon'");
+        await assert.rejects(db.exec("update deck_formats set rules_text='Visitor rules'"),/permission denied/);
+        const saved=(await db.query("select save_deck_draft(2,null,'Rascunho',1,'[{\"code\":\"BT1-010\",\"qty\":55}]',0) result")).rows[0].result;
+        assert.equal(saved.draft_revision,1);assert.equal((await db.query('select draft_cards from decklists where id=2')).rows[0].draft_cards[0].qty,55);
+        await assert.rejects(db.exec("select save_deck_draft(2,null,'Overwrite',1,'[]',0)"),/outra pessoa/);
+        const tournamentDraft=(await db.query(`select save_deck_draft(1,'${resultId}','Tournament draft',1,'[{"code":"BT1-010","qty":6}]',0) result`)).rows[0].result;
+        assert.equal(tournamentDraft.draft_revision,1);assert.equal((await db.query('select decklist from tournament_results')).rows[0].decklist,'4 BT1-010');assert.equal((await db.query('select qty from decklist_cards where decklist_id=1')).rows[0].qty,4);
+        await assert.rejects(db.exec(`select copy_free_deck_to_result(2,'${resultId}',true)`),/check constraint/);assert.equal((await db.query('select qty from decklist_cards where decklist_id=1')).rows[0].qty,4);
+        await db.exec(`reset role;set role authenticated;set request.jwt.claim.role='authenticated';set request.jwt.claim.sub='${adminId}';insert into deck_formats(code,name) values('CUSTOM','Future custom');update deck_formats set validation_rules='{"main_count":40,"egg_max":4,"copies":3}',rules_status='published',change_note='Regra cadastrada pelo admin' where code='CUSTOM';`);
+        const custom=(await db.query("select id,rules_revision from deck_formats where code='CUSTOM'")).rows[0];assert.equal(custom.rules_revision,2);assert.equal((await db.query('select count(*)::int n from deck_format_rule_versions where deck_format_id=$1',[custom.id])).rows[0].n,2);
+        await assert.rejects(db.exec("insert into deck_formats(code,name,rules_status) values('INVALID','Invalid','published')"),/regras/);
+        await db.exec("reset role;set request.jwt.claim.role='service_role'");await db.query('update decklists set deck_format_id=$1 where id=2',[custom.id]);await db.exec(migration);
+        assert.equal((await db.query('select deck_format_id from decklists where id=2')).rows[0].deck_format_id,custom.id);
+        assert.equal((await db.query('select draft_cards from decklists where id=2')).rows[0].draft_cards[0].qty,55);
+        assert.equal((await db.query('select count(*)::int n from formats')).rows[0].n,1);
+    }finally{await db.close();}
+});

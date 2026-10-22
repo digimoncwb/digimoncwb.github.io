@@ -313,11 +313,13 @@ function Shell() {
                 <div id="sidebar-support" className="sidebar-support" hidden={!mobileOpen} />
             </aside>
             <main className={styles.main}>
-                <header className="topbar">
-                    <div className="breadcrumb">
-                        <strong>{sectionsLabel[route.name]}</strong>
-                    </div>
-                </header>
+                {route.name !== 'builder' && (
+                    <header className="topbar">
+                        <div className="breadcrumb">
+                            <strong>{sectionsLabel[route.name]}</strong>
+                        </div>
+                    </header>
+                )}
                 {loading && <Loader />}
                 {error && (
                     <div className={styles.failure} role="alert">

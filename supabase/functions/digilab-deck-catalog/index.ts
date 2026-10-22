@@ -264,9 +264,7 @@ async function storeCatalogImages(supabase: any, rows: JsonRecord[]) {
 async function downloadCatalogImage(bucket: any, code: string) {
     const candidates = [
         'https://digimon.digilab.cards/api/card/' + code + '.jpg',
-        bucket.getPublicUrl(code + '.webp').data.publicUrl,
-        'https://images.digimoncard.io/images/cards/' + code + '.webp',
-        'https://images.digimoncard.io/images/cards/' + code + '.jpg'
+        bucket.getPublicUrl(code + '.webp').data.publicUrl
     ];
     for (const url of candidates) {
         try {

@@ -30,6 +30,7 @@ for (const [save, next, formId, statusId] of [
             if (id.endsWith('Modal'))
                 return { querySelector: (selector) => field(selector.slice(1)) };
             if (id.endsWith('Id') || id.endsWith('OriginalCode')) return { value: '' };
+            if (['adminFormatDescription', 'adminFormatRulesText', 'adminFormatRulesUrl'].includes(id)) return { value: '' };
             return { value: 'Test', checked: false, files: [] };
         };
         let requests = 0;

@@ -54,13 +54,19 @@ test('BT24-101 portrait centers on x=220 and preserves the crop of other cards',
     }
 });
 
-function loader(fail) {
+function loader(fail, fetch) {
     const attempts = [];
     const api = vm.runInNewContext(
         fs.readFileSync('shared/posts/renderer.js', 'utf8').replace(/export /g, '') +
-            '\n({ loadPostPortrait })',
+            '\n({ loadPostPortrait, loadPostCardImage })',
         {
-            window: { APP_CONFIG: { SUPABASE_URL: 'https://storage.example' } },
+            window: {
+                APP_CONFIG: { SUPABASE_URL: 'https://storage.example' },
+                createSupabaseHeaders: () => ({ apikey: 'public-key' })
+            },
+            fetch,
+            URL,
+            AbortSignal: globalThis.AbortSignal,
             setTimeout,
             clearTimeout,
             Image: class {
@@ -74,6 +80,41 @@ function loader(fail) {
     );
     return { api, attempts };
 }
+
+test('canvas cards use the server image cache after CORS failure and reuse the loaded card', async () => {
+    let cached = false;
+    const requests = [];
+    const { api, attempts } = loader(
+        (src) => src.includes('digilab.cards') || !cached,
+        async (url, options) => {
+            requests.push({ url, code: JSON.parse(options.body).code });
+            cached = true;
+            return {
+                ok: true,
+                json: async () => ({
+                    url: 'https://storage.example/storage/v1/object/public/deck-images/BT25-001.webp'
+                })
+            };
+        }
+    );
+    const image = await api.loadPostCardImage(
+        'BT25-001',
+        'https://digimon.digilab.cards/api/card/BT25-001.jpg'
+    );
+    assert.ok(image);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, 'https://storage.example/functions/v1/upload-card-image');
+    assert.equal(requests[0].code, 'BT25-001');
+    assert.match(attempts.at(-1), /BT25-001\.webp\?v=\d+/);
+    assert.equal(
+        await api.loadPostCardImage(
+            'BT25-001',
+            'https://digimon.digilab.cards/api/card/BT25-001.jpg'
+        ),
+        image
+    );
+    assert.equal(requests.length, 1);
+});
 
 test('posts preserve the registered image when it loads for canvas', async () => {
     const { api, attempts } = loader(() => false);

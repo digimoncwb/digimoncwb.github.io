@@ -34,6 +34,8 @@ export interface Tournament {
     day: string;
     players: number;
     format: string;
+    deckFormatId?: string;
+    deckFormat?: string;
     winner: Result | null;
     podium: (Result | null)[];
     results: Result[];
@@ -52,11 +54,21 @@ export interface Format {
     created_at: string;
     is_default?: boolean;
     is_active?: boolean;
+    description?: string | null;
+    rules_text?: string | null;
+    rules_url?: string | null;
+    is_community_highlight?: boolean;
+    validation_rules?: import('./apps/builder/editor-model').FormatRules | null;
+    rules_revision?: number;
+    rules_status?: 'draft' | 'published';
+    updated_at?: string;
+    change_note?: string | null;
 }
 export interface Data {
     events: Tournament[];
     stores: Store[];
     formats: Format[];
+    deckFormats?: Format[];
     schedule: { weekday: number; store_id: string | number; is_active?: boolean }[];
 }
 export interface Snapshot {
@@ -163,6 +175,15 @@ declare global {
         openCreateTournamentModal: (date?: string) => Promise<void>;
         initializeDeckbuilder: () => Promise<void>;
         refreshDeckbuilderContext: () => Promise<void>;
+        digistatsBuilderAssets: {
+            loadCatalog(): Promise<Record<string, unknown>[]>;
+            details(code: string): Promise<Record<string, unknown>>;
+            systemRules(): import('./apps/builder/editor-model').FormatRules;
+            exportImage(
+                cards: { code: string; qty: number }[],
+                metadata: Record<string, string>
+            ): Promise<void>;
+        };
         digistatsNavigate: MicroContext['navigate'];
         restoreDashboardReturnContext: () => Promise<void>;
     }
