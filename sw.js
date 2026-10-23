@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v157';
+const CACHE_VERSION = 'v159';
 const CACHE_NAME = `digistats-${CACHE_VERSION}`;
 
 // Cache screens as they are visited, rather than downloading every tool during

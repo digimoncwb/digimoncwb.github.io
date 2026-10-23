@@ -548,7 +548,7 @@ export function FormatRulesEditor({
                                             }
                                         >
                                             <td>
-                                                <div className="format-point-card">
+                                                <div className="format-registry-card">
                                                     {cards.get(row.code.trim().toUpperCase())
                                                         ?.image && (
                                                         <img
@@ -571,7 +571,7 @@ export function FormatRulesEditor({
                                                                 row.name ||
                                                                 'Carta não encontrada'}
                                                         </strong>
-                                                        <span className="format-point-card-code">
+                                                        <span className="format-registry-card-code">
                                                             {row.code}
                                                         </span>
                                                     </span>

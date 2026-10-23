@@ -251,11 +251,9 @@ export function FormatsRulesPage({
                                             <span>Coleções · {rules.allowed_sets.join(', ')}</span>
                                         )}
                                     </div>
-                                    {ready && (
-                                        <p className="format-banlist-note">
-                                            Banlist padrão da Bandai aplicada.
-                                        </p>
-                                    )}
+                                    <p className="format-banlist-note">
+                                        Banlist padrão da Bandai aplicada.
+                                    </p>
                                     {rules.points_limit !== null && (
                                         <p className="format-points-note">
                                             Cada cópia soma pontos. Cartas fora da lista valem 0.
