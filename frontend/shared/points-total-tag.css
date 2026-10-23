@@ -1,0 +1,39 @@
+.points-total-tag {
+    --points-color: #79adff;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border: 1px solid color-mix(in srgb, var(--points-color) 50%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--points-color) 8%, var(--ds-panel, #101619));
+    color: var(--points-color) !important;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.points-total-tag[data-tone='full'] {
+    --points-color: #42d392;
+}
+.points-total-tag[data-tone='warning'] {
+    --points-color: #f6c541;
+}
+.points-total-tag[data-tone='danger'] {
+    --points-color: #ff747b;
+}
+:root.v2-tools #v2Tools :is(.deck-editor, .deck-library) .points-total-tag {
+    color: var(--points-color) !important;
+}
+[data-theme='light'] .points-total-tag {
+    --points-color: #2165b6;
+}
+[data-theme='light'] .points-total-tag[data-tone='full'] {
+    --points-color: #117344;
+}
+[data-theme='light'] .points-total-tag[data-tone='warning'] {
+    --points-color: #8a6200;
+}
+[data-theme='light'] .points-total-tag[data-tone='danger'] {
+    --points-color: #bd2638;
+}

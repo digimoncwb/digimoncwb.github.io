@@ -1002,6 +1002,8 @@
     position: absolute;
     z-index: 2;
     inset: 0;
+    display: grid;
+    place-items: center;
     opacity: 0;
     transition: opacity 120ms ease;
     pointer-events: none;
@@ -1036,16 +1038,18 @@
     left: 5px;
     width: 30px;
 }
-.ed-catalog-hover-actions .ed-card-hover-add {
-    bottom: 35px;
-    left: 0;
-    right: 0;
-    width: fit-content;
-    margin-inline: auto;
+.deck-editor .ed-catalog-hover-actions .ed-card-hover-add {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    min-height: 48px;
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
     white-space: nowrap;
-}
-.ed-catalog-art:has(.ed-card-points) .ed-card-hover-add {
-    bottom: 68px;
 }
 .ed-photo-stepper {
     display: grid;
@@ -1761,9 +1765,5 @@
     font-size: 14px;
 }
 .ed-deck-points {
-    color: #8ed3ff;
-    white-space: nowrap;
-}
-.ed-deck-points[data-over='true'] {
-    color: #f6c541;
+    font-size: inherit;
 }

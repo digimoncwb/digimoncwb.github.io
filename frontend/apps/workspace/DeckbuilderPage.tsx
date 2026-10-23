@@ -8,6 +8,7 @@ import { Portrait, StoreLogo } from '../../shared/cards';
 import { Select } from '../../shared/Select';
 import { SearchSelect } from '../../shared/SearchSelect';
 import { PointsBadge } from '../../shared/PointsBadge';
+import { PointsTotalTag } from '../../shared/PointsTotalTag';
 import { DeckColors } from '../../shared/DeckColors';
 import { Dialog, EmptyState, Pagination } from '../../shared/ListPage';
 import {
@@ -658,12 +659,11 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                                                 'Formato não informado'}
                                                         </span>
                                                         {pointsLimit != null && (
-                                                            <span
-                                                                className={`deck-library-points${points != null && points > pointsLimit ? ' is-over' : ''}`}
-                                                            >
-                                                                {points ?? '—'} / {pointsLimit}{' '}
-                                                                pontos
-                                                            </span>
+                                                            <PointsTotalTag
+                                                                className="deck-library-points"
+                                                                points={points}
+                                                                limit={pointsLimit}
+                                                            />
                                                         )}
                                                     </div>
                                                     <div className="deck-free-identity">
@@ -1177,11 +1177,11 @@ function ListPreview({
                 <div className="deck-preview-heading">
                     <h2>{preview.title}</h2>
                     {pointsLimit != null && (
-                        <span
-                            className={`deck-library-points${points != null && points > pointsLimit ? ' is-over' : ''}`}
-                        >
-                            {loading || error ? '—' : points} / {pointsLimit} pontos
-                        </span>
+                        <PointsTotalTag
+                            className="deck-library-points"
+                            points={loading || error ? null : points}
+                            limit={pointsLimit}
+                        />
                     )}
                 </div>
             }

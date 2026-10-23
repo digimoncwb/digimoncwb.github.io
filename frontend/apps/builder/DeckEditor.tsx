@@ -3,6 +3,7 @@ import type { Format, MicroContext, RouteName } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
 import { Loader } from '../../shared/runtime';
 import { PointsBadge } from '../../shared/PointsBadge';
+import { PointsTotalTag } from '../../shared/PointsTotalTag';
 import {
     aggregate,
     adjustCopies,
@@ -1528,12 +1529,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                     </strong>
                                     <span className="ed-muted">· {validation.eggs} Digi-Eggs</span>
                                     {rules.points_limit !== null && (
-                                        <span
+                                        <PointsTotalTag
                                             className="ed-deck-points"
-                                            data-over={validation.points > rules.points_limit}
-                                        >
-                                            · {validation.points} / {rules.points_limit} pontos
-                                        </span>
+                                            points={validation.points}
+                                            limit={rules.points_limit}
+                                        />
                                     )}
                                 </div>
                             )}
