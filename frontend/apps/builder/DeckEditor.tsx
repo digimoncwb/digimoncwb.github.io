@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Format, MicroContext, RouteName } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
 import { Loader } from '../../shared/runtime';
@@ -516,7 +516,8 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const [metadataAttempted, setMetadataAttempted] = useState<Set<string>>(new Set());
     const [rulesRetry, setRulesRetry] = useState(0);
     const [filters, setFilters] = useState<CatalogFilters>(emptyFilters);
-    const deferredFilters = useDeferredValue(filters);
+    // Older open tabs may retain a shared module without this named re-export.
+    const deferredFilters = React.useDeferredValue(filters);
     const [mobileTab, setMobileTab] = useState('catalog');
     const [deckView, setDeckView] = useState<'list' | 'photo'>('photo');
     const [savedSignature, setSavedSignature] = useState('');

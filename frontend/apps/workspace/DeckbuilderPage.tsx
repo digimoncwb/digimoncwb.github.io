@@ -154,7 +154,11 @@ export function DecksPage({ context }: { context: MicroContext }) {
             (!get('freeFormat') || String(deck.deck_format_id) === get('freeFormat'))
     );
     const page = Math.max(1, Number(get('page')) || 1);
-    const size = [5, 10, 20, 40, 80].includes(Number(get('size'))) ? Number(get('size')) : 5;
+    const size = [5, 10, 20, 40, 80].includes(Number(get('size')))
+        ? Number(get('size'))
+        : tab === 'free'
+          ? 20
+          : 5;
     const paging = paginate(results.items, page, size);
     const freePaging = paginate(filteredFree, page, size);
     const pointDecks = freePaging.items.filter(
@@ -886,7 +890,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                     busy={busy}
                 >
                     <form
-                        className="deck-library-form"
+                        className="deck-library-form deck-create-form"
                         onSubmit={async (e) => {
                             e.preventDefault();
                             if (busy) return;
@@ -955,16 +959,19 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                 ))}
                             </select>
                         </label>
-                        <SearchSelect
-                            label="Tipo de deck"
-                            name="archetype"
-                            required
-                            placeholder="Digite para buscar o tipo de deck"
-                            options={archetypes.map((deck) => ({
-                                value: String(deck.id),
-                                label: deck.name
-                            }))}
-                        />
+                        <div className="deck-create-type">
+                            <SearchSelect
+                                label="Tipo de deck"
+                                name="archetype"
+                                required
+                                placeholder="Busque pelo nome, ex.: Gallantmon"
+                                options={archetypes.map((deck) => ({
+                                    value: String(deck.id),
+                                    label: deck.name
+                                }))}
+                            />
+                            <p className="muted">Digite parte do nome e selecione uma sugestão.</p>
+                        </div>
                         <label>
                             Jogador (opcional)
                             <select name="creator" defaultValue="">

@@ -12,7 +12,7 @@ let adminBanListLoaded = false;
 let adminFormatsLoaded = false;
 let adminStoresLoaded = false;
 let adminWeeklyScheduleLoaded = false;
-let adminActiveTab = 'digilab';
+let adminActiveTab = 'gameformats';
 const adminListPages = {};
 
 function labelAdminList(host) {
@@ -138,7 +138,7 @@ window.initAdminPage = function () {
     adminFormatsLoaded = false;
     adminStoresLoaded = false;
     adminWeeklyScheduleLoaded = false;
-    adminActiveTab = 'digilab';
+    adminActiveTab = 'gameformats';
     setupAdminActions();
     initializeAdminAuth();
 };

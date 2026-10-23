@@ -2,7 +2,6 @@ import { useState } from 'react';
 import type { Format, MicroContext } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
 import { FormatRulesEditor } from './FormatRulesEditor';
-import { savePointAdditions } from './format-points-service';
 import './format-admin.css';
 export function DeckFormatForm({
     format,
@@ -15,19 +14,18 @@ export function DeckFormatForm({
 }) {
     const [busy, setBusy] = useState(false),
         [error, setError] = useState('');
-    const [pointsBusy, setPointsBusy] = useState(false);
     return (
         <Dialog
             title={format ? 'Editar formato de jogo' : 'Novo formato de jogo'}
             onClose={onClose}
-            busy={busy || pointsBusy}
+            busy={busy}
             wide
         >
             <form
                 className="deck-library-form deck-format-admin-form"
                 onSubmit={async (e) => {
                     e.preventDefault();
-                    if (busy || pointsBusy) return;
+                    if (busy) return;
                     setBusy(true);
                     setError('');
                     const data = new FormData(e.currentTarget);
@@ -36,17 +34,6 @@ export function DeckFormatForm({
                         const errors = String(data.get('validationErrors') || '');
                         if (errors) throw new Error(errors);
                         const rules = validation ? JSON.parse(validation) : null;
-                        if (data.get('pointsCatalogPending'))
-                            throw new Error(
-                                'Aguarde a conferência do catálogo antes de salvar a pontuação. Se houver falha de carregamento, tente novamente.'
-                            );
-                        if (
-                            data.has('published') &&
-                            (rules?.points_pending?.length || data.get('pointsCatalogPending'))
-                        )
-                            throw new Error(
-                                'Confira os códigos pendentes da pontuação antes de publicar. Você pode salvar o formato sem marcar a publicação.'
-                            );
                         const payload = {
                             code: String(data.get('code') || format?.code || '')
                                 .trim()
@@ -68,8 +55,37 @@ export function DeckFormatForm({
                             throw new Error('Entre no Admin para gerenciar os formatos de jogo.');
                         await session.refresh();
                         await session.verify();
+                        let revision: number | undefined;
+                        if (format) {
+                            const current = await session.request(
+                                `/rest/v1/deck_formats?id=eq.${encodeURIComponent(format.id)}&select=validation_rules,rules_revision`,
+                                { method: 'GET' }
+                            );
+                            if (!current.ok)
+                                throw new Error(
+                                    'Não foi possível conferir o formato antes de salvar.'
+                                );
+                            const [latest] = await current.json();
+                            if (!latest)
+                                throw new Error('Formato não encontrado. Reabra a edição.');
+                            revision = latest.rules_revision;
+                            // The independently managed registry always comes from the latest revision.
+                            payload.validation_rules = {
+                                ...rules,
+                                card_points: latest.validation_rules?.card_points || {},
+                                points_pending: latest.validation_rules?.points_pending || []
+                            };
+                        }
+                        if (
+                            payload.rules_status === 'published' &&
+                            payload.validation_rules?.points_limit != null &&
+                            payload.validation_rules?.points_pending?.length
+                        )
+                            throw new Error(
+                                'Confira os códigos pendentes na lista de pontos antes de publicar.'
+                            );
                         const response = await session.request(
-                            `/rest/v1/deck_formats${format ? `?id=eq.${encodeURIComponent(format.id)}` : ''}`,
+                            `/rest/v1/deck_formats${format ? `?id=eq.${encodeURIComponent(format.id)}&rules_revision=eq.${revision}` : ''}`,
                             {
                                 method: format ? 'PATCH' : 'POST',
                                 headers: {
@@ -90,7 +106,7 @@ export function DeckFormatForm({
                         const rows = await response.json();
                         if (!rows.length)
                             throw new Error(
-                                'O formato não foi alterado. Verifique suas permissões.'
+                                'O formato não foi alterado. Reabra a edição para conferir mudanças recentes e suas permissões.'
                             );
                         await context.data.refresh();
                         onClose();
@@ -140,23 +156,7 @@ export function DeckFormatForm({
                         placeholder="https://"
                     />
                 </label>
-                <FormatRulesEditor
-                    context={context}
-                    initial={format?.validation_rules}
-                    onAutoSavePoints={
-                        format
-                            ? async (additions) => {
-                                  setPointsBusy(true);
-                                  try {
-                                      await savePointAdditions(format.id, additions);
-                                      void context.data.refresh().catch(() => {});
-                                  } finally {
-                                      setPointsBusy(false);
-                                  }
-                              }
-                            : undefined
-                    }
-                />
+                <FormatRulesEditor initial={format?.validation_rules} />
                 <label>
                     Descrição desta alteração
                     <input
@@ -190,7 +190,7 @@ export function DeckFormatForm({
                     Destacar como formato da comunidade
                 </label>
                 {error && <p role="alert">{error}</p>}
-                <button className="button primary" disabled={busy || pointsBusy}>
+                <button className="button primary" disabled={busy}>
                     {busy ? 'Salvando…' : 'Salvar formato'}
                 </button>
             </form>

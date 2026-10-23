@@ -94,6 +94,16 @@
     margin: 0;
     font-size: 13px;
 }
+.admin-game-format-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.format-points-dialog > .muted {
+    margin: 0;
+    line-height: 1.6;
+}
 .format-points-editor {
     display: grid;
     gap: 14px;

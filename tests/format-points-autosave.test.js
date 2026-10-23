@@ -5,10 +5,10 @@ const { readFileSync } = require('node:fs');
 const { stripTypeScriptTypes } = require('node:module');
 const vm = require('node:vm');
 function setup(initial, patchResponse) {
-    const { savePointAdditions } = vm.runInNewContext(
+    const { savePointAdditions, savePointChanges } = vm.runInNewContext(
         stripTypeScriptTypes(
             readFileSync('frontend/apps/workspace/format-points-service.ts', 'utf8')
-        ).replace(/export /g, '') + '\n({savePointAdditions})'
+        ).replace(/export /g, '') + '\n({savePointAdditions,savePointChanges})'
     );
     let current = structuredClone(initial);
     const requests = [];
@@ -27,6 +27,7 @@ function setup(initial, patchResponse) {
     };
     return {
         savePointAdditions,
+        savePointChanges,
         session,
         requests,
         getCurrent: () => current,
@@ -130,4 +131,24 @@ test('Invalid scores and formats without an active points budget do not write', 
         /Ative e salve/
     );
     assert.equal(api.requests.length, 1);
+});
+
+test('Removing registry entries preserves unrelated scores, pending entries and construction rules', async () => {
+    const api = setup(initial);
+    await api.savePointChanges(12, [], ['BT1-001', 'EX6'], api.session);
+    const expected = structuredClone(initial.validation_rules);
+    delete expected.card_points['BT1-001'];
+    expected.points_pending = expected.points_pending.filter((row) => row.code !== 'EX6');
+    assert.deepEqual(api.getCurrent().validation_rules, expected);
+    assert.match(api.requests[1].path, /rules_revision=eq.8/);
+    assert.match(JSON.parse(api.requests[1].options.body).change_note, /removida/);
+});
+
+test('Failed removal retains the registry and concurrent changes are checked before retry', async () => {
+    const api = setup(initial, () => new Response('[]'));
+    await assert.rejects(
+        api.savePointChanges(12, [], ['BT1-001'], api.session),
+        /alterado durante/
+    );
+    assert.equal(api.getCurrent().validation_rules.card_points['BT1-001'].points, 5);
 });

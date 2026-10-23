@@ -113,6 +113,7 @@ export function Dialog({
     onClose,
     children,
     headerContent,
+    closeLabel = 'Cancelar',
     busy = false,
     wide = false
 }: {
@@ -120,6 +121,7 @@ export function Dialog({
     onClose(): void;
     children: ReactNode;
     headerContent?: ReactNode;
+    closeLabel?: string;
     busy?: boolean;
     wide?: boolean;
 }) {
@@ -165,9 +167,9 @@ export function Dialog({
                     className="button secondary cancel-close"
                     disabled={busy}
                     onClick={onClose}
-                    aria-label="Cancelar"
+                    aria-label={closeLabel}
                 >
-                    Cancelar
+                    {closeLabel}
                 </button>
             </header>
             <div className="list-dialog-body">{children}</div>

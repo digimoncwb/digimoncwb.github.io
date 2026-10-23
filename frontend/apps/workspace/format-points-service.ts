@@ -6,7 +6,15 @@ export async function savePointAdditions(
     additions: PointAddition[],
     session = window.digistatsAdminSession
 ) {
-    if (!additions.length) return;
+    return savePointChanges(formatId, additions, [], session);
+}
+export async function savePointChanges(
+    formatId: string | number,
+    additions: PointAddition[],
+    removedCodes: string[] = [],
+    session = window.digistatsAdminSession
+) {
+    if (!additions.length && !removedCodes.length) return;
     if (
         additions.some(
             (row) =>
@@ -34,11 +42,16 @@ export async function savePointAdditions(
     if (!format) throw new Error('Formato não encontrado. Reabra a edição e tente novamente.');
     if (format.validation_rules?.points_limit == null)
         throw new Error('Ative e salve a pontuação do formato antes de adicionar cartas.');
-    const codes = new Set(additions.map((row) => row.code));
+    const codes = new Set([...additions.map((row) => row.code), ...removedCodes]);
+    const removed = new Set(removedCodes);
     const rules: FormatRules = {
         ...format.validation_rules,
         card_points: {
-            ...format.validation_rules.card_points,
+            ...Object.fromEntries(
+                Object.entries(format.validation_rules.card_points || {}).filter(
+                    ([code]) => !removed.has(code)
+                )
+            ),
             ...Object.fromEntries(
                 additions.map((row) => [row.code, { name: row.name, points: row.points }])
             )
@@ -52,7 +65,9 @@ export async function savePointAdditions(
         headers: { 'Content-Type': 'application/json', Prefer: 'return=representation' },
         body: JSON.stringify({
             validation_rules: rules,
-            change_note: `${additions.length === 1 ? 'Carta adicionada' : `${additions.length} cartas adicionadas`} à pontuação com salvamento automático.`
+            change_note: removedCodes.length
+                ? `${removedCodes.length} carta(s) removida(s) da pontuação com salvamento automático.`
+                : `${additions.length === 1 ? 'Carta adicionada ou atualizada' : `${additions.length} cartas adicionadas ou atualizadas`} na pontuação com salvamento automático.`
         })
     });
     if (!response.ok) {

@@ -8,17 +8,35 @@
 :root.v2-tools #v2Tools .admin-list-controls input {
     flex: 1 1 200px;
     min-width: 0;
+    height: 44px;
+    min-height: 44px;
+    margin: 0;
+    box-sizing: border-box;
 }
 :root.v2-tools #v2Tools .admin-list-controls select {
     width: auto;
     min-width: 0;
+}
+:root.v2-tools #v2Tools .admin-list-controls > .site-select-control {
+    flex: 0 0 190px;
+    width: 190px;
+    max-width: 100%;
+    min-width: 0;
+}
+:root.v2-tools #v2Tools .admin-list-controls .ds-select {
+    width: 100%;
+}
+:root.v2-tools #v2Tools .admin-list-controls .format-select-trigger {
+    width: 100%;
+    min-height: 44px;
+    white-space: nowrap;
 }
 :root.v2-tools #v2Tools .admin-list-count {
     margin-left: auto;
     color: var(--ds-muted);
     font-size: 13px;
 }
-:root.v2-tools #v2Tools .admin-list-controls button {
+:root.v2-tools #v2Tools .admin-list-controls > button {
     flex: 0 0 44px;
     width: 44px;
     min-width: 44px;
@@ -245,6 +263,14 @@
     color: var(--ds-text) !important;
 }
 @media (max-width: 600px) {
+    :root.v2-tools #v2Tools .admin-list-controls > :is(input, .site-select-control) {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+    :root.v2-tools #v2Tools .admin-list-count {
+        flex: 1 1 0;
+        margin-left: 0;
+    }
     :root.v2-tools #v2Tools .admin-responsive-list thead {
         display: none;
     }

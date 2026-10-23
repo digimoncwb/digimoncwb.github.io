@@ -8,7 +8,8 @@ The shell keeps the existing sidebar and Appearance accent color.
 The default tab is tournament lists. `tab=free` opens free decks and `tab=formats`
 opens game formats and regulations. Filters, availability, sorting, page and page
 size are URL state, restored through the editor's `libraryState` return parameter.
-Tournament links retain `resultId`. The initial page size is five.
+Tournament links retain `resultId`. The initial page size is twenty for community
+decks and five for tournament lists; an explicit URL size retains the user's choice.
 The public free-deck tab and heading are labelled “Decks da Comunidade”; existing
 URLs and stored return paths retain `tab=free`.
 Community deck cards show their archetype colors and, for points formats, their
@@ -214,14 +215,18 @@ and scrollbars follow the Appearance accent. Each theme's color and name can be
 edited, and a Custom option is available. Changes are previewed before being
 applied and saved locally in the browser.
 
+The admin format list has separate “Editar formato” and “Editar pontuação” actions.
+Construction rules, publication, description and the deck points budget stay in
+the format form; the card registry has its own dialog. Saving general rules reads
+the latest registry and checks its revision, preserving independently edited scores.
 The admin points registry shows each card's thumbnail, name and immutable code.
 Only points are editable in the table; cards can be removed and re-added from the
 catalog search when their identity needs to change.
-For saved formats, confirmed individual additions and valid bulk imports save
+Confirmed individual additions, valid bulk imports, score edits on blur/Enter and removals save
 immediately with success/error feedback and retry. These writes merge into the
 latest saved points list using its rules revision, preserving unrelated rules and
-unsaved form fields. A new format must be created once before automatic point
-additions are available. Other form edits still use “Salvar formato”.
+unsaved form fields. A new format must be created once before its registry can be
+edited separately. Other form edits still use “Salvar formato”.
 
 ## Verification
 

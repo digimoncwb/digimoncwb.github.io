@@ -46,6 +46,8 @@ export function TournamentSteps({ mode, token }: { mode: 'create' | 'edit'; toke
         hosts.form.dataset.step = String(step);
         hosts.form.scrollTop = 0;
         const update = () => setRevision((value) => value + 1);
+        const observer = new MutationObserver(update);
+        observer.observe(hosts.form, { attributes: true, attributeFilter: ['aria-busy'] });
         const submit = (event: Event) => {
             if (step === 2) return;
             event.preventDefault();
@@ -55,6 +57,7 @@ export function TournamentSteps({ mode, token }: { mode: 'create' | 'edit'; toke
         hosts.form.addEventListener('change', update);
         hosts.form.addEventListener('submit', submit, true);
         return () => {
+            observer.disconnect();
             hosts.form.removeEventListener('change', update);
             hosts.form.removeEventListener('submit', submit, true);
         };
@@ -88,6 +91,7 @@ export function TournamentSteps({ mode, token }: { mode: 'create' | 'edit'; toke
             : input?.value || '—';
     };
     const rows = hosts.form.querySelectorAll('.result-row');
+    const busy = hosts.form.getAttribute('aria-busy') === 'true';
     return (
         <>
             {createPortal(
@@ -97,7 +101,7 @@ export function TournamentSteps({ mode, token }: { mode: 'create' | 'edit'; toke
                             <button
                                 type="button"
                                 key={label}
-                                disabled={index > step + 1}
+                                disabled={busy || index > step + 1}
                                 className={step === index ? 'is-active' : ''}
                                 aria-current={step === index ? 'step' : undefined}
                                 onClick={() => advance(index)}
@@ -160,6 +164,7 @@ export function TournamentSteps({ mode, token }: { mode: 'create' | 'edit'; toke
                         <button
                             type="button"
                             className="button secondary"
+                            disabled={busy}
                             onClick={() => advance(step - 1)}
                         >
                             ← Anterior
@@ -169,6 +174,7 @@ export function TournamentSteps({ mode, token }: { mode: 'create' | 'edit'; toke
                         <button
                             type="button"
                             className="button primary"
+                            disabled={busy}
                             onClick={() => advance(step + 1)}
                         >
                             {step === 0 ? 'Participantes e resultados →' : 'Revisar →'}

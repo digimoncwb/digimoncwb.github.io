@@ -1118,7 +1118,7 @@
     #v2Tools
     :is([data-step='0'], [data-step='1'])
     .modal-actions
-    :is(button[type='submit'], #btnDeleteTournament) {
+    button[type='submit'] {
     display: none !important;
 }
 :root.v2-tools body.native-v2 #v2Tools .react-tournament-step-actions {
@@ -1322,22 +1322,97 @@
     #v2Tools.tournament-editor-bridge
     :is(#createTournamentForm, #editTournamentForm)
     > .modal-actions {
+    display: flex !important;
     position: static !important;
     margin-top: 18px !important;
     flex-direction: row !important;
     align-items: center;
     flex-wrap: wrap;
-    background: #171b1e !important;
+    justify-content: flex-end;
+    gap: 10px;
+    background: transparent !important;
 }
 :root.v2-tools body.native-v2 #v2Tools.tournament-editor-bridge .modal-actions button {
     min-height: 44px !important;
     height: 44px !important;
     text-transform: none !important;
     padding: 10px 16px !important;
+    width: auto !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    line-height: 1.3;
 }
 :root.v2-tools body.native-v2 #v2Tools.tournament-editor-bridge .modal-actions {
-    padding: 16px 24px !important;
+    padding: 16px 0 0 !important;
     border-top: 1px solid var(--ds-line);
+}
+:root.v2-tools
+    body.native-v2
+    #v2Tools.tournament-editor-bridge
+    .modal-actions
+    :is(.react-tournament-step-actions, .edit-tournament-primary-actions) {
+    display: contents !important;
+    position: static !important;
+    transform: none !important;
+}
+:root.v2-tools body.native-v2 #v2Tools.tournament-editor-bridge .modal-actions .btn-cancel {
+    order: 1;
+    margin-left: auto !important;
+}
+:root.v2-tools
+    body.native-v2
+    #v2Tools.tournament-editor-bridge
+    .react-tournament-step-actions
+    .secondary {
+    order: 2;
+}
+:root.v2-tools
+    body.native-v2
+    #v2Tools.tournament-editor-bridge
+    .modal-actions
+    :is(.primary, button[type='submit']) {
+    order: 3;
+}
+:root.v2-tools
+    body.native-v2
+    #v2Tools.tournament-editor-bridge
+    .modal-actions
+    #btnDeleteTournament {
+    display: inline-flex !important;
+    order: 0;
+    position: static !important;
+    transform: none !important;
+    margin: 0 auto 0 0 !important;
+    background: transparent !important;
+    border: 1px solid #ec657180 !important;
+    color: #f47b85 !important;
+    box-shadow: none !important;
+}
+:root.v2-tools
+    body.native-v2
+    #v2Tools.tournament-editor-bridge
+    .modal-actions
+    #btnDeleteTournament:hover {
+    background: #ec657115 !important;
+}
+@media (max-width: 600px) {
+    :root.v2-tools body.native-v2 #v2Tools.tournament-editor-bridge .modal-actions button {
+        flex: 1 1 120px;
+        min-width: 0;
+        height: auto !important;
+        white-space: normal;
+    }
+    :root.v2-tools
+        body.native-v2
+        #v2Tools.tournament-editor-bridge
+        .modal-actions
+        #btnDeleteTournament {
+        flex-basis: 100%;
+        order: 4;
+        margin: 0 !important;
+    }
 }
 :root.v2-tools
     body.native-v2

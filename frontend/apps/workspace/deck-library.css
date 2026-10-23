@@ -560,6 +560,38 @@
     display: grid;
     gap: 18px;
 }
+.deck-create-form > label {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ds-muted);
+}
+.list-dialog .deck-create-form :is(.ds-select, .site-select-control, input, select) {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+}
+.deck-create-form > .muted {
+    margin: 0 0 4px;
+    line-height: 1.6;
+}
+.deck-create-type {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+.deck-create-type > p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.deck-create-form .format-select-trigger {
+    min-height: 44px;
+    font-size: 14px;
+}
 .deck-library-form label:has(input[type='checkbox']) {
     flex-direction: row;
     align-items: center;

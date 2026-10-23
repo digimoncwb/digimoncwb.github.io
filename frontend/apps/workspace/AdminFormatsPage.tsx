@@ -4,11 +4,13 @@ import { useData, Loader } from '../../shared/runtime';
 import { EmptyState } from '../../shared/ListPage';
 import { textKey } from '../builder/editor-model';
 import { DeckFormatForm } from './DeckFormatForm';
+import { FormatPointsDialog } from './FormatPointsDialog';
 
 export function AdminFormatsPage({ context }: { context: MicroContext }) {
     const { data, loading, error } = useData(context.data);
     const [query, setQuery] = useState('');
     const [editing, setEditing] = useState<Format | 'new' | null>(null);
+    const [editingPoints, setEditingPoints] = useState<Format | null>(null);
     const formats = (data.deckFormats || []).filter((format) =>
         textKey(`${format.name} ${format.code}`).includes(textKey(query))
     );
@@ -50,13 +52,24 @@ export function AdminFormatsPage({ context }: { context: MicroContext }) {
                                     {format.rules_status === 'published' ? 'Publicado' : 'Rascunho'}
                                 </p>
                             </div>
-                            <button
-                                className="button secondary"
-                                aria-label={`Editar formato ${format.name}`}
-                                onClick={() => setEditing(format)}
-                            >
-                                Editar formato
-                            </button>
+                            <div className="admin-game-format-actions">
+                                {format.validation_rules?.points_limit != null && (
+                                    <button
+                                        className="button secondary"
+                                        aria-label={`Editar pontuação ${format.name}`}
+                                        onClick={() => setEditingPoints(format)}
+                                    >
+                                        Editar pontuação
+                                    </button>
+                                )}
+                                <button
+                                    className="button secondary"
+                                    aria-label={`Editar formato ${format.name}`}
+                                    onClick={() => setEditing(format)}
+                                >
+                                    Editar formato
+                                </button>
+                            </div>
                         </article>
                     ))}
                     {!formats.length && <EmptyState>Nenhum formato encontrado.</EmptyState>}
@@ -67,6 +80,13 @@ export function AdminFormatsPage({ context }: { context: MicroContext }) {
                     context={context}
                     format={editing === 'new' ? null : editing}
                     onClose={() => setEditing(null)}
+                />
+            )}
+            {editingPoints && (
+                <FormatPointsDialog
+                    context={context}
+                    format={editingPoints}
+                    onClose={() => setEditingPoints(null)}
                 />
             )}
         </section>
