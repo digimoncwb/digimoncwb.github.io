@@ -529,7 +529,14 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                         />
                                     </div>
                                 )}
-                                {Object.values(filters).some(Boolean) && (
+                                {[
+                                    filters.query,
+                                    filters.store,
+                                    filters.format,
+                                    filters.date,
+                                    filters.tournament,
+                                    filters.tournamentId
+                                ].some(Boolean) && (
                                     <button
                                         className="deck-clear-filters"
                                         onClick={() =>
@@ -540,9 +547,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                                 date: '',
                                                 tournament: '',
                                                 tournamentId: '',
-                                                returnTournamentId: '',
-                                                status: '',
-                                                sort: ''
+                                                returnTournamentId: ''
                                             })
                                         }
                                     >
