@@ -259,13 +259,59 @@
     outline-offset: 3px;
 }
 .deck-community-notice {
-    border: 1px solid var(--library-border);
-    border-radius: 9px;
-    padding: 18px 22px;
-    background: var(--ds-panel, #10161b);
+    border: 1px solid color-mix(in srgb, var(--accent) 50%, var(--library-border));
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    padding: 24px;
+    gap: 24px;
+    background:
+        radial-gradient(
+            ellipse at top left,
+            color-mix(in srgb, var(--accent) 16%, transparent),
+            transparent 72%
+        ),
+        var(--ds-panel, #10161b);
+    box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.deck-community-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    margin-bottom: 10px;
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 9%, var(--ds-panel));
+    color: var(--accent) !important;
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.deck-community-title {
+    display: block;
+    font-size: clamp(18px, 1.5vw, 22px);
+    line-height: 1.4;
+}
+.deck-community-format-name {
+    color: var(--accent) !important;
 }
 .deck-community-notice p {
-    margin: 5px 0 0;
+    margin: 10px 0 0;
+    line-height: 1.7;
+}
+.deck-community-notice > div {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.deck-community-notice > .button {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 12px 16px;
+    white-space: nowrap;
 }
 .deck-section-heading {
     margin: 24px 0 18px;
@@ -474,7 +520,8 @@
     .deck-community-notice {
         align-items: flex-start;
         flex-direction: column;
-        padding: 16px;
+        padding: 20px;
+        gap: 18px;
     }
     .deck-library-filters,
     .deck-library-extra {

@@ -17,6 +17,7 @@ const baseKeys = [
     'egg_max',
     'security_count',
     'copies',
+    'use_official_banlist',
     'allowed_rarities',
     'points_limit',
     'card_points',
@@ -33,6 +34,7 @@ export function FormatRulesEditor({
     const [eggs, setEggs] = useState(String(initial?.egg_max ?? 5));
     const [security, setSecurity] = useState(String(initial?.security_count ?? 5));
     const [copies, setCopies] = useState(String(initial?.copies ?? 4));
+    const [officialBanlist, setOfficialBanlist] = useState(initial?.use_official_banlist ?? true);
     const [rarities, setRarities] = useState(
         (initial?.allowed_rarities || []).map(normalizeRarity)
     );
@@ -125,6 +127,7 @@ export function FormatRulesEditor({
         egg_max: Number(eggs),
         security_count: Number(security),
         copies: Number(copies),
+        use_official_banlist: officialBanlist,
         allowed_rarities: rarities,
         points_limit: scored ? Number(limit) : null,
         card_points: {},
@@ -223,6 +226,7 @@ export function FormatRulesEditor({
                             setEggs('5');
                             setSecurity('5');
                             setCopies('4');
+                            setOfficialBanlist(name !== 'DigiCrest');
                             setRarities(name === 'Pauper' ? ['C', 'U'] : []);
                             setScored(name === 'DigiCrest');
                             setLimit('100');
@@ -283,8 +287,18 @@ export function FormatRulesEditor({
                     />
                 </label>
             </div>
+            <label className="format-inline-check">
+                <input
+                    type="checkbox"
+                    checked={officialBanlist}
+                    onChange={(event) => setOfficialBanlist(event.target.checked)}
+                />
+                Usar banlist oficial da Bandai
+            </label>
             <p className="muted">
-                A banlist e os limites específicos cadastrados no sistema continuam valendo.
+                {officialBanlist
+                    ? 'Aplica cartas proibidas, limites específicos e combinações restritas da banlist oficial, além das regras deste formato.'
+                    : 'Aplica as regras deste formato, incluindo sua pontuação e restrições próprias. O limite geral de cópias e as exceções das cartas continuam valendo.'}
             </p>
             <fieldset>
                 <legend>Raridades permitidas</legend>

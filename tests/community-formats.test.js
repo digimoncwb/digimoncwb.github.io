@@ -9,7 +9,7 @@ function setup() {
             /export /g,
             ''
         ) +
-            '\n({normalizeCard,normalizeRarity,effectiveRules,validateDeck,cardEligibility,pendingFormatRules})'
+            '\n({normalizeCard,normalizeRarity,effectiveRules,validateDeck,cardEligibility,pendingFormatRules,adjustCopies,copyLimit})'
     );
     const entries = Array.from({ length: 50 }, (_, i) => ({
         code: `BT1-${String(i + 1).padStart(3, '0')}`,
@@ -29,6 +29,47 @@ function setup() {
     );
     return { api, entries, cards };
 }
+test('Official banlist is enabled by default and can be disabled without removing format restrictions or point budgets', () => {
+    const { api, entries, cards } = setup();
+    const base = {
+        banned_codes: [entries[0].code],
+        limited_cards: { [entries[1].code]: 1 },
+        choice_groups: [[entries[2].code, entries[3].code]],
+        unlimited_codes: ['BT6-085']
+    };
+    let rules = api.effectiveRules(base, {});
+    assert.equal(rules.use_official_banlist, true);
+    assert.equal(api.validateDeck(entries, cards, rules, true).valid, false);
+    rules = api.effectiveRules(base, { use_official_banlist: false, points_limit: 100 });
+    assert.equal(rules.use_official_banlist, false);
+    assert.equal(rules.banned_codes.length, 0);
+    assert.equal(rules.limited_cards[entries[1].code], undefined);
+    assert.equal(rules.choice_groups.length, 0);
+    assert.ok(rules.unlimited_codes.includes('BT6-085'));
+    assert.equal(rules.copies, 4);
+    assert.equal(api.copyLimit(entries[0].code, rules), 4);
+    assert.equal(api.copyLimit(entries[1].code, rules), 4);
+    let added = [];
+    for (let i = 0; i < 5; i++) added = api.adjustCopies(added, entries[0].code, 1, rules);
+    assert.equal(added[0].qty, 4);
+    assert.equal(api.validateDeck(entries, cards, rules, true).valid, true);
+    rules = api.effectiveRules(base, {
+        use_official_banlist: false,
+        points_limit: 100,
+        card_points: { [entries[0].code]: { name: 'Point card', points: 101 } },
+        banned_codes: [entries[4].code],
+        limited_cards: { [entries[5].code]: 2 },
+        choice_groups: [[entries[6].code, entries[7].code]]
+    });
+    assert.ok(rules.banned_codes.includes(entries[4].code));
+    assert.equal(rules.limited_cards[entries[5].code], 2);
+    assert.equal(rules.choice_groups.length, 1);
+    const result = api.validateDeck(entries, cards, rules, true);
+    assert.equal(result.valid, false);
+    assert.ok(result.issues.some((issue) => issue.id === 'points'));
+    rules = api.effectiveRules(base, { use_official_banlist: true, choice_groups: [] });
+    assert.equal(rules.choice_groups.length, 1);
+});
 test('Pauper accepts only confirmed C/U rarities, including aliases and Digi-Eggs, and preserves invalid cards', () => {
     const { api, entries, cards } = setup();
     const rules = api.effectiveRules({}, { allowed_rarities: ['C', 'U'] });

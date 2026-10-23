@@ -273,6 +273,76 @@ test('Community format seed, typed rules, admin permissions and history are idem
             'utf8'
         );
         await db.exec(rarityMigration);
+        const banlistMigration = readFileSync(
+            'database/migrations/20261023050000_optional_official_banlist.sql',
+            'utf8'
+        );
+        const beforeBanlist = (
+            await db.query('select code,validation_rules from deck_formats order by code')
+        ).rows;
+        await db.exec(banlistMigration);
+        for (const row of beforeBanlist) {
+            const after = (
+                await db.query('select validation_rules from deck_formats where code=$1', [
+                    row.code
+                ])
+            ).rows[0].validation_rules;
+            assert.deepEqual(after, {
+                ...row.validation_rules,
+                use_official_banlist: row.code !== 'DIGICREST'
+            });
+        }
+        assert.equal(
+            (
+                await db.query(
+                    `select valid_format_rules('{"use_official_banlist":true}'),valid_format_rules('{"use_official_banlist":false}') as disabled`
+                )
+            ).rows[0].disabled,
+            true
+        );
+        assert.equal(
+            (
+                await db.query(
+                    `select valid_format_rules('{"use_official_banlist":"false"}') as valid`
+                )
+            ).rows[0].valid,
+            false
+        );
+        assert.equal(
+            (await db.query(`select valid_format_rules('{"use_official_banlist":null}') as valid`))
+                .rows[0].valid,
+            false
+        );
+        await db.exec(
+            `update deck_formats set validation_rules=jsonb_set(validation_rules,'{use_official_banlist}','true') where code='DIGICREST'`
+        );
+        const chosen = (
+            await db.query(
+                'select code,validation_rules,rules_revision from deck_formats order by code'
+            )
+        ).rows;
+        await db.exec(banlistMigration);
+        assert.deepEqual(
+            (
+                await db.query(
+                    'select code,validation_rules,rules_revision from deck_formats order by code'
+                )
+            ).rows,
+            chosen
+        );
+        await db.exec(
+            `insert into deck_formats(code,name,validation_rules) values('BANDEFAULT','Default','{}'),('BANOFF','Off','{"use_official_banlist":false}')`
+        );
+        assert.equal(
+            (await db.query(`select validation_rules from deck_formats where code='BANDEFAULT'`))
+                .rows[0].validation_rules.use_official_banlist,
+            true
+        );
+        assert.equal(
+            (await db.query(`select validation_rules from deck_formats where code='BANOFF'`))
+                .rows[0].validation_rules.use_official_banlist,
+            false
+        );
         assert.deepEqual(
             (
                 await db.query(

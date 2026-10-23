@@ -3,6 +3,7 @@ export interface FormatRules {
     egg_max?: number;
     security_count?: number;
     copies?: number;
+    use_official_banlist?: boolean;
     banned_codes?: string[];
     limited_cards?: Record<string, number>;
     unlimited_codes?: string[];
@@ -154,38 +155,54 @@ export function effectiveRules(
     base: FormatRules,
     custom?: FormatRules | null
 ): Required<FormatRules> {
+    const useOfficialBanlist = custom?.use_official_banlist ?? base.use_official_banlist ?? true;
+    const inherited = {
+        ...base,
+        banned_codes: useOfficialBanlist ? base.banned_codes || [] : [],
+        limited_cards: useOfficialBanlist ? base.limited_cards || {} : {},
+        choice_groups: useOfficialBanlist ? base.choice_groups || [] : []
+    };
     const rules: Required<FormatRules> = {
         main_count: 50,
         egg_max: 5,
         security_count: 5,
         copies: 4,
-        banned_codes: [],
-        limited_cards: {},
+        use_official_banlist: useOfficialBanlist,
         unlimited_codes: [],
         allowed_colors: [],
         allowed_sets: [],
-        choice_groups: [],
         allowed_rarities: [],
         points_limit: null,
         card_points: {},
         points_pending: [],
-        ...base,
+        ...inherited,
         ...custom
     };
-    // A format can add restrictions, but it cannot silently remove the system banlist.
-    rules.banned_codes = [
-        ...new Set([...(base.banned_codes || []), ...(custom?.banned_codes || [])])
-    ];
-    rules.limited_cards = { ...base.limited_cards, ...custom?.limited_cards };
-    for (const [code, limit] of Object.entries(base.limited_cards || {}))
+    // Official restrictions are inherited only when enabled for this format.
+    rules.banned_codes = [...new Set([...inherited.banned_codes, ...(custom?.banned_codes || [])])];
+    rules.limited_cards = { ...inherited.limited_cards, ...custom?.limited_cards };
+    for (const [code, limit] of Object.entries(inherited.limited_cards))
         rules.limited_cards[code] = Math.min(limit, rules.limited_cards[code] ?? limit);
+    rules.choice_groups = [
+        ...new Map(
+            [...inherited.choice_groups, ...(custom?.choice_groups || [])].map((group) => [
+                [...new Set(group)].sort().join('|'),
+                group
+            ])
+        ).values()
+    ];
+    rules.unlimited_codes = [
+        ...new Set([...(base.unlimited_codes || []), ...(custom?.unlimited_codes || [])])
+    ];
     return rules;
 }
 export function cardPoints(code: string, rules: Required<FormatRules>) {
     return rules.card_points[code]?.points ?? 0;
 }
 export function formatSpecificRestrictions(base: FormatRules, custom?: FormatRules | null) {
-    const general = effectiveRules(base);
+    const general = effectiveRules(base, {
+        use_official_banlist: custom?.use_official_banlist ?? base.use_official_banlist ?? true
+    });
     const rules = effectiveRules(base, custom);
     const groupKey = (codes: string[]) => [...new Set(codes)].sort().join('|');
     const baseGroups = new Set(general.choice_groups.map(groupKey));

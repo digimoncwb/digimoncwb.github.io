@@ -96,7 +96,8 @@ A format association alone never implies a valid deck.
 Administrators maintain descriptions, regulations, URLs, publication status and
 structured `validation_rules` through the formats tab. RLS restricts these writes
 to authorized administrators. Rule edits increment revisions and create entries in
-`deck_format_rule_versions`. Public views expose history, revision and update date.
+`deck_format_rule_versions`. History, revision and update date are omitted from
+the public summary.
 
 The format details page and editor share `effectiveRules`, the central configuration
 and the existing system ban/restriction list. Unpublished or incomplete regulations
@@ -135,14 +136,20 @@ Creation and editing live only inside the authenticated Admin area. The public
 **Formatos e regras** page remains read-only, including for signed-in administrators.
 The structured form configures deck sizes, copy limits, allowed rarities and an
 optional point budget. Existing administrator permissions and rule version history
-apply to these changes. The system banlist remains effective for custom formats.
+apply to these changes. Administrators can toggle “Usar banlist oficial da Bandai”
+for each format. It defaults to enabled; DigiCrest uses its point budget with the
+official banlist disabled. Bans, specific limits and restricted combinations are
+inherited only when enabled. The format's own restrictions, copy cap and printed
+card exceptions remain effective in both modes. The public summary shows the
+official banlist note only when enabled.
 
 Pauper permits only C and U cards, with 50 main cards, up to five Digi-Eggs and
 four copies unless the banlist specifies a lower limit. Unknown rarity is a
 validation issue; run `npm run cards:sync-builder -- --rarities --apply` to repair
 missing rarities from verified metadata.
 
-DigiCrest uses the same construction limits and a budget of 100 points inclusive.
+DigiCrest uses the same construction limits and a budget of 100 points inclusive,
+without the official banlist.
 Each copy, including Digi-Eggs, contributes its registered score; unlisted cards
 cost zero. The editor displays per-copy point circles and a running total in both
 photo and list views. Generated deck images include point circles and the total.
@@ -174,6 +181,10 @@ the erroneous RC metadata to R and prevents that known import error from returni
 The public format summary uses compact metric cards and shows only restrictions
 additional to the shared Bandai banlist. Rule history, revisions and update dates
 are omitted from this view. Version history remains stored for administration.
+
+Apply `20261023050000_optional_official_banlist.sql` to enable the per-format
+banlist setting. It defaults existing formats to enabled and DigiCrest to disabled,
+preserving points, other rules and later explicit administrator changes.
 
 ## Appearance and point registry
 

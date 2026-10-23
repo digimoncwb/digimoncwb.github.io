@@ -344,14 +344,33 @@ export function DecksPage({ context }: { context: MicroContext }) {
                         {tab === 'tournaments' && highlight && (
                             <aside className="deck-community-notice">
                                 <div>
-                                    <strong>Conheça o novo formato da comunidade</strong>
+                                    <span className="deck-community-badge">
+                                        <svg
+                                            width="14"
+                                            height="14"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.8"
+                                            aria-hidden="true"
+                                        >
+                                            <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+                                        </svg>
+                                        Novidade
+                                    </span>
+                                    <strong className="deck-community-title">
+                                        Conheça o novo formato da comunidade - formato{' '}
+                                        <span className="deck-community-format-name">
+                                            {highlight.name}
+                                        </span>
+                                    </strong>
                                     <p className="muted">
                                         {highlight.description ||
                                             'Consulte as regras antes de montar sua lista.'}
                                     </p>
                                 </div>
                                 <button
-                                    className="button secondary"
+                                    className="button primary"
                                     onClick={() => {
                                         update({
                                             tab: 'formats',
