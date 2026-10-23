@@ -382,35 +382,44 @@ export interface CatalogFilters {
     set: string;
     permitted: boolean;
 }
+// Metadata updates replace card objects, allowing normalized search text to be reused.
+const catalogSearchText = new WeakMap<Card, string>();
+function searchableCardText(card: Card) {
+    let text = catalogSearchText.get(card);
+    if (text === undefined) {
+        text = textKey(
+            [
+                card.name,
+                card.code,
+                card.payload.main_effect,
+                card.payload.source_effect,
+                card.payload.digi_type
+            ].join(' ')
+        );
+        catalogSearchText.set(card, text);
+    }
+    return text;
+}
 export function filterCatalog(
     cards: Card[],
     filters: CatalogFilters,
     rules: Required<FormatRules>
 ) {
     const query = textKey(filters.query);
+    const set = textKey(filters.set);
+    const rarities = (filters.rarities || []).map(normalizeRarity);
     return cards.filter(
         (card) =>
-            (!query ||
-                textKey(
-                    [
-                        card.name,
-                        card.code,
-                        card.payload.main_effect,
-                        card.payload.source_effect,
-                        card.payload.digi_type
-                    ].join(' ')
-                ).includes(query)) &&
+            (!query || searchableCardText(card).includes(query)) &&
             (!filters.color || card.colors.includes(filters.color)) &&
             (!filters.color2 || card.colors.includes(filters.color2)) &&
             (!filters.colors?.length ||
                 filters.colors.some((color) => card.colors.includes(color))) &&
-            (!filters.rarities?.length ||
-                filters.rarities.map(normalizeRarity).includes(normalizeRarity(card.rarity))) &&
+            (!rarities.length || rarities.includes(normalizeRarity(card.rarity))) &&
             (!filters.type || card.type === filters.type) &&
             (!filters.level || String(card.level) === filters.level) &&
             (!filters.cost || String(card.cost) === filters.cost) &&
-            (!textKey(filters.set) ||
-                textKey(card.code.split('-')[0]).includes(textKey(filters.set))) &&
+            (!set || textKey(card.code.split('-')[0]).includes(set)) &&
             (!filters.permitted || !cardEligibility(card, rules))
     );
 }

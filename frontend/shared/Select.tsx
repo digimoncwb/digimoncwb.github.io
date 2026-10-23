@@ -52,9 +52,18 @@ export function Select({
         0,
         options.findIndex((option) => option.value === value)
     );
+    function focusOption(option?: HTMLButtonElement) {
+        const menu = list.current;
+        if (!option || !menu) return;
+        option.focus({ preventScroll: true });
+        const bottom = option.offsetTop + option.offsetHeight;
+        if (option.offsetTop < menu.scrollTop) menu.scrollTop = option.offsetTop;
+        else if (bottom > menu.scrollTop + menu.clientHeight)
+            menu.scrollTop = bottom - menu.clientHeight;
+    }
     useEffect(() => {
         if (!open) return;
-        list.current?.querySelectorAll<HTMLButtonElement>('[role="option"]')[selected]?.focus();
+        focusOption(list.current?.querySelectorAll<HTMLButtonElement>('[role="option"]')[selected]);
         const outside = (event: PointerEvent) => {
             if (
                 !root.current?.contains(event.target as Node) &&
@@ -67,7 +76,7 @@ export function Select({
     }, [open, selected]);
     function close() {
         setOpen(false);
-        trigger.current?.focus();
+        trigger.current?.focus({ preventScroll: true });
     }
     const menu = (
         <div
@@ -102,7 +111,7 @@ export function Select({
                               : -1;
                 if (target >= 0) {
                     event.preventDefault();
-                    items[target]?.focus();
+                    focusOption(items[target]);
                 }
             }}
         >

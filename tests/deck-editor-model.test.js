@@ -144,6 +144,42 @@ function model() {
     );
     return sandbox;
 }
+test('Repeated searches retain effect and accent matching and refresh when card metadata is replaced', () => {
+    const api = model();
+    const filters = {
+        query: 'treinamento',
+        color: '',
+        color2: '',
+        type: '',
+        level: '',
+        cost: '',
+        set: '',
+        permitted: false
+    };
+    const rules = api.effectiveRules({});
+    const card = api.normalizeCard({
+        card_code: 'BT1-010',
+        name: 'Acentuação',
+        card_type: 'Digimon',
+        color: 'Red',
+        card_payload: { main_effect: 'Treinamento especial' }
+    });
+    assert.equal(api.filterCatalog([card], filters, rules).length, 1);
+    assert.equal(api.filterCatalog([card], { ...filters, query: 'ACENTUACAO' }, rules).length, 1);
+    assert.equal(api.filterCatalog([card], { ...filters, query: '' }, rules).length, 1);
+    const updated = api.normalizeCard({
+        card_code: 'BT1-010',
+        name: 'Novo nome',
+        card_type: 'Digimon',
+        color: 'Red',
+        card_payload: { main_effect: 'Outro efeito' }
+    });
+    assert.equal(api.filterCatalog([updated], filters, rules).length, 0);
+    assert.equal(
+        api.filterCatalog([updated], { ...filters, query: 'outro efeito' }, rules).length,
+        1
+    );
+});
 test('Collection accepts partial free text regardless of case or surrounding whitespace', () => {
     const api = model();
     const cards = api.mergeCatalog(

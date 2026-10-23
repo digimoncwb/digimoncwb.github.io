@@ -1,4 +1,5 @@
 import type { Tournament } from '../../contracts';
+import type { FormatRules } from '../builder/editor-model';
 import { normalizeSearch, readRows, request, type BuilderResultRecord } from './catalog-service';
 
 export interface LibraryDeck {
@@ -8,7 +9,7 @@ export interface LibraryDeck {
     updated_at: string;
     archetype_id?: string | null;
     creator_player_id?: string | null;
-    archetype?: { name: string; deck_images?: { image_url: string }[] } | null;
+    archetype?: { name: string; colors?: string; deck_images?: { image_url: string }[] } | null;
     creator?: { name: string } | null;
 }
 export interface ListCard {
@@ -106,9 +107,44 @@ export function filterParticipations(rows: Participation[], filters: LibraryFilt
 }
 export function loadLibraryDecks(signal?: AbortSignal) {
     return readRows<LibraryDeck>(
-        '/rest/v1/decklists?tournament_result_id=is.null&select=id,name,deck_format_id,updated_at,archetype_id,creator_player_id,archetype:decks(name,deck_images(image_url)),creator:players(name)&order=updated_at.desc,id.desc',
+        '/rest/v1/decklists?tournament_result_id=is.null&select=id,name,deck_format_id,updated_at,archetype_id,creator_player_id,archetype:decks(name,colors,deck_images(image_url)),creator:players(name)&order=updated_at.desc,id.desc',
         signal
     );
+}
+export function listPoints(cards: ListCard[], rules?: FormatRules | null) {
+    if (rules?.points_limit == null) return null;
+    return cards.reduce(
+        (total, card) => total + card.qty * (rules.card_points?.[card.card_code]?.points ?? 0),
+        0
+    );
+}
+export async function loadLibraryCardLists(ids: (string | number)[], signal?: AbortSignal) {
+    const result: Record<string, ListCard[]> = {};
+    for (let offset = 0; offset < ids.length; offset += 80) {
+        const rows = await readRows<{
+            id: string | number;
+            draft_cards: { code: string; qty: number }[] | null;
+            cards: ListCard[];
+        }>(
+            `/rest/v1/decklists?id=in.(${ids
+                .slice(offset, offset + 80)
+                .map((id) => encodeURIComponent(id))
+                .join(
+                    ','
+                )})&select=id,draft_cards,cards:decklist_cards(card_code,qty,position)&order=id.asc`,
+            signal
+        );
+        for (const row of rows)
+            result[String(row.id)] =
+                row.draft_cards != null
+                    ? row.draft_cards.map((card, index) => ({
+                          card_code: card.code,
+                          qty: card.qty,
+                          position: index + 1
+                      }))
+                    : row.cards || [];
+    }
+    return result;
 }
 export async function createLibraryDeck(name: string, formatId: string) {
     const rows = await request<LibraryDeck[]>('/rest/v1/decklists', {

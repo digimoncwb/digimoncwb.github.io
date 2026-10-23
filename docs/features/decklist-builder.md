@@ -9,6 +9,14 @@ The default tab is tournament lists. `tab=free` opens free decks and `tab=format
 opens game formats and regulations. Filters, availability, sorting, page and page
 size are URL state, restored through the editor's `libraryState` return parameter.
 Tournament links retain `resultId`. The initial page size is five.
+The public free-deck tab and heading are labelled “Decks da Comunidade”; existing
+URLs and stored return paths retain `tab=free`.
+Community deck cards show their archetype colors and, for points formats, their
+current per-copy total. Card lists are fetched in batches only for visible points
+decks; saved draft cards take precedence over the normalized list. List previews
+show the points total next to the title and point circles on scored cards,
+including tournament previews. Unlisted cards count as zero, and Digi-Egg copies
+contribute to the total.
 
 Availability counts use all other active filters, before availability and paging.
 Player, deck and tournament searches ignore accents. Tournament rows retain player
@@ -185,6 +193,18 @@ are omitted from this view. Version history remains stored for administration.
 Apply `20261023050000_optional_official_banlist.sql` to enable the per-format
 banlist setting. It defaults existing formats to enabled and DigiCrest to disabled,
 preserving points, other rules and later explicit administrator changes.
+Apply `20261023060000_preserve_format_banlist_choice.sql` afterward to retain the
+saved setting when older editor tabs submit rules without this field.
+
+Deck type selection offers name suggestions in the creation form and editor,
+including accent-insensitive search and keyboard selection. The editor commits a
+new type only when a suggestion is selected. Rules dialogs keep their own open
+state so opening and closing them does not rerender the complete card pool.
+The catalog keeps a continuous scroll and total count for all matching cards,
+mounting only nearby rows with measured card heights. Search updates are deferred
+behind input updates, normalized card text is cached, and catalog ordering is
+computed once per data change. Clearing or rewriting a search no longer rebuilds
+thousands of DOM elements.
 
 ## Appearance and point registry
 
@@ -197,6 +217,11 @@ applied and saved locally in the browser.
 The admin points registry shows each card's thumbnail, name and immutable code.
 Only points are editable in the table; cards can be removed and re-added from the
 catalog search when their identity needs to change.
+For saved formats, confirmed individual additions and valid bulk imports save
+immediately with success/error feedback and retry. These writes merge into the
+latest saved points list using its rules revision, preserving unrelated rules and
+unsaved form fields. A new format must be created once before automatic point
+additions are available. Other form edits still use “Salvar formato”.
 
 ## Verification
 

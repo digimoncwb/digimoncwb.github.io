@@ -371,6 +371,36 @@ test('Community format seed, typed rules, admin permissions and history are idem
             'R'
         );
         await db.exec(rarityMigration);
+        const preserveBanlist = readFileSync(
+            'database/migrations/20261023060000_preserve_format_banlist_choice.sql',
+            'utf8'
+        );
+        await db.exec(preserveBanlist);
+        await db.exec(
+            `update deck_formats set validation_rules=jsonb_set(validation_rules,'{use_official_banlist}','false') where code='DIGICREST'`
+        );
+        const pointSnapshot = (
+            await db.query(
+                `select validation_rules->'card_points' as points from deck_formats where code='DIGICREST'`
+            )
+        ).rows[0].points;
+        await db.exec(
+            `update deck_formats set validation_rules=validation_rules-'use_official_banlist' where code='DIGICREST'`
+        );
+        const preserved = (
+            await db.query(`select validation_rules from deck_formats where code='DIGICREST'`)
+        ).rows[0].validation_rules;
+        assert.equal(preserved.use_official_banlist, false);
+        assert.deepEqual(preserved.card_points, pointSnapshot);
+        await db.exec(
+            `update deck_formats set validation_rules=jsonb_set(validation_rules,'{use_official_banlist}','true') where code='DIGICREST'; update deck_formats set validation_rules=validation_rules-'use_official_banlist' where code='DIGICREST'`
+        );
+        assert.equal(
+            (await db.query(`select validation_rules from deck_formats where code='DIGICREST'`))
+                .rows[0].validation_rules.use_official_banlist,
+            true
+        );
+        await db.exec(preserveBanlist);
     } finally {
         await db.close();
     }

@@ -6,6 +6,9 @@ import { useData, Loader } from '../../shared/runtime';
 import { PageHeading } from '../../shared/PageHeading';
 import { Portrait, StoreLogo } from '../../shared/cards';
 import { Select } from '../../shared/Select';
+import { SearchSelect } from '../../shared/SearchSelect';
+import { PointsBadge } from '../../shared/PointsBadge';
+import { DeckColors } from '../../shared/DeckColors';
 import { Dialog, EmptyState, Pagination } from '../../shared/ListPage';
 import {
     loadBuilderResults,
@@ -22,6 +25,8 @@ import {
     filterParticipations,
     loadLibraryDecks,
     loadListCards,
+    loadLibraryCardLists,
+    listPoints,
     copyLibraryDeck,
     legacyCards,
     type LibraryDeck,
@@ -31,7 +36,7 @@ import {
 import './deck-library.css';
 
 const tabs = [
-    ['free', 'Decks livres'],
+    ['free', 'Decks da Comunidade'],
     ['tournaments', 'Listas de torneios'],
     ['formats', 'Formatos e regras']
 ] as const;
@@ -41,6 +46,7 @@ type Preview = {
     legacy?: string;
     params: Record<string, string>;
     participation?: Participation;
+    formatId?: string | number;
 };
 
 function ListViewIcon() {
@@ -70,6 +76,12 @@ export function DecksPage({ context }: { context: MicroContext }) {
     const get = (key: string) => params.get(key) || '';
     const [rows, setRows] = useState<BuilderResultRecord[]>([]);
     const [freeDecks, setFreeDecks] = useState<LibraryDeck[]>([]);
+    const [summaries, setSummaries] = useState<{
+        cards: Record<string, ListCard[]>;
+        loading: boolean;
+        error: string;
+    }>({ cards: {}, loading: false, error: '' });
+    const [summaryRetry, setSummaryRetry] = useState(0);
     const [archetypes, setArchetypes] = useState<DeckRecord[]>([]);
     const [players, setPlayers] = useState<PlayerRecord[]>([]);
     const [identityError, setIdentityError] = useState('');
@@ -145,6 +157,37 @@ export function DecksPage({ context }: { context: MicroContext }) {
     const size = [5, 10, 20, 40, 80].includes(Number(get('size'))) ? Number(get('size')) : 5;
     const paging = paginate(results.items, page, size);
     const freePaging = paginate(filteredFree, page, size);
+    const pointDecks = freePaging.items.filter(
+        (deck) =>
+            data.deckFormats?.find((format) => String(format.id) === String(deck.deck_format_id))
+                ?.validation_rules?.points_limit != null
+    );
+    const summaryKey =
+        tab === 'free' ? pointDecks.map((deck) => `${deck.id}:${deck.updated_at}`).join('|') : '';
+    useEffect(() => {
+        if (!summaryKey) {
+            setSummaries({ cards: {}, loading: false, error: '' });
+            return;
+        }
+        const controller = new AbortController();
+        setSummaries({ cards: {}, loading: true, error: '' });
+        loadLibraryCardLists(
+            pointDecks.map((deck) => deck.id),
+            controller.signal
+        )
+            .then((cards) => {
+                if (!controller.signal.aborted) setSummaries({ cards, loading: false, error: '' });
+            })
+            .catch(() => {
+                if (!controller.signal.aborted)
+                    setSummaries({
+                        cards: {},
+                        loading: false,
+                        error: 'Não foi possível carregar a pontuação dos decks.'
+                    });
+            });
+        return () => controller.abort();
+    }, [summaryKey, summaryRetry]);
     const additional = [filters.date, filters.tournament, filters.tournamentId].filter(
         Boolean
     ).length;
@@ -196,7 +239,8 @@ export function DecksPage({ context }: { context: MicroContext }) {
             id: item.row.decklists?.[0]?.id,
             legacy: item.row.decklist || '',
             params: editorParams(item),
-            participation: item
+            participation: item,
+            formatId: item.event.deckFormatId || undefined
         });
     };
     const shownError = tab === 'free' ? freeError : error;
@@ -392,7 +436,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                         )}
                         {tab === 'free' && (
                             <div className="deck-section-heading">
-                                <h2>Decks livres</h2>
+                                <h2>Decks da Comunidade</h2>
                                 <p className="muted">
                                     Explore e crie listas sem vínculo com torneios. Esta biblioteca
                                     pode ser editada por qualquer visitante.
@@ -571,71 +615,126 @@ export function DecksPage({ context }: { context: MicroContext }) {
                             !dataError &&
                             (tab === 'free' ? (
                                 <>
-                                    <p role="status">{filteredFree.length} decks livres</p>
+                                    <p role="status">{filteredFree.length} decks da comunidade</p>
+                                    {summaries.error && (
+                                        <p role="alert">
+                                            {summaries.error}{' '}
+                                            <button
+                                                type="button"
+                                                className="deck-clear-filters"
+                                                onClick={() =>
+                                                    setSummaryRetry((value) => value + 1)
+                                                }
+                                            >
+                                                Tentar novamente
+                                            </button>
+                                        </p>
+                                    )}
                                     <div className="deck-free-grid">
-                                        {freePaging.items.map((deck) => (
-                                            <article className="deck-format-card" key={deck.id}>
-                                                <span className="overview-eyebrow">
-                                                    {(data.deckFormats || []).find(
-                                                        (f) =>
-                                                            String(f.id) ===
-                                                            String(deck.deck_format_id)
-                                                    )?.name || 'Formato não informado'}
-                                                </span>
-                                                <div className="deck-free-identity">
-                                                    <Portrait
-                                                        image={
-                                                            deck.archetype?.deck_images?.[0]
-                                                                ?.image_url
-                                                        }
-                                                    />
-                                                    <div>
-                                                        <h3>{deck.name}</h3>
-                                                        {deck.archetype && (
-                                                            <span className="muted">
-                                                                {deck.archetype.name}
+                                        {freePaging.items.map((deck) => {
+                                            const format = data.deckFormats?.find(
+                                                (format) =>
+                                                    String(format.id) ===
+                                                    String(deck.deck_format_id)
+                                            );
+                                            const pointsLimit =
+                                                format?.validation_rules?.points_limit;
+                                            const cards = summaries.cards[String(deck.id)];
+                                            const points = cards
+                                                ? listPoints(cards, format?.validation_rules)
+                                                : null;
+                                            return (
+                                                <article
+                                                    className="deck-format-card deck-community-card"
+                                                    key={deck.id}
+                                                >
+                                                    <div className="deck-free-card-header">
+                                                        <span className="overview-eyebrow">
+                                                            {format?.name ||
+                                                                'Formato não informado'}
+                                                        </span>
+                                                        {pointsLimit != null && (
+                                                            <span
+                                                                className={`deck-library-points${points != null && points > pointsLimit ? ' is-over' : ''}`}
+                                                            >
+                                                                {points ?? '—'} / {pointsLimit}{' '}
+                                                                pontos
                                                             </span>
                                                         )}
                                                     </div>
-                                                </div>
-                                                {deck.creator && (
-                                                    <p className="muted">
-                                                        Criado por {deck.creator.name}
-                                                    </p>
-                                                )}
-                                                <p className="muted">
-                                                    Atualizado em{' '}
-                                                    {new Date(deck.updated_at).toLocaleDateString(
-                                                        'pt-BR'
-                                                    )}
-                                                </p>
-                                                <div className="deck-library-actions">
-                                                    <button
-                                                        className="button secondary"
-                                                        onClick={() =>
-                                                            setPreview({
-                                                                title: deck.name,
-                                                                id: deck.id,
-                                                                params: freeParams(deck)
-                                                            })
-                                                        }
-                                                    >
-                                                        <ListViewIcon /> Ver lista
-                                                    </button>
-                                                    <button
-                                                        className="button secondary"
-                                                        onClick={() =>
-                                                            context.navigate(
-                                                                'builder',
-                                                                freeParams(deck)
-                                                            )
-                                                        }
-                                                    >
-                                                        Editar deck
-                                                    </button>
-                                                </div>
-                                            </article>
-                                        ))}
+                                                    <div className="deck-free-identity">
+                                                        <Portrait
+                                                            image={
+                                                                deck.archetype?.deck_images?.[0]
+                                                                    ?.image_url
+                                                            }
+                                                        />
+                                                        <div>
+                                                            <h3>{deck.name}</h3>
+                                                            {deck.archetype && (
+                                                                <span className="muted deck-free-type">
+                                                                    {deck.archetype.name}
+                                                                    <DeckColors
+                                                                        colors={
+                                                                            deck.archetype.colors ||
+                                                                            archetypes.find(
+                                                                                (type) =>
+                                                                                    String(
+                                                                                        type.id
+                                                                                    ) ===
+                                                                                    String(
+                                                                                        deck.archetype_id
+                                                                                    )
+                                                                            )?.colors ||
+                                                                            ''
+                                                                        }
+                                                                    />
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="deck-free-meta">
+                                                        {deck.creator && (
+                                                            <p className="muted">
+                                                                Criado por {deck.creator.name}
+                                                            </p>
+                                                        )}
+                                                        <p className="muted">
+                                                            Atualizado em{' '}
+                                                            {new Date(
+                                                                deck.updated_at
+                                                            ).toLocaleDateString('pt-BR')}
+                                                        </p>
+                                                    </div>
+                                                    <div className="deck-library-actions">
+                                                        <button
+                                                            className="button secondary"
+                                                            onClick={() =>
+                                                                setPreview({
+                                                                    title: deck.name,
+                                                                    id: deck.id,
+                                                                    formatId: deck.deck_format_id,
+                                                                    params: freeParams(deck)
+                                                                })
+                                                            }
+                                                        >
+                                                            <ListViewIcon /> Ver lista
+                                                        </button>
+                                                        <button
+                                                            className="button secondary"
+                                                            onClick={() =>
+                                                                context.navigate(
+                                                                    'builder',
+                                                                    freeParams(deck)
+                                                                )
+                                                            }
+                                                        >
+                                                            Editar deck
+                                                        </button>
+                                                    </div>
+                                                </article>
+                                            );
+                                        })}
                                     </div>
                                     {!filteredFree.length && (
                                         <EmptyState>
@@ -839,7 +938,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                         }}
                     >
                         <p className="muted">
-                            O deck será salvo na biblioteca pública de decks livres.
+                            O deck será salvo na biblioteca pública da comunidade.
                         </p>
                         <label>
                             Nome do deck
@@ -856,17 +955,16 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                 ))}
                             </select>
                         </label>
-                        <label>
-                            Tipo de deck
-                            <select name="archetype" required defaultValue="">
-                                <option value="">Selecione um tipo de deck</option>
-                                {archetypes.map((deck) => (
-                                    <option key={deck.id} value={deck.id}>
-                                        {deck.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                        <SearchSelect
+                            label="Tipo de deck"
+                            name="archetype"
+                            required
+                            placeholder="Digite para buscar o tipo de deck"
+                            options={archetypes.map((deck) => ({
+                                value: String(deck.id),
+                                label: deck.name
+                            }))}
+                        />
                         <label>
                             Jogador (opcional)
                             <select name="creator" defaultValue="">
@@ -935,7 +1033,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                             Abrir editor de cartas →
                         </button>
                         <label>
-                            Ou copiar um deck livre
+                            Ou copiar um deck da comunidade
                             <select
                                 disabled={busy}
                                 value={source}
@@ -957,7 +1055,8 @@ export function DecksPage({ context }: { context: MicroContext }) {
                         {freeError && <p role="alert">{freeError}</p>}
                         <p className="muted">
                             As cartas serão copiadas para esta participação no formato{' '}
-                            {associate.event.deckFormat || 'Padrão'}. O deck livre será preservado.
+                            {associate.event.deckFormat || 'Padrão'}. O deck da comunidade será
+                            preservado.
                         </p>
                         {associate.hasList && (
                             <label>
@@ -1026,6 +1125,16 @@ function ListPreview({
     const [revision, setRevision] = useState(0);
     const [copyStatus, setCopyStatus] = useState('');
     const [manualCopy, setManualCopy] = useState(false);
+    const { data } = useData(context.data);
+    const format =
+        data.deckFormats?.find((format) => String(format.id) === String(preview.formatId)) ||
+        data.deckFormats?.find(
+            (format) =>
+                normalizeSearch(format.code) === normalizeSearch(preview.params.format) ||
+                normalizeSearch(format.name) === normalizeSearch(preview.params.format)
+        );
+    const pointsLimit = format?.validation_rules?.points_limit;
+    const points = listPoints(cards, format?.validation_rules);
     const clipboardText = cards.map((card) => `${card.qty} ${card.card_code}`).join('\n');
     useEffect(() => {
         const controller = new AbortController();
@@ -1053,7 +1162,23 @@ function ListPreview({
         return () => controller.abort();
     }, [preview, revision]);
     return (
-        <Dialog title={preview.title} onClose={onClose} wide>
+        <Dialog
+            title={preview.title}
+            onClose={onClose}
+            wide
+            headerContent={
+                <div className="deck-preview-heading">
+                    <h2>{preview.title}</h2>
+                    {pointsLimit != null && (
+                        <span
+                            className={`deck-library-points${points != null && points > pointsLimit ? ' is-over' : ''}`}
+                        >
+                            {loading || error ? '—' : points} / {pointsLimit} pontos
+                        </span>
+                    )}
+                </div>
+            }
+        >
             {loading ? (
                 <Loader text="Carregando lista…" />
             ) : error ? (
@@ -1080,6 +1205,17 @@ function ListPreview({
                                     >
                                         ×{card.qty}
                                     </span>
+                                    {pointsLimit != null &&
+                                        format?.validation_rules?.card_points?.[card.card_code] && (
+                                            <PointsBadge
+                                                className="deck-preview-card-points"
+                                                points={
+                                                    format.validation_rules.card_points[
+                                                        card.card_code
+                                                    ].points
+                                                }
+                                            />
+                                        )}
                                 </div>
                                 <figcaption>{card.card_code}</figcaption>
                             </figure>

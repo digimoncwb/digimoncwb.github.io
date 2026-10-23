@@ -70,6 +70,40 @@ test('Official banlist is enabled by default and can be disabled without removin
     rules = api.effectiveRules(base, { use_official_banlist: true, choice_groups: [] });
     assert.equal(rules.choice_groups.length, 1);
 });
+test('DigiCrest permits three EX8-012 copies for 90 points despite the official one-copy restriction', () => {
+    const { api, entries, cards } = setup();
+    const code = 'EX8-012';
+    cards.set(
+        code,
+        api.normalizeCard({
+            card_code: code,
+            name: 'Growlmon (X Antibody)',
+            type: 'Digimon',
+            color: 'Red',
+            rarity: 'C'
+        })
+    );
+    const base = { limited_cards: { [code]: 1 } };
+    const custom = {
+        use_official_banlist: false,
+        points_limit: 100,
+        card_points: { [code]: { name: 'Growlmon (X Antibody)', points: 30 } }
+    };
+    const rules = api.effectiveRules(base, custom);
+    const three = api.validateDeck([{ code, qty: 3 }, ...entries.slice(3)], cards, rules, true);
+    assert.equal(three.points, 90);
+    assert.equal(three.valid, true);
+    assert.equal(api.copyLimit(code, rules), 4);
+    assert.equal(api.adjustCopies([{ code, qty: 2 }], code, 1, rules)[0].qty, 3);
+    const four = api.validateDeck([{ code, qty: 4 }, ...entries.slice(4)], cards, rules, true);
+    assert.equal(four.points, 120);
+    assert.equal(four.valid, false);
+    assert.ok(four.issues.some((issue) => issue.id === 'points'));
+    assert.equal(
+        api.copyLimit(code, api.effectiveRules(base, { ...custom, use_official_banlist: true })),
+        1
+    );
+});
 test('Pauper accepts only confirmed C/U rarities, including aliases and Digi-Eggs, and preserves invalid cards', () => {
     const { api, entries, cards } = setup();
     const rules = api.effectiveRules({}, { allowed_rarities: ['C', 'U'] });

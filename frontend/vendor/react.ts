@@ -16,6 +16,7 @@ export {
     useMemo,
     useCallback,
     useContext,
-    useSyncExternalStore
+    useSyncExternalStore,
+    useDeferredValue
 } from 'react';
 export { default } from 'react';

@@ -40,6 +40,55 @@ const empty = {
     status: '',
     sort: ''
 };
+test('List point totals count every copy and Digi-Egg, use zero for unlisted cards, and stay absent for unscored formats', () => {
+    const api = model();
+    const cards = [
+        { card_code: 'EX8-012', qty: 3, position: 1 },
+        { card_code: 'BT15-003', qty: 1, position: 2 },
+        { card_code: 'EX13-001', qty: 4, position: 3 }
+    ];
+    assert.equal(
+        api.listPoints(cards, {
+            points_limit: 100,
+            card_points: {
+                'EX8-012': { name: 'Growlmon', points: 30 },
+                'BT15-003': { name: 'Nyaromon', points: 90 }
+            }
+        }),
+        180
+    );
+    assert.equal(
+        api.listPoints(cards, {
+            points_limit: 100,
+            card_points: { 'EX8-012': { name: 'Growlmon', points: 30 } }
+        }),
+        90
+    );
+    assert.equal(api.listPoints([], { points_limit: 100 }), 0);
+    assert.equal(api.listPoints(cards, {}), null);
+});
+test('Library point summaries load in a batch and prefer draft quantities, including an intentionally empty draft', async () => {
+    const api = model();
+    const requests = [];
+    api.readRows = async (path) => {
+        requests.push(path);
+        return [
+            {
+                id: 1,
+                draft_cards: [{ code: 'EX8-012', qty: 3 }],
+                cards: [{ card_code: 'EX8-012', qty: 1, position: 1 }]
+            },
+            { id: 2, draft_cards: [], cards: [{ card_code: 'EX8-012', qty: 1, position: 1 }] },
+            { id: 3, draft_cards: null, cards: [{ card_code: 'EX8-012', qty: 2, position: 1 }] }
+        ];
+    };
+    const result = await api.loadLibraryCardLists([1, 2, 3]);
+    assert.equal(requests.length, 1);
+    assert.match(requests[0], /id=in\.\(1,2,3\)/);
+    assert.equal(result['1'][0].qty, 3);
+    assert.equal(result['2'].length, 0);
+    assert.equal(result['3'][0].qty, 2);
+});
 
 test('Recent tournaments keep each event together and order its players by placement', () => {
     const api = model();

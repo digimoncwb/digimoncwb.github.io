@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { PointAddition } from './format-points-service';
 import type { MicroContext } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
 import { loadCatalog } from '../builder/editor-service';
@@ -25,10 +26,12 @@ const baseKeys = [
 ];
 export function FormatRulesEditor({
     context,
-    initial
+    initial,
+    onAutoSavePoints
 }: {
     context: MicroContext;
     initial?: FormatRules | null;
+    onAutoSavePoints?(additions: PointAddition[]): Promise<void>;
 }) {
     const [main, setMain] = useState(String(initial?.main_count ?? 50));
     const [eggs, setEggs] = useState(String(initial?.egg_max ?? 5));
@@ -73,6 +76,10 @@ export function FormatRulesEditor({
     const [selectedCode, setSelectedCode] = useState('');
     const [pointsPrompt, setPointsPrompt] = useState<Card | null>(null);
     const [newPoints, setNewPoints] = useState('');
+    const [autoSaving, setAutoSaving] = useState(false);
+    const [autoError, setAutoError] = useState('');
+    const [pendingSave, setPendingSave] = useState<PointAddition[]>([]);
+    const savingPoints = useRef(false);
     useEffect(() => {
         if (!scored) return;
         const controller = new AbortController();
@@ -185,7 +192,58 @@ export function FormatRulesEditor({
                       }
             )
         );
-    const append = (incoming: Omit<PointRow, 'key'>[]) =>
+    async function saveAdditions(incoming: Omit<PointRow, 'key'>[]) {
+        if (!onAutoSavePoints) return true;
+        if (savingPoints.current) return false;
+        if (
+            !catalogReady ||
+            incoming.some(
+                (row) =>
+                    !cards.has(row.code) ||
+                    !row.points.trim() ||
+                    !Number.isInteger(Number(row.points)) ||
+                    Number(row.points) < 0 ||
+                    Number(row.points) > 1000000
+            )
+        ) {
+            setAutoError(
+                'As adições ainda não foram salvas. Confira os códigos e os pontos da lista antes de tentar novamente.'
+            );
+            return false;
+        }
+        const additions = [
+            ...new Map(
+                [
+                    ...pendingSave,
+                    ...incoming.map((row) => ({
+                        code: row.code,
+                        name: cards.get(row.code)!.name,
+                        points: Number(row.points)
+                    }))
+                ].map((row) => [row.code, row])
+            ).values()
+        ];
+        setPendingSave(additions);
+        savingPoints.current = true;
+        setAutoSaving(true);
+        setAutoError('');
+        try {
+            await onAutoSavePoints(additions);
+            setPendingSave([]);
+            setNotice('Adições à pontuação salvas automaticamente.');
+            return true;
+        } catch (error) {
+            setAutoError(
+                `${(error as Error).message} As adições continuam na tela e ainda não foram salvas.`
+            );
+            return false;
+        } finally {
+            savingPoints.current = false;
+            setAutoSaving(false);
+        }
+    }
+    const append = async (incoming: Omit<PointRow, 'key'>[]) => {
+        if (savingPoints.current) return false;
         setRows((old) => {
             const result = [...old];
             let key = Math.max(-1, ...old.map((row) => row.key)) + 1;
@@ -200,15 +258,18 @@ export function FormatRulesEditor({
             }
             return result;
         });
-    const registerPoints = () => {
-        if (!pointsPrompt || !validNewPoints) return;
-        append([
+        return saveAdditions(incoming);
+    };
+    const registerPoints = async () => {
+        if (!pointsPrompt || !validNewPoints || savingPoints.current) return;
+        const saved = await append([
             { code: pointsPrompt.code, name: pointsPrompt.name, points: String(Number(newPoints)) }
         ]);
+        if (!saved) return;
         setQuery(pointsPrompt.code);
         setSelectedCode(pointsPrompt.code);
         setNotice(
-            `${pointsPrompt.name} · ${pointsPrompt.code}: ${Number(newPoints)} pontos por cópia.`
+            `${pointsPrompt.name} · ${pointsPrompt.code}: ${Number(newPoints)} pontos por cópia. ${onAutoSavePoints ? 'Salvo automaticamente.' : 'Salve o formato para confirmar.'}`
         );
         setPointsPrompt(null);
     };
@@ -387,8 +448,8 @@ export function FormatRulesEditor({
                         <button
                             type="button"
                             className="button secondary"
-                            disabled={!bulk.trim()}
-                            onClick={() => {
+                            disabled={!bulk.trim() || autoSaving || catalogBusy}
+                            onClick={async () => {
                                 const imported = bulk
                                     .split(/\r?\n/)
                                     .map((line) => line.trim())
@@ -420,9 +481,9 @@ export function FormatRulesEditor({
                                             points: values[values.length - 1]
                                         };
                                     });
-                                append(imported);
+                                if (!(await append(imported))) return;
                                 setNotice(
-                                    `${imported.length} linhas importadas. Confira os códigos sinalizados antes de publicar.`
+                                    `${imported.length} linhas importadas. ${onAutoSavePoints ? 'Salvas automaticamente.' : 'Salve o formato para confirmar.'}`
                                 );
                                 setBulk('');
                                 setQuery('');
@@ -448,7 +509,7 @@ export function FormatRulesEditor({
                         <button
                             type="button"
                             className="button secondary"
-                            disabled={!candidate || !catalogReady || catalogBusy}
+                            disabled={!candidate || !catalogReady || catalogBusy || autoSaving}
                             onClick={() => {
                                 if (!candidate) return;
                                 setNewPoints(
@@ -496,7 +557,11 @@ export function FormatRulesEditor({
                         <p className="muted">Nenhuma carta encontrada no catálogo.</p>
                     )}
                     {pointsPrompt && (
-                        <Dialog title="Pontuação da carta" onClose={() => setPointsPrompt(null)}>
+                        <Dialog
+                            title="Pontuação da carta"
+                            busy={autoSaving}
+                            onClose={() => setPointsPrompt(null)}
+                        >
                             <div className="format-point-prompt">
                                 <strong>
                                     {pointsPrompt.name} — {pointsPrompt.code}
@@ -510,6 +575,7 @@ export function FormatRulesEditor({
                                         max="1000000"
                                         step="1"
                                         autoFocus
+                                        disabled={autoSaving}
                                         value={newPoints}
                                         onChange={(event) => setNewPoints(event.target.value)}
                                         onKeyDown={(event) => {
@@ -524,15 +590,46 @@ export function FormatRulesEditor({
                                 <button
                                     type="button"
                                     className="button primary"
-                                    disabled={!validNewPoints}
+                                    disabled={!validNewPoints || autoSaving}
                                     onClick={registerPoints}
                                 >
-                                    {rows.some((row) => row.code === pointsPrompt.code)
-                                        ? 'Atualizar pontuação'
-                                        : 'Adicionar à pontuação'}
+                                    {autoSaving
+                                        ? 'Salvando…'
+                                        : rows.some((row) => row.code === pointsPrompt.code)
+                                          ? 'Atualizar pontuação'
+                                          : 'Adicionar à pontuação'}
                                 </button>
+                                {autoError && <p role="alert">{autoError}</p>}
                             </div>
                         </Dialog>
+                    )}
+                    {autoSaving && <p role="status">Salvando adições à pontuação…</p>}
+                    {!onAutoSavePoints && (
+                        <p className="muted">
+                            Crie o formato para ativar o salvamento automático das próximas adições.
+                        </p>
+                    )}
+                    {autoError && (
+                        <div role="alert">
+                            <p>{autoError}</p>
+                            {pendingSave.length > 0 && (
+                                <button
+                                    type="button"
+                                    className="button secondary"
+                                    disabled={autoSaving}
+                                    onClick={() =>
+                                        void saveAdditions(
+                                            pendingSave.map((row) => ({
+                                                ...row,
+                                                points: String(row.points)
+                                            }))
+                                        )
+                                    }
+                                >
+                                    Tentar salvar adições
+                                </button>
+                            )}
+                        </div>
                     )}
                     <p role="status">{notice || `${rows.length} cartas na lista`}</p>
                     <div className="format-points-table-wrap">

@@ -1,0 +1,42 @@
+.searchable-select {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+}
+.searchable-select > label {
+    margin: 0 !important;
+    line-height: 1.4;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ds-muted);
+}
+.searchable-select > input[role='combobox'] {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    border: 1px solid var(--ds-line);
+    border-radius: 9px;
+    background: var(--ds-control-bg);
+    color: var(--ds-text);
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 14px;
+}
+.searchable-select > input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.searchable-select-options {
+    z-index: 10000;
+}
+.searchable-select-options [role='option'].is-active {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.searchable-select-options > p {
+    margin: 0;
+    padding: 12px;
+    color: var(--ds-muted);
+    font-size: 13px;
+}

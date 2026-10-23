@@ -109,9 +109,10 @@
     max-width: 100%;
 }
 .ed-archetype-tag .art {
-    width: 26px;
-    height: 26px;
-    flex: 0 0 26px;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    margin-bottom: 4px;
     border-radius: 50%;
     overflow: hidden;
 }
@@ -526,10 +527,36 @@
 .ed-context-tags .ed-format-tag,
 .ed-context-tags .ed-archetype-tag {
     width: min(345px, 100%);
-    min-height: 56px;
+    min-height: 64px;
     flex-wrap: nowrap;
-    padding: 8px 10px;
+    align-items: flex-end;
+    padding: 0;
+    border: 0;
+    background: transparent;
     box-sizing: border-box;
+}
+.ed-context-tags :is(.ed-archetype-tag, .ed-format-tag) > :is(.searchable-select, .format-select) {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+}
+.deck-editor .ed-title .searchable-select input[role='combobox'] {
+    border: 1px solid var(--ed-border);
+    border-radius: 9px;
+    padding: 10px 12px;
+    background: var(--ds-control-bg);
+    font-size: 14px;
+    font-weight: 400;
+    min-height: 44px;
+}
+.ed-archetype-tag .searchable-select > label,
+.ed-format-tag .format-select-label {
+    font-size: 11px;
+    font-weight: 600;
+    margin: 0 0 0 1px;
+}
+.ed-format-tag .format-select-label {
+    margin-bottom: 8px;
 }
 .ed-tournament-header .ed-title {
     gap: 16px;
@@ -610,9 +637,12 @@
 }
 .ed-format-tag .ed-format-rules {
     flex: 0 0 auto;
-    min-height: 36px !important;
+    min-height: 44px !important;
     height: auto;
-    padding: 5px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--ed-border);
+    border-radius: 9px;
+    background: var(--ds-control-bg);
     font-size: 12px;
 }
 .deck-editor select,
@@ -643,6 +673,12 @@
     grid-template-columns: minmax(380px, 44fr) minmax(360px, 38fr) minmax(220px, 18fr);
     gap: 16px;
     align-items: start;
+}
+.ed-workspace[aria-busy='true'] {
+    align-items: stretch;
+}
+.ed-workspace[aria-busy='true'] > .ed-panel {
+    min-height: 180px;
 }
 .ed-panel {
     border: 1px solid var(--ed-border);
@@ -730,13 +766,18 @@
 }
 .ed-multi-filter details {
     position: relative;
+    height: 44px;
+    margin: 0;
 }
 .ed-multi-filter summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    min-height: 42px;
+    box-sizing: border-box;
+    min-height: 44px;
+    height: 44px;
+    margin: 0;
     border: 1px solid var(--ed-border);
     border-radius: 7px;
     background: var(--ds-bg);
@@ -856,6 +897,15 @@
 }
 .ed-catalog-card {
     min-width: 0;
+}
+.ed-virtual-catalog {
+    position: relative;
+    width: 100%;
+}
+.ed-catalog-virtual-row {
+    position: absolute;
+    left: 0;
+    right: 0;
 }
 .ed-catalog-card-caption {
     display: grid;

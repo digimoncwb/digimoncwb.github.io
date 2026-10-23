@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Format, MicroContext } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
 import { FormatRulesEditor } from './FormatRulesEditor';
+import { savePointAdditions } from './format-points-service';
 import './format-admin.css';
 export function DeckFormatForm({
     format,
@@ -14,18 +15,19 @@ export function DeckFormatForm({
 }) {
     const [busy, setBusy] = useState(false),
         [error, setError] = useState('');
+    const [pointsBusy, setPointsBusy] = useState(false);
     return (
         <Dialog
             title={format ? 'Editar formato de jogo' : 'Novo formato de jogo'}
             onClose={onClose}
-            busy={busy}
+            busy={busy || pointsBusy}
             wide
         >
             <form
                 className="deck-library-form deck-format-admin-form"
                 onSubmit={async (e) => {
                     e.preventDefault();
-                    if (busy) return;
+                    if (busy || pointsBusy) return;
                     setBusy(true);
                     setError('');
                     const data = new FormData(e.currentTarget);
@@ -138,7 +140,23 @@ export function DeckFormatForm({
                         placeholder="https://"
                     />
                 </label>
-                <FormatRulesEditor context={context} initial={format?.validation_rules} />
+                <FormatRulesEditor
+                    context={context}
+                    initial={format?.validation_rules}
+                    onAutoSavePoints={
+                        format
+                            ? async (additions) => {
+                                  setPointsBusy(true);
+                                  try {
+                                      await savePointAdditions(format.id, additions);
+                                      void context.data.refresh().catch(() => {});
+                                  } finally {
+                                      setPointsBusy(false);
+                                  }
+                              }
+                            : undefined
+                    }
+                />
                 <label>
                     Descrição desta alteração
                     <input
@@ -172,7 +190,7 @@ export function DeckFormatForm({
                     Destacar como formato da comunidade
                 </label>
                 {error && <p role="alert">{error}</p>}
-                <button className="button primary" disabled={busy}>
+                <button className="button primary" disabled={busy || pointsBusy}>
                     {busy ? 'Salvando…' : 'Salvar formato'}
                 </button>
             </form>

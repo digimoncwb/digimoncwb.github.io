@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Format, MicroContext, RouteName } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
 import { Loader } from '../../shared/runtime';
@@ -39,49 +39,72 @@ import './editor.css';
 import { DeckImageDialog } from './DeckImageDialog';
 import { loadDecks, type DeckRecord as ArchetypeRecord } from '../workspace/catalog-service';
 import { Portrait } from '../../shared/cards';
-import type { ReactNode } from 'react';
+import { SearchSelect } from '../../shared/SearchSelect';
+import { Select } from '../../shared/Select';
+import { CatalogViewport } from './CatalogViewport';
+import { createPortal } from 'react-dom';
 
-function IdentitySelect({
-    id,
-    label,
-    value,
-    selectedLabel,
-    onChange,
-    children
+function FormatRulesButton({
+    format,
+    rules,
+    pill = false
 }: {
-    id: string;
-    label: string;
-    value: string;
-    selectedLabel: string;
-    onChange(value: string): void;
-    children: ReactNode;
+    format?: Format;
+    rules: Required<FormatRules>;
+    pill?: boolean;
 }) {
+    const [open, setOpen] = useState(false);
+    const button = useRef<HTMLButtonElement>(null);
     return (
-        <div className="ed-identity-select">
-            <select
-                id={id}
-                aria-label={label}
-                title={`Alterar ${label.toLowerCase()}`}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
+        <>
+            <button
+                ref={button}
+                type="button"
+                className={pill ? undefined : 'ed-text-button ed-format-rules'}
+                title={`Ver regras de ${format?.name || 'formato'}`}
+                onClick={() => setOpen(true)}
             >
-                {children}
-            </select>
-            <span aria-hidden="true">{selectedLabel}</span>
-            <svg
-                aria-hidden="true"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-            >
-                <path d="m6 9 6 6 6-6" />
-            </svg>
-        </div>
+                {pill ? format?.name : 'Ver regras'}
+            </button>
+            {open &&
+                createPortal(
+                    <Dialog
+                        title={`Regulamento · ${format?.name || format?.code || 'Formato'}`}
+                        onClose={() => setOpen(false)}
+                        wide
+                    >
+                        <div className="ed-dialog-body">
+                            <p>{format?.description}</p>
+                            <div className="ed-rules-text">
+                                {format?.rules_text ||
+                                    (pendingFormatRules(format).length
+                                        ? 'Regulamento ainda não publicado.'
+                                        : `Deck principal: ${rules.main_count} cartas. Digi-Eggs: até ${rules.egg_max}. Limite geral: ${rules.copies} cópias por carta, respeitando as restrições cadastradas.`)}
+                            </div>
+                            {safeLink(format?.rules_url) && (
+                                <a
+                                    className="ed-button"
+                                    href={safeLink(format?.rules_url)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Abrir regulamento ↗
+                                </a>
+                            )}
+                            <p className="ed-muted">
+                                Revisão das regras: {format?.rules_revision || 1}.{' '}
+                                {format?.validation_rules
+                                    ? 'Validação com regras específicas deste formato.'
+                                    : 'Validação pelas regras gerais do sistema; nenhuma regra adicional estruturada foi cadastrada para este formato.'}
+                            </p>
+                        </div>
+                    </Dialog>,
+                    button.current?.closest('.deck-editor') || document.body
+                )}
+        </>
     );
 }
+
 function CatalogMultiSelect({
     id,
     label,
@@ -113,7 +136,7 @@ function CatalogMultiSelect({
                     if (event.key === 'Escape') {
                         event.preventDefault();
                         root.current!.open = false;
-                        root.current!.querySelector('summary')?.focus();
+                        root.current!.querySelector('summary')?.focus({ preventScroll: true });
                     }
                 }}
             >
@@ -493,6 +516,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const [metadataAttempted, setMetadataAttempted] = useState<Set<string>>(new Set());
     const [rulesRetry, setRulesRetry] = useState(0);
     const [filters, setFilters] = useState<CatalogFilters>(emptyFilters);
+    const deferredFilters = useDeferredValue(filters);
     const [mobileTab, setMobileTab] = useState('catalog');
     const [deckView, setDeckView] = useState<'list' | 'photo'>('photo');
     const [savedSignature, setSavedSignature] = useState('');
@@ -508,7 +532,6 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const [detail, setDetail] = useState<Card | null>(null);
     const [detailsBusy, setDetailsBusy] = useState(false);
     const [detailsError, setDetailsError] = useState('');
-    const [rulesOpen, setRulesOpen] = useState(false);
     const [validationOpen, setValidationOpen] = useState(false);
     const [clearOpen, setClearOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
@@ -526,7 +549,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const catalogScroll = useRef<HTMLDivElement>(null);
     useEffect(() => {
         catalogScroll.current?.scrollTo({ top: 0 });
-    }, [filters]);
+    }, [deferredFilters]);
     const alive = useRef(true);
     const currentSignature = signature(name, formatId, entries, archetypeId);
     const dirty = !loading && !error && currentSignature !== savedSignature;
@@ -807,12 +830,19 @@ export function DeckEditor({ context }: { context: MicroContext }) {
         return () => clearTimeout(timer);
     }, [highlight]);
     const filter = (change: Partial<CatalogFilters>) => {
-        setFilters((old) => ({ ...old, ...change }));
+        setFilters((old) =>
+            Object.entries(change).every(
+                ([key, value]) => old[key as keyof CatalogFilters] === value
+            )
+                ? old
+                : { ...old, ...change }
+        );
     };
     const sets = context.data.getSnapshot().data.formats;
+    const orderedCatalog = useMemo(() => orderCatalog(catalog, sets), [catalog, sets]);
     const matched = useMemo(
-        () => orderCatalog(filterCatalog(catalog, filters, rules), sets),
-        [catalog, filters, rules, sets]
+        () => filterCatalog(orderedCatalog, deferredFilters, rules),
+        [orderedCatalog, deferredFilters, rules]
     );
     const counts = new Map(entries.map((e) => [e.code, e.qty]));
     const cannotAdd = (code: string) =>
@@ -995,26 +1025,20 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                             ?.image
                                     }
                                 />
-                                <label htmlFor="editor-archetype">Tipo de deck</label>
-                                <IdentitySelect
+                                <SearchSelect
                                     id="editor-archetype"
                                     label="Tipo de deck"
-                                    selectedLabel={
-                                        archetypes.find((deck) => String(deck.id) === archetypeId)
-                                            ?.name || 'Selecione'
-                                    }
+                                    placeholder="Buscar tipo de deck"
                                     value={archetypeId}
+                                    commitOnly
+                                    options={archetypes.map((deck) => ({
+                                        value: String(deck.id),
+                                        label: deck.name
+                                    }))}
                                     onChange={(value) => {
                                         setArchetypeId(value);
                                     }}
-                                >
-                                    <option value="">Selecione</option>
-                                    {archetypes.map((deck) => (
-                                        <option key={deck.id} value={deck.id}>
-                                            {deck.name}
-                                        </option>
-                                    ))}
-                                </IdentitySelect>
+                                />
                             </li>
                         )}
                         {result && (
@@ -1040,40 +1064,29 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         )}
                         {format && !resultId && (
                             <li title="Formato" className="ed-format-tag">
-                                <label htmlFor={result ? undefined : 'editor-format'}>
-                                    Formato
-                                </label>
                                 {result ? (
                                     <strong>{format.name}</strong>
                                 ) : (
-                                    <IdentitySelect
-                                        id="editor-format"
+                                    <Select
                                         label="Formato do deck"
-                                        selectedLabel={format.name || format.code}
+                                        overlay
                                         value={formatId}
                                         onChange={(value) => {
                                             setFormatId(value);
                                         }}
-                                    >
-                                        {formats
+                                        options={formats
                                             .filter(
                                                 (f) =>
                                                     f.is_active !== false ||
                                                     String(f.id) === formatId
                                             )
-                                            .map((f) => (
-                                                <option value={f.id} key={f.id}>
-                                                    {f.name || f.code}
-                                                </option>
-                                            ))}
-                                    </IdentitySelect>
+                                            .map((f) => ({
+                                                value: String(f.id),
+                                                label: f.name || f.code
+                                            }))}
+                                    />
                                 )}
-                                <button
-                                    className="ed-text-button ed-format-rules"
-                                    onClick={() => setRulesOpen(true)}
-                                >
-                                    Ver regras
-                                </button>
+                                <FormatRulesButton format={format} rules={rules} />
                             </li>
                         )}
                         {result && !!(result.event as Record<string, unknown>)?.tournament_name && (
@@ -1095,13 +1108,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         )}
                         {resultId && format && !standardFormat && (
                             <li title="Formato" className="ed-context-pill ed-format-pill">
-                                <button
-                                    type="button"
-                                    onClick={() => setRulesOpen(true)}
-                                    title={`Ver regras de ${format.name}`}
-                                >
-                                    {format.name}
-                                </button>
+                                <FormatRulesButton format={format} rules={rules} pill />
                             </li>
                         )}
                     </ul>
@@ -1354,7 +1361,10 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                     ▤ Meu deck{validationReady ? ` (${validation.main})` : ''}
                 </button>
             </div>
-            <div className="ed-workspace">
+            <div
+                className="ed-workspace"
+                aria-busy={catalogBusy || metadataPending || validationPending}
+            >
                 <section className="ed-panel ed-catalog" id="editor-catalog" aria-label="Card pool">
                     <div className="ed-panel-heading">
                         <h2>Card pool</h2>
@@ -1388,12 +1398,21 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                     ) : (
                         <>
                             <div className="ed-catalog-scroll" ref={catalogScroll}>
-                                <div className="ed-card-grid">
-                                    {matched.map((card) => {
+                                <CatalogViewport
+                                    key={JSON.stringify(deferredFilters)}
+                                    cards={matched}
+                                >
+                                    {(card, index) => {
                                         const reason = cardEligibility(card, rules);
                                         const limit = rules.limited_cards[card.code];
                                         return (
-                                            <article className="ed-catalog-card" key={card.code}>
+                                            <article
+                                                className="ed-catalog-card"
+                                                key={card.code}
+                                                role="listitem"
+                                                aria-posinset={index + 1}
+                                                aria-setsize={matched.length}
+                                            >
                                                 <div className="ed-catalog-art">
                                                     <CardImage
                                                         card={card}
@@ -1441,8 +1460,8 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                                 )}
                                             </article>
                                         );
-                                    })}
-                                </div>
+                                    }}
+                                </CatalogViewport>
                                 {!matched.length && (
                                     <p className="ed-empty">
                                         Nenhuma carta encontrada. Ajuste a busca ou os filtros.
@@ -1774,39 +1793,6 @@ export function DeckEditor({ context }: { context: MicroContext }) {
             {validationOpen && (
                 <Dialog title="Validação do deck" onClose={() => setValidationOpen(false)}>
                     <div className="ed-dialog-body">{panel}</div>
-                </Dialog>
-            )}
-            {rulesOpen && (
-                <Dialog
-                    title={`Regulamento · ${format?.name || format?.code || 'Formato'}`}
-                    onClose={() => setRulesOpen(false)}
-                    wide
-                >
-                    <div className="ed-dialog-body">
-                        <p>{format?.description}</p>
-                        <div className="ed-rules-text">
-                            {format?.rules_text ||
-                                (pendingFormatRules(format).length
-                                    ? 'Regulamento ainda não publicado.'
-                                    : `Deck principal: ${rules.main_count} cartas. Digi-Eggs: até ${rules.egg_max}. Limite geral: ${rules.copies} cópias por carta, respeitando as restrições cadastradas.`)}
-                        </div>
-                        {safeLink(format?.rules_url) && (
-                            <a
-                                className="ed-button"
-                                href={safeLink(format?.rules_url)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                Abrir regulamento ↗
-                            </a>
-                        )}
-                        <p className="ed-muted">
-                            Revisão das regras: {format?.rules_revision || 1}.{' '}
-                            {format?.validation_rules
-                                ? 'Validação com regras específicas deste formato.'
-                                : 'Validação pelas regras gerais do sistema; nenhuma regra adicional estruturada foi cadastrada para este formato.'}
-                        </p>
-                    </div>
                 </Dialog>
             )}
             {detail && (
