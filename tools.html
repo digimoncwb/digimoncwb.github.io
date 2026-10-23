@@ -804,65 +804,35 @@
                                 Sair
                             </button>
                         </div>
-                        <nav
-                            class="admin-groups admin-auth-content is-hidden"
-                            aria-label="Áreas do Admin"
-                        >
-                            <button
-                                type="button"
-                                data-admin-action="admin-group"
-                                data-admin-group="import"
-                                aria-pressed="true"
-                            >
-                                Importação
-                            </button>
-                            <button
-                                type="button"
-                                data-admin-action="admin-group"
-                                data-admin-group="community"
-                                aria-pressed="false"
-                            >
-                                Comunidade
-                            </button>
-                            <button
-                                type="button"
-                                data-admin-action="admin-group"
-                                data-admin-group="cards"
-                                aria-pressed="false"
-                            >
-                                Cartas
-                            </button>
-                            <button
-                                type="button"
-                                data-admin-action="admin-group"
-                                data-admin-group="maintenance"
-                                aria-pressed="false"
-                            >
-                                Manutenção
-                            </button>
-                        </nav>
                         <div class="admin-tabs admin-auth-content is-hidden">
                             <button
                                 type="button"
                                 class="admin-tab-btn is-active"
                                 data-admin-tab="digilab"
                             >
-                                DigiLab
+                                Integração com DigiLab
                             </button>
                             <button type="button" class="admin-tab-btn" data-admin-tab="formats">
                                 Coleções
                             </button>
-                            <button type="button" class="admin-tab-btn" data-admin-tab="banlist">
-                                Lista de restrições
+                            <button
+                                type="button"
+                                class="admin-tab-btn"
+                                data-admin-tab="gameformats"
+                            >
+                                Formatos de jogo
                             </button>
                             <button type="button" class="admin-tab-btn" data-admin-tab="stores">
                                 Lojas
                             </button>
                             <button type="button" class="admin-tab-btn" data-admin-tab="portraits">
-                                Enquadramento
+                                Enquadramento de Cartas
+                            </button>
+                            <button type="button" class="admin-tab-btn" data-admin-tab="banlist">
+                                Lista de Restrições
                             </button>
                             <button type="button" class="admin-tab-btn" data-admin-tab="datarepair">
-                                Manutenção
+                                Catálogo de cartas
                             </button>
                         </div>
                     </div>
@@ -1070,6 +1040,11 @@
 
                     <!-- Formats / Meta panel -->
                     <div
+                        id="adminGameFormatsPanel"
+                        data-admin-panel="gameformats"
+                        class="admin-panel admin-auth-content is-hidden"
+                    ></div>
+                    <div
                         id="adminPortraitPanel"
                         data-admin-panel="portraits"
                         class="admin-panel is-hidden"
@@ -1209,7 +1184,7 @@
                     <div data-admin-panel="datarepair" class="admin-panel is-hidden">
                         <div class="admin-panel-header">
                             <div>
-                                <h2 class="admin-panel-title">Manutenção</h2>
+                                <h2 class="admin-panel-title">Catálogo de cartas</h2>
                             </div>
                         </div>
                         <div class="admin-repair-section">
@@ -1345,7 +1320,7 @@
                         <div class="admin-digilab-hero">
                             <div class="admin-digilab-hero-icon" aria-hidden="true">DL</div>
                             <div class="admin-digilab-hero-copy">
-                                <h2>Importação de torneios</h2>
+                                <h2>Integração com DigiLab</h2>
                             </div>
                         </div>
                         <div id="adminImportOverview" class="admin-import-overview" role="status">

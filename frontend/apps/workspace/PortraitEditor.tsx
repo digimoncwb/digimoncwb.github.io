@@ -24,6 +24,20 @@ export function PortraitEditor({ context }: { context: MicroContext }) {
     const [deckId, setDeckId] = useState('');
     const [savedCodes, setSavedCodes] = useState<string[]>([]);
     useEffect(() => {
+        const panel = document.getElementById('adminPortraitPanel');
+        if (!panel) return;
+        let started = false;
+        const activate = () => {
+            if (started || panel.classList.contains('is-hidden')) return;
+            started = true;
+            void start();
+        };
+        const observer = new MutationObserver(activate);
+        observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+        activate();
+        return () => observer.disconnect();
+    }, []);
+    useEffect(() => {
         const update = () => setSavedCodes(window.cardPortraits.codes());
         update();
         window.addEventListener('digistats:portraits-changed', update);
@@ -43,18 +57,22 @@ export function PortraitEditor({ context }: { context: MicroContext }) {
         setMessage('');
         try {
             if (!(await window.digistatsAdminSession.restore()))
-                throw Error('Entre no Admin acima e clique em “Ajustar enquadramento” novamente.');
+                throw Error('Entre no Admin novamente para carregar os enquadramentos.');
             await window.cardPortraits.load();
             const available = (await loadDecks(context))
                 .map((deck) => ({ ...deck, id: String(deck.id) }))
                 .filter((deck) => deck.code);
             const formats = [...context.data.getSnapshot().data.formats].sort(
-                (a, b) => Number(!!b.is_default) - Number(!!a.is_default) ||
+                (a, b) =>
+                    Number(!!b.is_default) - Number(!!a.is_default) ||
                     (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0)
             );
             const setOrder = new Map(formats.map((format, index) => [format.code, index]));
-            const setRank = (deck: PortraitDeck) => setOrder.get(deck.code.split('-')[0]) ?? Infinity;
-            available.sort((a, b) => setRank(a) - setRank(b) || a.name.localeCompare(b.name, 'pt-BR'));
+            const setRank = (deck: PortraitDeck) =>
+                setOrder.get(deck.code.split('-')[0]) ?? Infinity;
+            available.sort(
+                (a, b) => setRank(a) - setRank(b) || a.name.localeCompare(b.name, 'pt-BR')
+            );
             if (!available.length)
                 throw Error(
                     'Nenhum deck cadastrado possui uma carta de exibição identificável. Defina a imagem no cadastro do deck.'
@@ -120,9 +138,11 @@ export function PortraitEditor({ context }: { context: MicroContext }) {
         <section className="portrait-editor" aria-busy={busy}>
             <h2>Enquadramento das cartas</h2>
             <p>Recorte usado nos decks e nos posts.</p>
-            <button className="button" onClick={() => void start()} disabled={busy}>
-                {loading ? 'Carregando…' : 'Ajustar enquadramento'}
-            </button>
+            {open && !loading && !authorized && (
+                <button className="button" onClick={() => void start()} disabled={busy}>
+                    Tentar novamente
+                </button>
+            )}
             {loading && <Loader text="Carregando decks e enquadramentos…" />}
             {decks.some((deck) => savedCodes.includes(deck.code)) && (
                 <label>

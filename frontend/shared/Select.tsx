@@ -10,7 +10,7 @@ export function Select({
     overlay = false
 }: {
     label: string;
-    options: { value: string; label: string }[];
+    options: { value: string; label: string; disabled?: boolean }[];
     value: string;
     onChange(value: string): void;
     disabled?: boolean;
@@ -85,7 +85,9 @@ export function Select({
                     return;
                 }
                 const items = [
-                    ...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]')
+                    ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                        '[role="option"]:not(:disabled)'
+                    )
                 ];
                 const index = items.indexOf(document.activeElement as HTMLButtonElement);
                 const target =
@@ -106,7 +108,9 @@ export function Select({
         >
             {options.map((option) => (
                 <button
+                    type="button"
                     key={option.value}
+                    disabled={option.disabled}
                     role="option"
                     aria-selected={option.value === value}
                     tabIndex={option.value === value ? 0 : -1}
@@ -139,6 +143,7 @@ export function Select({
                 {label}
             </span>
             <button
+                type="button"
                 ref={trigger}
                 className="format-select-trigger"
                 aria-labelledby={`${id}-label ${id}-value`}
@@ -165,7 +170,10 @@ export function Select({
                     />
                 </svg>
             </button>
-            {open && (overlay ? createPortal(menu, document.body) : menu)}
+            {open &&
+                (overlay
+                    ? createPortal(menu, root.current?.closest('dialog') || document.body)
+                    : menu)}
         </div>
     );
 }

@@ -7,10 +7,10 @@ import { Select } from '../../shared/Select';
 import { ActionMenu, Dialog, EmptyState, ListToolbar, Pagination } from '../../shared/ListPage';
 import {
     normalizeSearch,
-    paginate,
     loadTournamentResults,
     type TournamentResultRecord
 } from './catalog-service';
+import { paginateTournamentWeeks } from './tournament-weeks';
 
 export interface TournamentCommand {
     kind: 'create' | 'edit';
@@ -85,7 +85,7 @@ export function TournamentsPage({
                 ? (a, b) => b.players - a.players || b.isoDate.localeCompare(a.isoDate)
                 : (a, b) => b.isoDate.localeCompare(a.isoDate) || Number(b.id) - Number(a.id)
         );
-    const paging = paginate(events, page, size);
+    const paging = paginateTournamentWeeks(events, page, size);
     return (
         <section className="catalog-app">
             <div className="catalog-heading">
@@ -247,82 +247,140 @@ export function TournamentsPage({
                 />
             ) : (
                 <>
-                    <div className="catalog-list">
-                        {paging.items.map((event) => (
-                            <article className="catalog-row tournament-list-row" key={event.id}>
-                                <button className="catalog-item" onClick={() => setSelected(event)}>
-                                    <span className="tournament-list-date">
-                                        <strong>{event.date.split('/')[0]}</strong>
-                                        <span>
-                                            {new Date(
-                                                `${event.isoDate}T12:00:00`
-                                            ).toLocaleDateString('pt-BR', {
-                                                month: 'short',
-                                                year: '2-digit'
-                                            })}
-                                        </span>
-                                    </span>
-                                    <StoreLogo logo={event.logo} name={event.store} />
-                                    <span className="catalog-identity">
-                                        <strong>{event.title}</strong>
-                                        <span>{event.store}</span>
-                                    </span>
-                                    <span className="tournament-list-meta">
-                                        <span className="catalog-badge">{event.format || '—'}</span>
-                                        <span>{event.players} jogadores</span>
-                                        {event.team && <span>{event.players / 2} duplas</span>}
-                                    </span>
-                                    <span className="tournament-list-winner">
-                                        {(event.winner?.members || [event.winner]).map(
-                                            (member, index) => (
-                                                <Portrait key={index} image={member?.image} />
+                    <div className="tournament-weeks">
+                        {paging.weeks.map((week) => (
+                            <section
+                                className="tournament-week"
+                                key={week.start}
+                                aria-labelledby={`tournament-week-${week.start}`}
+                            >
+                                <header className="tournament-week-heading">
+                                    <h2 id={`tournament-week-${week.start}`}>
+                                        Semana de{' '}
+                                        {week.start
+                                            .split('-')
+                                            .reverse()
+                                            .slice(
+                                                0,
+                                                week.start.slice(0, 4) === week.end.slice(0, 4)
+                                                    ? 2
+                                                    : 3
                                             )
-                                        )}
-                                        <span>
-                                            <strong>
-                                                {event.winner?.name || 'Sem resultados'}
-                                            </strong>
-                                            {event.team && event.winner?.members ? (
-                                                <span className="tournament-list-decks">
-                                                    {event.winner.members.map((member, index) => (
-                                                        <span key={member.id || index}>
-                                                            {index ? '& ' : ''}
-                                                            {member.deck}
-                                                        </span>
-                                                    ))}
-                                                </span>
-                                            ) : (
-                                                <span>
-                                                    {event.deckless
-                                                        ? 'Vencedor'
-                                                        : event.winner?.deck ||
-                                                          'Classificação pendente'}
-                                                </span>
-                                            )}
-                                        </span>
+                                            .join('/')}{' '}
+                                        a {week.end.split('-').reverse().join('/')}
+                                    </h2>
+                                    <span>
+                                        {week.events.length}{' '}
+                                        {week.events.length === 1 ? 'torneio' : 'torneios'}
                                     </span>
-                                </button>
-                                <ActionMenu label={`${event.title} ${event.date}`}>
-                                    <button onClick={() => setSelected(event)}>
-                                        Ver resultados
-                                    </button>
-                                    <button onClick={() => openEditor('edit', event.id)}>
-                                        Editar torneio
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            context.navigate('posts', { tournament: event.id })
-                                        }
-                                    >
-                                        Criar post
-                                    </button>
-                                    {event.instagram && (
-                                        <a href={event.instagram} target="_blank" rel="noreferrer">
-                                            Abrir Instagram ↗
-                                        </a>
-                                    )}
-                                </ActionMenu>
-                            </article>
+                                </header>
+                                <div className="catalog-list tournament-list-grid">
+                                    {week.events.map((event) => (
+                                        <article
+                                            className="catalog-row tournament-list-row"
+                                            key={event.id}
+                                        >
+                                            <button
+                                                className="catalog-item"
+                                                onClick={() => setSelected(event)}
+                                            >
+                                                <time
+                                                    className="tournament-list-date"
+                                                    dateTime={event.isoDate}
+                                                >
+                                                    <strong>{event.date.split('/')[0]}</strong>
+                                                    <span>
+                                                        {new Date(
+                                                            `${event.isoDate}T12:00:00`
+                                                        ).toLocaleDateString('pt-BR', {
+                                                            month: 'short',
+                                                            year: '2-digit'
+                                                        })}
+                                                    </span>
+                                                </time>
+                                                <StoreLogo logo={event.logo} name={event.store} />
+                                                <span className="catalog-identity">
+                                                    <strong>{event.title}</strong>
+                                                    <span>{event.store}</span>
+                                                </span>
+                                                <span className="tournament-list-meta">
+                                                    <span className="catalog-badge">
+                                                        {event.format || '—'}
+                                                    </span>
+                                                    <span>{event.players} jogadores</span>
+                                                    {event.team && (
+                                                        <span>{event.players / 2} duplas</span>
+                                                    )}
+                                                </span>
+                                                <span className="tournament-list-winner">
+                                                    {(event.winner?.members || [event.winner]).map(
+                                                        (member, index) => (
+                                                            <Portrait
+                                                                key={index}
+                                                                image={member?.image}
+                                                            />
+                                                        )
+                                                    )}
+                                                    <span>
+                                                        <strong>
+                                                            {event.winner?.name || 'Sem resultados'}
+                                                        </strong>
+                                                        {event.team && event.winner?.members ? (
+                                                            <span className="tournament-list-decks">
+                                                                {event.winner.members.map(
+                                                                    (member, index) => (
+                                                                        <span
+                                                                            key={member.id || index}
+                                                                        >
+                                                                            {index ? '& ' : ''}
+                                                                            {member.deck}
+                                                                        </span>
+                                                                    )
+                                                                )}
+                                                            </span>
+                                                        ) : (
+                                                            <span>
+                                                                {event.deckless
+                                                                    ? 'Vencedor'
+                                                                    : event.winner?.deck ||
+                                                                      'Classificação pendente'}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                            <ActionMenu label={`${event.title} ${event.date}`}>
+                                                <button onClick={() => setSelected(event)}>
+                                                    Ver resultados
+                                                </button>
+                                                <button
+                                                    onClick={() => openEditor('edit', event.id)}
+                                                >
+                                                    Editar torneio
+                                                </button>
+                                                <button
+                                                    onClick={() =>
+                                                        context.navigate('posts', {
+                                                            tournament: event.id
+                                                        })
+                                                    }
+                                                >
+                                                    Criar post
+                                                </button>
+                                                {event.instagram && (
+                                                    <a
+                                                        href={event.instagram}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        Abrir Instagram ↗
+                                                    </a>
+                                                )}
+                                            </ActionMenu>
+                                        </article>
+                                    ))}
+                                </div>
+                            </section>
                         ))}
                     </div>
                     {!events.length && !snapshot.error && (
@@ -330,14 +388,22 @@ export function TournamentsPage({
                             Nenhum torneio encontrado. Tente outra busca ou limpe os filtros.
                         </EmptyState>
                     )}
-                    <Pagination
-                        page={paging.page}
-                        pages={paging.totalPages}
-                        size={size}
-                        total={events.length}
-                        onPage={setPage}
-                        onSize={setSize}
-                    />
+                    <div className="tournament-week-pagination">
+                        <p role="status">
+                            {events.length
+                                ? `${paging.start}–${paging.end} de ${events.length}`
+                                : 'Nenhum resultado'}
+                        </p>
+                        <Pagination
+                            compact
+                            page={paging.page}
+                            pages={paging.totalPages}
+                            size={size}
+                            total={events.length}
+                            onPage={setPage}
+                            onSize={setSize}
+                        />
+                    </div>
                 </>
             )}
             {selected && (

@@ -1,0 +1,261 @@
+.format-rules-editor,
+.format-rules-editor fieldset {
+    border: 1px solid var(--ds-line);
+    border-radius: 9px;
+    padding: 16px;
+    min-width: 0;
+}
+.format-rules-editor {
+    display: grid;
+    gap: 16px;
+}
+.format-rules-editor legend {
+    padding: 0 6px;
+    font-weight: 700;
+}
+.format-rule-presets,
+.format-rarity-options,
+.format-points-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.format-construction-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.format-rarity-options label,
+.format-inline-check {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    gap: 8px;
+    align-items: center;
+}
+.deck-format-admin-form input[type='checkbox'] {
+    width: 20px !important;
+    max-width: 20px !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    padding: 0 !important;
+    flex: 0 0 20px;
+    margin: 0;
+    appearance: auto;
+    accent-color: var(--accent);
+}
+.deck-format-admin-form label,
+.admin-game-formats-search {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--ds-muted);
+    font-size: 13px;
+}
+.deck-format-admin-form input:not([type='checkbox']),
+.admin-game-formats-search input {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 11px 13px;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    background: var(--ds-panel);
+    color: var(--ds-text);
+    font: inherit;
+}
+.deck-format-admin-form label.format-inline-check {
+    justify-content: flex-start;
+    line-height: 1.5;
+}
+.admin-game-formats-search {
+    margin: 18px 0;
+}
+.admin-game-formats-list {
+    display: grid;
+    gap: 12px;
+}
+.admin-game-format-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid var(--ds-line);
+    border-radius: 9px;
+    background: var(--ds-panel);
+}
+.admin-game-format-row h3 {
+    margin: 0 0 6px;
+    font-size: 17px;
+}
+.admin-game-format-row p {
+    margin: 0;
+    font-size: 13px;
+}
+.format-points-editor {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+.format-points-toolbar > label {
+    flex: 1 1 180px;
+}
+.format-points-toolbar {
+    align-items: flex-end;
+}
+.format-points-toolbar > button {
+    min-height: 40px;
+    align-self: flex-end;
+}
+.format-points-table-wrap {
+    max-height: 440px;
+    overflow: auto;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+}
+.format-points-table {
+    width: 100%;
+    min-width: 380px;
+    border-collapse: collapse;
+}
+.format-points-table th {
+    position: sticky;
+    top: 0;
+    background: var(--ds-raised);
+    text-align: left;
+    z-index: 1;
+}
+.format-points-table th,
+.format-points-table td {
+    padding: 9px;
+    border-bottom: 1px solid var(--ds-line);
+}
+.format-points-table td:nth-child(2) {
+    width: 105px;
+}
+.format-points-table td:nth-child(3) {
+    width: 95px;
+}
+.format-point-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+.format-point-card img {
+    width: 36px;
+    height: 50px;
+    flex: 0 0 36px;
+    object-fit: contain;
+    border-radius: 3px;
+}
+.format-point-card > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.format-point-card strong {
+    display: block;
+    font-size: 13px;
+}
+.format-point-card-code {
+    display: block;
+    margin-top: 5px;
+    color: var(--ds-muted);
+    font-size: 11px;
+}
+.format-points-table input {
+    width: 100%;
+}
+.format-points-table small {
+    display: block;
+    margin-top: 5px;
+    color: #f6c541;
+    font-size: 11px;
+}
+.format-points-table .is-pending td {
+    background: #f6c5410a;
+}
+.format-rules-editor details > summary {
+    cursor: pointer;
+    padding: 8px 0;
+}
+@media (max-width: 600px) {
+    .format-construction-fields {
+        grid-template-columns: 1fr;
+    }
+}
+.deck-format-admin-form textarea {
+    width: 100%;
+    background: var(--ds-bg);
+    color: var(--ds-text);
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    padding: 12px;
+    font: inherit;
+    line-height: 1.5;
+    resize: vertical;
+}
+#v2Tools .list-dialog:has(.deck-format-admin-form),
+#v2Tools .list-dialog:has(.format-point-prompt) {
+    margin: auto;
+}
+.format-card-suggestions {
+    display: grid;
+    gap: 6px;
+    max-height: 310px;
+    overflow: auto;
+    padding: 8px;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+}
+.format-card-suggestion {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: var(--ds-bg);
+    color: var(--ds-text);
+    text-align: left;
+}
+.format-card-suggestion[aria-pressed='true'],
+.format-card-suggestion:hover {
+    border-color: var(--accent);
+    background: var(--ds-action-hover-bg);
+}
+.format-card-suggestion img {
+    width: 36px;
+    height: 50px;
+    object-fit: contain;
+    flex: 0 0 36px;
+}
+.format-card-suggestion span {
+    min-width: 0;
+}
+.format-card-suggestion small {
+    display: block;
+    margin-top: 4px;
+    color: var(--ds-muted);
+}
+.format-point-prompt {
+    display: grid;
+    gap: 20px;
+}
+.format-point-prompt label {
+    display: grid;
+    gap: 10px;
+    color: var(--ds-muted);
+}
+.format-point-prompt input {
+    min-height: 44px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--ds-line);
+    border-radius: 7px;
+    background: var(--ds-bg);
+    color: var(--ds-text);
+    font: inherit;
+}

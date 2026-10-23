@@ -87,7 +87,7 @@
 :root.v2-tools #v2Tools .portrait-editor .button.primary {
     border-color: var(--accent);
     color: var(--accent);
-    background: var(--ds-red-soft);
+    background: var(--ds-action-bg);
 }
 .portrait-editor-body {
     display: grid;

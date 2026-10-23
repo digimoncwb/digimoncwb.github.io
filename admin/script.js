@@ -13,14 +13,6 @@ let adminFormatsLoaded = false;
 let adminStoresLoaded = false;
 let adminWeeklyScheduleLoaded = false;
 let adminActiveTab = 'digilab';
-const adminTabGroups = {
-    digilab: 'import',
-    formats: 'community',
-    stores: 'community',
-    banlist: 'cards',
-    portraits: 'cards',
-    datarepair: 'maintenance'
-};
 const adminListPages = {};
 
 function labelAdminList(host) {
@@ -232,16 +224,6 @@ function setupAdminActions() {
             return;
         }
 
-        if (action === 'admin-group') {
-            switchAdminTab(
-                {
-                    import: 'digilab',
-                    community: 'stores',
-                    cards: 'portraits',
-                    maintenance: 'datarepair'
-                }[btn.dataset.adminGroup]
-            );
-        }
         if (action === 'create-format') openFormatModal(null);
         if (action === 'edit-format') openFormatModal(id);
         if (action === 'set-default-format') setDefaultFormat(id);
@@ -435,14 +417,7 @@ function switchAdminTab(tab) {
     adminActiveTab = tab;
     const container = document.getElementById('adminContainer');
     if (!container) return;
-    const group = adminTabGroups[tab];
-    container.querySelectorAll('[data-admin-group]').forEach((button) => {
-        button.setAttribute('aria-pressed', String(button.dataset.adminGroup === group));
-    });
-    const tabList = container.querySelector('.admin-tabs');
-    if (tabList) tabList.hidden = group === 'import' || group === 'maintenance';
     container.querySelectorAll('[data-admin-tab]').forEach((btn) => {
-        btn.hidden = adminTabGroups[btn.dataset.adminTab] !== group;
         btn.classList.toggle('is-active', btn.dataset.adminTab === tab);
         btn.setAttribute('aria-selected', String(btn.dataset.adminTab === tab));
         btn.tabIndex = btn.dataset.adminTab === tab ? 0 : -1;
@@ -689,7 +664,6 @@ function setAdminAuthView(authenticated) {
     document.getElementById('adminAuthGate')?.classList.toggle('is-hidden', authenticated);
     document.getElementById('adminSessionBar')?.classList.toggle('is-hidden', !authenticated);
     container.querySelector('.admin-tabs')?.classList.toggle('is-hidden', !authenticated);
-    container.querySelector('.admin-groups')?.classList.toggle('is-hidden', !authenticated);
     container.querySelectorAll('[data-admin-panel]').forEach((panel) => {
         panel.classList.toggle(
             'is-hidden',
@@ -2333,10 +2307,12 @@ function renderAdminFormats() {
             <td>${f.is_default ? '<span class="admin-badge admin-badge--default">Padrão</span>' : ''}</td>
             <td>${f.is_active ? '<span class="admin-badge admin-badge--active">Ativo</span>' : '<span class="admin-badge admin-badge--inactive">Inativo</span>'}</td>
             <td class="admin-actions-cell">
+                <div class="admin-collection-actions">
                 ${!f.is_default ? `<button class="player-history-register-btn" data-admin-action="set-default-format" data-id="${f.id}">Definir padrão</button>` : ''}
                 <button class="player-history-register-btn" data-admin-action="edit-format" data-id="${f.id}">Editar</button>
                 <button class="player-history-register-btn${f.is_active ? ' admin-btn-warn' : ''}" data-admin-action="toggle-format-active" data-id="${f.id}">${f.is_active ? 'Desativar' : 'Ativar'}</button>
                 ${!f.is_default ? `<button class="player-history-register-btn admin-btn-danger" data-admin-action="delete-format" data-id="${f.id}" data-name="${escapeAdminHtml(f.name || f.code)}">Excluir</button>` : ''}
+                </div>
             </td>
         </tr>
     `

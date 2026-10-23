@@ -11,9 +11,9 @@
         .btn-modal-save,
         .admin-digilab-action.is-primary
     ) {
-    background: color-mix(in srgb, var(--accent) 4%, #0b0e0f) !important;
+    background: var(--ds-action-bg) !important;
     color: var(--accent) !important;
-    border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent) !important;
+    border: 1px solid var(--accent) !important;
     box-shadow: none;
     font-weight: 700;
     transition:
@@ -33,8 +33,8 @@
         .btn-modal-save,
         .admin-digilab-action.is-primary
     ):hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent) 10%, #0b0e0f) !important;
-    border-color: color-mix(in srgb, var(--accent) 42%, transparent) !important;
+    background: var(--ds-action-hover-bg) !important;
+    border-color: var(--accent) !important;
 }
 
 .site-theme-picker {
@@ -73,7 +73,7 @@
 }
 .theme-color-options {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
     gap: 10px;
     margin: 22px 0;
 }
@@ -114,6 +114,46 @@
             transparent 65%
         ),
         var(--bg);
+}
+.theme-custom-fields {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    align-items: end;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+.theme-custom-fields label {
+    display: grid;
+    gap: 8px;
+    color: var(--ds-muted);
+    font-size: 12px;
+}
+.theme-custom-fields input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 42px;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    background: var(--ds-control-bg);
+    color: var(--ds-text);
+    padding: 8px 10px;
+    font: inherit;
+}
+.theme-custom-fields input[type='color'] {
+    padding: 4px;
+    cursor: pointer;
+}
+.theme-custom-fields > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+    font-size: 12px;
+}
+.theme-current {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.theme-color-options button {
+    overflow-wrap: anywhere;
 }
 .theme-preview-brand {
     display: flex;
@@ -183,6 +223,18 @@
     -webkit-mask: url('../icons/digimon-cwb-mark.svg') center/contain no-repeat !important;
     mask: url('../icons/digimon-cwb-mark.svg') center/contain no-repeat !important;
     filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 35%, transparent));
+}
+:root
+    body
+    :is(
+        .spinner,
+        .stats-loading-spinner,
+        .admin-digilab-button-spinner,
+        .loading-spinner,
+        .v2-loader
+    ) {
+    -webkit-mask: url('../icons/digimon-cwb-loader.svg') center/contain no-repeat !important;
+    mask: url('../icons/digimon-cwb-loader.svg') center/contain no-repeat !important;
 }
 @media (prefers-reduced-motion: reduce) {
     .button.primary {

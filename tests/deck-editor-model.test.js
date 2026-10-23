@@ -3,6 +3,136 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { stripTypeScriptTypes } = require('node:module');
 const vm = require('node:vm');
+test('Multiple colors and rarities match any selected option and compose with each other', () => {
+    const api = model();
+    const cards = [
+        { card_code: 'BT1-010', name: 'A', card_type: 'Digimon', color: 'Red', rarity: 'C' },
+        {
+            card_code: 'BT1-011',
+            name: 'B',
+            card_type: 'Digimon',
+            color: 'Blue/Yellow',
+            rarity: 'U'
+        },
+        { card_code: 'BT1-012', name: 'C', card_type: 'Digimon', color: 'Green', rarity: 'R' },
+        { card_code: 'BT1-013', name: 'D', card_type: 'Digimon', color: 'Red', rarity: 'SR' }
+    ].map((row) => api.normalizeCard(row));
+    const base = {
+        query: '',
+        color: '',
+        color2: '',
+        type: '',
+        level: '',
+        cost: '',
+        set: '',
+        permitted: false
+    };
+    assert.deepEqual(
+        Array.from(
+            api.filterCatalog(
+                cards,
+                { ...base, colors: ['red', 'blue'], rarities: ['C', 'U'] },
+                api.effectiveRules({})
+            ),
+            (card) => card.code
+        ),
+        ['BT1-010', 'BT1-011']
+    );
+    assert.deepEqual(
+        Array.from(
+            api.filterCatalog(cards, { ...base, rarities: ['R', 'SR'] }, api.effectiveRules({})),
+            (card) => card.code
+        ),
+        ['BT1-012', 'BT1-013']
+    );
+    assert.equal(
+        api.filterCatalog(cards, { ...base, colors: [], rarities: [] }, api.effectiveRules({}))
+            .length,
+        4
+    );
+});
+test('Security defaults to five, supports explicit zero and custom counts, without changing deck size', () => {
+    const api = model();
+    assert.equal(api.effectiveRules({}).security_count, 5);
+    assert.equal(api.effectiveRules({}, { security_count: 7 }).security_count, 7);
+    assert.equal(api.effectiveRules({}, { security_count: 0 }).security_count, 0);
+    assert.equal(api.effectiveRules({}, { security_count: 7 }).main_count, 50);
+});
+test('Public format restrictions omit inherited Bandai rules but retain stricter custom limits and additional combinations', () => {
+    const api = model();
+    const base = {
+        copies: 4,
+        banned_codes: ['BT5-109'],
+        limited_cards: { 'ST9-09': 1 },
+        unlimited_codes: ['BT6-085'],
+        choice_groups: [['BT1-010', 'BT1-011']]
+    };
+    const same = api.formatSpecificRestrictions(base, {
+        banned_codes: ['BT5-109'],
+        limited_cards: { 'ST9-09': 1 },
+        choice_groups: [['BT1-011', 'BT1-010']]
+    });
+    assert.equal(same.banned_codes.length, 0);
+    assert.equal(Object.keys(same.limited_cards).length, 0);
+    assert.equal(same.choice_groups.length, 0);
+    assert.equal(same.unlimited_codes.length, 0);
+    const extra = api.formatSpecificRestrictions(base, {
+        banned_codes: ['BT1-012'],
+        limited_cards: { 'BT1-013': 2, 'ST9-09': 1 },
+        unlimited_codes: ['BT6-085', 'BT1-014'],
+        choice_groups: [['BT1-015', 'BT1-016']]
+    });
+    assert.equal(extra.banned_codes[0], 'BT1-012');
+    assert.equal(extra.limited_cards['BT1-013'], 2);
+    assert.equal(Object.keys(extra.limited_cards).length, 1);
+    assert.equal(extra.unlimited_codes[0], 'BT1-014');
+    assert.equal(extra.choice_groups.length, 1);
+});
+test('Copy changes enforce the format, limited cards, bans and unlimited exceptions without deleting existing invalid copies', () => {
+    const api = model();
+    const rules = api.effectiveRules(
+        {},
+        {
+            copies: 4,
+            main_count: 50,
+            limited_cards: { 'ST9-09': 1 },
+            unlimited_codes: ['BT6-085'],
+            banned_codes: ['BT5-109']
+        }
+    );
+    let entries = [];
+    for (let i = 0; i < 8; i++) entries = api.adjustCopies(entries, 'BT1-010', 1, rules);
+    assert.equal(entries.find((e) => e.code === 'BT1-010').qty, 4);
+    entries = api.adjustCopies(entries, 'ST9-09', 4, rules);
+    assert.equal(entries.find((e) => e.code === 'ST9-09').qty, 1);
+    entries = api.adjustCopies(entries, 'BT5-109', 1, rules);
+    assert.equal(
+        entries.some((e) => e.code === 'BT5-109'),
+        false
+    );
+    entries = api.adjustCopies(entries, 'BT6-085', 6, rules);
+    assert.equal(entries.find((e) => e.code === 'BT6-085').qty, 6);
+    const invalid = [{ code: 'ST9-09', qty: 3 }];
+    assert.equal(api.adjustCopies(invalid, 'ST9-09', 1, rules)[0].qty, 3);
+    assert.equal(api.adjustCopies(invalid, 'ST9-09', -1, rules)[0].qty, 2);
+    assert.equal(api.adjustCopies([{ code: 'ST9-09', qty: 1 }], 'ST9-09', -1, rules).length, 0);
+});
+test('Card pool follows newest registered sets then sequential numeric card codes', () => {
+    const api = model();
+    const cards = ['EX12-002', 'EX13-010', 'BT26-003', 'EX13-001', 'EX12-001', 'EX13-002'].map(
+        (code) => ({ code })
+    );
+    const sorted = api.orderCatalog(cards, [
+        { code: 'EX13', created_at: '2026-10-01' },
+        { code: 'EX12', created_at: '2026-08-01' },
+        { code: 'BT26', created_at: '2026-07-01' }
+    ]);
+    assert.deepEqual(
+        Array.from(sorted, (c) => c.code),
+        ['EX13-001', 'EX13-002', 'EX13-010', 'EX12-001', 'EX12-002', 'BT26-003']
+    );
+    assert.equal(cards[0].code, 'EX12-002');
+});
 function model() {
     const sandbox = vm.createContext({});
     vm.runInContext(

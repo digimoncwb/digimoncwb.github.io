@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Format, MicroContext, RouteName } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
 import { Loader } from '../../shared/runtime';
+import { PointsBadge } from '../../shared/PointsBadge';
 import {
     aggregate,
+    adjustCopies,
+    copyLimit,
+    orderCatalog,
+    normalizeRarity,
     cardEligibility,
     colorHex,
     colorLabels,
@@ -74,6 +79,77 @@ function IdentitySelect({
             >
                 <path d="m6 9 6 6 6-6" />
             </svg>
+        </div>
+    );
+}
+function CatalogMultiSelect({
+    id,
+    label,
+    values,
+    options,
+    onChange
+}: {
+    id: string;
+    label: string;
+    values: string[];
+    options: { value: string; label: string }[];
+    onChange(values: string[]): void;
+}) {
+    const root = useRef<HTMLDetailsElement>(null);
+    useEffect(() => {
+        const close = (event: PointerEvent) => {
+            if (root.current && !root.current.contains(event.target as Node))
+                root.current.open = false;
+        };
+        document.addEventListener('pointerdown', close);
+        return () => document.removeEventListener('pointerdown', close);
+    }, []);
+    return (
+        <div className="ed-multi-filter">
+            <span id={`${id}-label`}>{label}</span>
+            <details
+                ref={root}
+                onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        root.current!.open = false;
+                        root.current!.querySelector('summary')?.focus();
+                    }
+                }}
+            >
+                <summary aria-labelledby={`${id}-label ${id}-value`}>
+                    <span id={`${id}-value`}>
+                        {values.length
+                            ? options
+                                  .filter((option) => values.includes(option.value))
+                                  .map((option) => option.label)
+                                  .join(', ')
+                            : 'Todas'}
+                    </span>
+                    <span aria-hidden="true">⌄</span>
+                </summary>
+                <div className="ed-multi-options" role="group" aria-labelledby={`${id}-label`}>
+                    <button type="button" className="ed-text-button" onClick={() => onChange([])}>
+                        Todas
+                    </button>
+                    {options.map((option) => (
+                        <label key={option.value}>
+                            <input
+                                type="checkbox"
+                                checked={values.includes(option.value)}
+                                onChange={(event) =>
+                                    onChange(
+                                        event.target.checked
+                                            ? [...values, option.value]
+                                            : values.filter((value) => value !== option.value)
+                                    )
+                                }
+                            />
+                            {option.label}
+                        </label>
+                    ))}
+                </div>
+            </details>
         </div>
     );
 }
@@ -148,6 +224,8 @@ const emptyFilters: CatalogFilters = {
     query: '',
     color: '',
     color2: '',
+    colors: [],
+    rarities: [],
     type: '',
     level: '',
     cost: '',
@@ -175,11 +253,13 @@ const safeLink = (value?: string | null) => {
 function CardImage({
     card,
     onClick,
-    small = false
+    small = false,
+    points
 }: {
     card: Card;
     onClick?: () => void;
     small?: boolean;
+    points?: number;
 }) {
     const [failed, setFailed] = useState(false);
     const [fallback, setFallback] = useState(false);
@@ -187,13 +267,8 @@ function CardImage({
         setFailed(false);
         setFallback(false);
     }, [card.code, card.image]);
-    return (
-        <button
-            type="button"
-            className={`ed-card-image${small ? ' ed-small-image' : ''}`}
-            onClick={onClick}
-            aria-label={`Ver detalhes de ${card.name}`}
-        >
+    const content = (
+        <>
             {failed ? (
                 <span className="ed-image-missing">
                     Imagem indisponível
@@ -208,6 +283,7 @@ function CardImage({
                             : card.image
                     }
                     alt={card.name}
+                    draggable={false}
                     loading="lazy"
                     onError={() => {
                         if (!fallback) setFallback(true);
@@ -215,7 +291,21 @@ function CardImage({
                     }}
                 />
             )}
+            {points !== undefined && <PointsBadge points={points} />}
+        </>
+    );
+    const className = `ed-card-image${small ? ' ed-small-image' : ''}`;
+    return onClick ? (
+        <button
+            type="button"
+            className={className}
+            onClick={onClick}
+            aria-label={`Ver detalhes de ${card.name}`}
+        >
+            {content}
         </button>
+    ) : (
+        <div className={className}>{content}</div>
     );
 }
 function RulesPanel({
@@ -281,6 +371,26 @@ function RulesPanel({
             <p className="ed-progress-caption">
                 {validation.main} / {rules.main_count} cartas no principal
             </p>
+            {rules.points_limit !== null && validation.points <= rules.points_limit && (
+                <article className="ed-check">
+                    <ValidationMark />
+                    <div>
+                        <strong>
+                            Pontos: {validation.points} / {rules.points_limit}
+                        </strong>
+                        <p>Cada cópia soma os pontos cadastrados. Cartas fora da lista valem 0.</p>
+                    </div>
+                </article>
+            )}
+            {rules.allowed_rarities.length > 0 && validation.raritiesValid && (
+                <article className="ed-check">
+                    <ValidationMark />
+                    <div>
+                        <strong>Raridades permitidas</strong>
+                        <p>Todas as cartas têm raridade {rules.allowed_rarities.join(' ou ')}.</p>
+                    </div>
+                </article>
+            )}
             {validation.main === rules.main_count && (
                 <article className="ed-check">
                     <ValidationMark />
@@ -348,6 +458,25 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const [record, setRecord] = useState<DeckRecord | null>(null);
     const [result, setResult] = useState<Record<string, unknown> | null>(null);
     const [name, setName] = useState('Meu deck Digimon');
+    const nameField = useRef<HTMLTextAreaElement>(null);
+    useLayoutEffect(() => {
+        const field = nameField.current;
+        if (!field) return;
+        const resize = () => {
+            field.style.height = 'auto';
+            field.style.height = `${field.scrollHeight + field.offsetHeight - field.clientHeight}px`;
+        };
+        resize();
+        let width = field.clientWidth;
+        const observer = new ResizeObserver(() => {
+            if (field.clientWidth !== width) {
+                width = field.clientWidth;
+                resize();
+            }
+        });
+        observer.observe(field);
+        return () => observer.disconnect();
+    }, [name, loading]);
     const [formatId, setFormatId] = useState('');
     const [formats, setFormats] = useState<Format[]>([]);
     const [archetypes, setArchetypes] = useState<ArchetypeRecord[]>([]);
@@ -364,7 +493,6 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const [metadataAttempted, setMetadataAttempted] = useState<Set<string>>(new Set());
     const [rulesRetry, setRulesRetry] = useState(0);
     const [filters, setFilters] = useState<CatalogFilters>(emptyFilters);
-    const [page, setPage] = useState(1);
     const [mobileTab, setMobileTab] = useState('catalog');
     const [deckView, setDeckView] = useState<'list' | 'photo'>('photo');
     const [savedSignature, setSavedSignature] = useState('');
@@ -398,7 +526,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const catalogScroll = useRef<HTMLDivElement>(null);
     useEffect(() => {
         catalogScroll.current?.scrollTo({ top: 0 });
-    }, [page, filters]);
+    }, [filters]);
     const alive = useRef(true);
     const currentSignature = signature(name, formatId, entries, archetypeId);
     const dirty = !loading && !error && currentSignature !== savedSignature;
@@ -412,6 +540,38 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const rules = useMemo(
         () => effectiveRules(baseRules, format?.validation_rules),
         [baseRules, format]
+    );
+    const formatRarities = rules.allowed_rarities.map(normalizeRarity);
+    const formatRarityKey = formatRarities.join('|');
+    useEffect(() => {
+        setFilters((old) => ({
+            ...old,
+            rarities: formatRarityKey ? formatRarityKey.split('|') : []
+        }));
+    }, [formatId, formatRarityKey]);
+    const rarityOptions = useMemo(
+        () => [
+            ...new Set([
+                'C',
+                'U',
+                'R',
+                'SR',
+                'SEC',
+                'P',
+                'UR',
+                ...catalog.map((card) => card.rarity).filter(Boolean),
+                ...formatRarities
+            ])
+        ],
+        [catalog, formatRarityKey]
+    );
+    const filtersActive = Object.entries(filters).some(([key, value]) =>
+        key === 'rarities'
+            ? [...((value as string[]) || [])].sort().join('|') !==
+              [...formatRarities].sort().join('|')
+            : Array.isArray(value)
+              ? value.length > 0
+              : Boolean(value)
     );
     const cards = useMemo(() => new Map(catalog.map((card) => [card.code, card])), [catalog]);
     const pendingMetadata = entries
@@ -441,7 +601,8 @@ export function DeckEditor({ context }: { context: MicroContext }) {
             cost: null,
             image: `https://digimon.digilab.cards/api/card/${code}.jpg`,
             payload: {},
-            known: false
+            known: false,
+            rarity: ''
         };
     const mergeDetails = (incoming: Card[]) =>
         setCatalog((old) => {
@@ -647,18 +808,23 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     }, [highlight]);
     const filter = (change: Partial<CatalogFilters>) => {
         setFilters((old) => ({ ...old, ...change }));
-        setPage(1);
     };
+    const sets = context.data.getSnapshot().data.formats;
     const matched = useMemo(
-        () => filterCatalog(catalog, filters, rules),
-        [catalog, filters, rules]
+        () => orderCatalog(filterCatalog(catalog, filters, rules), sets),
+        [catalog, filters, rules, sets]
     );
-    const pageCount = Math.max(1, Math.ceil(matched.length / 12));
-    const currentPage = Math.min(page, pageCount);
-    const visible = matched.slice((currentPage - 1) * 12, currentPage * 12);
     const counts = new Map(entries.map((e) => [e.code, e.qty]));
+    const cannotAdd = (code: string) =>
+        rulesBusy || !rulesAvailable || (counts.get(code) || 0) >= copyLimit(code, rules);
     const changeQty = (code: string, delta: number) => {
-        setEntries((old) => aggregate([...old, { code, qty: delta }]));
+        if (delta > 0 && cannotAdd(code)) {
+            setAnnouncement(
+                `Limite de ${copyLimit(code, rules)} cópias para ${getCard(code).name}.`
+            );
+            return;
+        }
+        setEntries((old) => adjustCopies(old, code, delta, rules));
 
         setAnnouncement(
             `${getCard(code).name}: ${Math.max(0, (counts.get(code) || 0) + delta)} cópias no deck.`
@@ -764,6 +930,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
         }
     };
     const unknownImport = importPreview?.entries.filter((e) => !cards.get(e.code)?.known) || [];
+    const importCopyIssues = importPreview
+        ? aggregate([...(importMode === 'add' ? entries : []), ...importPreview.entries]).filter(
+              (entry) => entry.qty > copyLimit(entry.code, rules)
+          )
+        : [];
     const displayed = sortEntries(entries, cards, 'level');
     const groups = new Map<string, Entry[]>();
     for (const entry of displayed) {
@@ -815,43 +986,6 @@ export function DeckEditor({ context }: { context: MicroContext }) {
             </div>
             <header className={`ed-header${resultId ? ' ed-tournament-header' : ''}`}>
                 <div className="ed-title">
-                    {!resultId && (
-                        <label className="ed-sr-only" htmlFor="editor-name">
-                            Nome do deck
-                        </label>
-                    )}
-                    <h1 className="ed-title-heading">
-                        {resultId ? (
-                            <span className="ed-fixed-name">{name}</span>
-                        ) : (
-                            <>
-                                <input
-                                    id="editor-name"
-                                    style={{ width: `${Math.max(5, name.length + 0.75)}ch` }}
-                                    value={name}
-                                    maxLength={120}
-                                    onChange={(e) => {
-                                        setName(e.target.value);
-                                    }}
-                                />
-                                <button
-                                    className="ed-rename"
-                                    type="button"
-                                    aria-label="Renomear deck"
-                                    title="Renomear deck"
-                                    onClick={() => {
-                                        const input = document.getElementById(
-                                            'editor-name'
-                                        ) as HTMLInputElement;
-                                        input.focus();
-                                        input.select();
-                                    }}
-                                >
-                                    <EditorIcon name="pencil" />
-                                </button>
-                            </>
-                        )}
-                    </h1>
                     <ul className="ed-context-tags" aria-label="Contexto do deck">
                         {!result && (
                             <li className="ed-archetype-tag">
@@ -1056,6 +1190,19 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                     context={context}
                     entries={sortEntries(entries, cards, 'level')}
                     cards={cards}
+                    scoring={
+                        rules.points_limit !== null
+                            ? {
+                                  limit: rules.points_limit,
+                                  points: Object.fromEntries(
+                                      Object.entries(rules.card_points).map(([code, value]) => [
+                                          code,
+                                          value.points
+                                      ])
+                                  )
+                              }
+                            : undefined
+                    }
                     metadata={{
                         name,
                         format: format?.name || '',
@@ -1106,20 +1253,16 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         </button>
                     </div>
                     <div className="ed-filter-row">
-                        <label>
-                            Cor
-                            <select
-                                value={filters.color}
-                                onChange={(e) => filter({ color: e.target.value })}
-                            >
-                                <option value="">Todas</option>
-                                {Object.entries(colorLabels).map(([value, label]) => (
-                                    <option key={value} value={value}>
-                                        {label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                        <CatalogMultiSelect
+                            id="card-pool-colors"
+                            label="Cor"
+                            values={filters.colors || []}
+                            options={Object.entries(colorLabels).map(([value, label]) => ({
+                                value,
+                                label
+                            }))}
+                            onChange={(colors) => filter({ colors })}
+                        />
                         <label>
                             Nível
                             <select
@@ -1150,20 +1293,13 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         </label>
                     </div>
                     <div className="ed-filter-row">
-                        <label>
-                            Segunda cor
-                            <select
-                                value={filters.color2}
-                                onChange={(e) => filter({ color2: e.target.value })}
-                            >
-                                <option value="">Todas</option>
-                                {Object.entries(colorLabels).map(([value, label]) => (
-                                    <option key={value} value={value}>
-                                        {label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                        <CatalogMultiSelect
+                            id="card-pool-rarities"
+                            label="Raridade"
+                            values={filters.rarities || []}
+                            options={rarityOptions.map((value) => ({ value, label: value }))}
+                            onChange={(rarities) => filter({ rarities })}
+                        />
                         <label>
                             Custo
                             <input
@@ -1186,12 +1322,14 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         </label>
                     </div>
                 </div>
-                {Object.values(filters).some(Boolean) && (
+                {filtersActive && (
                     <button
                         className="ed-text-button ed-catalog-clear"
                         onClick={() => {
-                            setFilters(emptyFilters);
-                            setPage(1);
+                            setFilters({
+                                ...emptyFilters,
+                                rarities: rules.allowed_rarities.map(normalizeRarity)
+                            });
                         }}
                     >
                         Limpar filtros
@@ -1220,27 +1358,6 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                 <section className="ed-panel ed-catalog" id="editor-catalog" aria-label="Card pool">
                     <div className="ed-panel-heading">
                         <h2>Card pool</h2>
-                        <div className="ed-catalog-pagination">
-                            <button
-                                className="ed-button"
-                                disabled={currentPage <= 1}
-                                onClick={() => setPage(currentPage - 1)}
-                                aria-label="Página anterior de cartas"
-                            >
-                                ‹
-                            </button>
-                            <span>
-                                Página {currentPage} de {pageCount}
-                            </span>
-                            <button
-                                className="ed-button"
-                                disabled={currentPage >= pageCount}
-                                onClick={() => setPage(currentPage + 1)}
-                                aria-label="Próxima página de cartas"
-                            >
-                                ›
-                            </button>
-                        </div>
                         <span className="ed-sr-only" role="status">
                             {matched.length} resultados
                         </span>
@@ -1272,25 +1389,42 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         <>
                             <div className="ed-catalog-scroll" ref={catalogScroll}>
                                 <div className="ed-card-grid">
-                                    {visible.map((card) => {
+                                    {matched.map((card) => {
                                         const reason = cardEligibility(card, rules);
                                         const limit = rules.limited_cards[card.code];
                                         return (
                                             <article className="ed-catalog-card" key={card.code}>
-                                                <CardImage
-                                                    card={card}
-                                                    onClick={() => void openDetails(card)}
-                                                />
+                                                <div className="ed-catalog-art">
+                                                    <CardImage
+                                                        card={card}
+                                                        points={
+                                                            rules.points_limit !== null
+                                                                ? rules.card_points[card.code]
+                                                                      ?.points
+                                                                : undefined
+                                                        }
+                                                    />
+                                                    <div className="ed-catalog-hover-actions">
+                                                        <button
+                                                            className="ed-button ed-card-info"
+                                                            aria-label={`Informações de ${card.name} (${card.code})`}
+                                                            onClick={() => void openDetails(card)}
+                                                        >
+                                                            i
+                                                        </button>
+                                                        <button
+                                                            className="ed-button ed-card-hover-add"
+                                                            aria-label={`Adicionar ${card.name} (${card.code})`}
+                                                            disabled={cannotAdd(card.code)}
+                                                            onClick={() => changeQty(card.code, 1)}
+                                                        >
+                                                            + Add
+                                                        </button>
+                                                    </div>
+                                                </div>
                                                 <div className="ed-catalog-card-caption">
                                                     <strong>{card.name}</strong>
                                                     <small>{card.code}</small>
-                                                    <button
-                                                        className="ed-add"
-                                                        aria-label={`Adicionar ${card.name} (${card.code})`}
-                                                        onClick={() => changeQty(card.code, 1)}
-                                                    >
-                                                        ＋
-                                                    </button>
                                                 </div>
                                                 {counts.get(card.code) ? (
                                                     <small className="ed-owned">
@@ -1321,7 +1455,51 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                 <section className="ed-panel ed-deck" id="editor-deck" aria-label="Meu deck">
                     <div className="ed-panel-heading ed-deck-heading">
                         <div className="ed-deck-title">
-                            <h2>Meu deck</h2>
+                            {!resultId && (
+                                <label className="ed-sr-only" htmlFor="editor-name">
+                                    Nome do deck
+                                </label>
+                            )}
+                            <h1 className="ed-title-heading">
+                                {resultId ? (
+                                    <span className="ed-fixed-name">{name}</span>
+                                ) : (
+                                    <>
+                                        <textarea
+                                            id="editor-name"
+                                            ref={nameField}
+                                            rows={1}
+                                            value={name}
+                                            maxLength={120}
+                                            onChange={(e) => {
+                                                setName(e.target.value.replace(/[\r\n]+/g, ' '));
+                                            }}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter') {
+                                                    event.preventDefault();
+                                                    event.currentTarget.blur();
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            className="ed-rename"
+                                            type="button"
+                                            aria-label="Renomear deck"
+                                            title="Renomear deck"
+                                            onClick={() => {
+                                                const input = document.getElementById(
+                                                    'editor-name'
+                                                ) as HTMLTextAreaElement;
+                                                input.focus();
+                                                input.select();
+                                            }}
+                                        >
+                                            <EditorIcon name="pencil" />
+                                        </button>
+                                    </>
+                                )}
+                            </h1>
+
                             {validationReady && (
                                 <div className="ed-deck-totals">
                                     <strong>
@@ -1329,6 +1507,14 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                         <span className="ed-muted">cartas</span>
                                     </strong>
                                     <span className="ed-muted">· {validation.eggs} Digi-Eggs</span>
+                                    {rules.points_limit !== null && (
+                                        <span
+                                            className="ed-deck-points"
+                                            data-over={validation.points > rules.points_limit}
+                                        >
+                                            · {validation.points} / {rules.points_limit} pontos
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -1367,6 +1553,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                             <div className="ed-photo-art">
                                                 <CardImage
                                                     card={card}
+                                                    points={
+                                                        rules.points_limit !== null
+                                                            ? rules.card_points[card.code]?.points
+                                                            : undefined
+                                                    }
                                                     onClick={() => void openDetails(card)}
                                                 />
                                                 <CardWarning
@@ -1380,6 +1571,24 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                                 >
                                                     ×{entry.qty}
                                                 </span>
+                                            </div>
+                                            <div className="ed-stepper ed-photo-stepper">
+                                                <button
+                                                    aria-label={`Remover uma cópia de ${card.name}`}
+                                                    onClick={() => changeQty(entry.code, -1)}
+                                                >
+                                                    −
+                                                </button>
+                                                <output aria-label={`Quantidade de ${card.name}`}>
+                                                    {entry.qty}
+                                                </output>
+                                                <button
+                                                    aria-label={`Adicionar uma cópia de ${card.name}`}
+                                                    disabled={cannotAdd(entry.code)}
+                                                    onClick={() => changeQty(entry.code, 1)}
+                                                >
+                                                    +
+                                                </button>
                                             </div>
                                             <span className="ed-photo-code">{entry.code}</span>
                                         </article>
@@ -1410,6 +1619,12 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                                 <div className="ed-row-art">
                                                     <CardImage
                                                         card={card}
+                                                        points={
+                                                            rules.points_limit !== null
+                                                                ? rules.card_points[card.code]
+                                                                      ?.points
+                                                                : undefined
+                                                        }
                                                         small
                                                         onClick={() => void openDetails(card)}
                                                     />
@@ -1466,7 +1681,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                                     </output>
                                                     <button
                                                         aria-label={`Adicionar uma cópia de ${card.name}`}
-                                                        disabled={entry.qty >= 999}
+                                                        disabled={cannotAdd(entry.code)}
                                                         onClick={() => changeQty(entry.code, 1)}
                                                     >
                                                         ＋
@@ -1479,14 +1694,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                             ))}
                         {!metadataPending && !displayed.length && (
                             <div className="ed-empty">
-                                <strong>Seu deck começa aqui.</strong>
                                 <p>Adicione cartas pelo catálogo ou importe uma lista.</p>
-                                <button
-                                    className="ed-button"
-                                    onClick={() => setMobileTab('catalog')}
-                                >
-                                    Explorar cartas
-                                </button>
                             </div>
                         )}
                     </div>
@@ -1611,13 +1819,21 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                     wide
                 >
                     <div className="ed-dialog-body ed-card-detail">
-                        <CardImage card={detail} />
+                        <CardImage
+                            card={detail}
+                            points={
+                                rules.points_limit !== null
+                                    ? rules.card_points[detail.code]?.points
+                                    : undefined
+                            }
+                        />
                         <div>
                             <p>
                                 {labels[detail.type] || 'Tipo não confirmado'}
                                 {detail.level ? ` · Nível ${detail.level}` : ''}
                             </p>
                             <p>{detail.colors.map((c) => colorLabels[c]).join(' / ')}</p>
+                            {detail.rarity && <p>Raridade: {detail.rarity}</p>}
                             {detailsBusy && <p role="status">Carregando detalhes…</p>}
                             {detailsError && <p role="alert">{detailsError}</p>}
                             {['main_effect', 'source_effect', 'security_effect', 'alt_effect'].map(
@@ -1652,7 +1868,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                         </output>
                                         <button
                                             aria-label={`Adicionar uma cópia de ${detail.name}`}
-                                            disabled={(counts.get(detail.code) || 0) >= 999}
+                                            disabled={cannotAdd(detail.code)}
                                             onClick={() => changeQty(detail.code, 1)}
                                         >
                                             ＋
@@ -1661,7 +1877,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                 )}
                                 <button
                                     className="ed-button ed-primary"
-                                    disabled={(counts.get(detail.code) || 0) >= 999}
+                                    disabled={cannotAdd(detail.code)}
                                     onClick={() => changeQty(detail.code, 1)}
                                 >
                                     ＋ Adicionar ao deck
@@ -1720,6 +1936,18 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         </button>
                         {importPreview && (
                             <>
+                                {!!importCopyIssues.length && (
+                                    <p className="ed-error" role="alert">
+                                        Ajuste as quantidades antes de importar:{' '}
+                                        {importCopyIssues
+                                            .map(
+                                                (entry) =>
+                                                    `${entry.code}: máximo de ${copyLimit(entry.code, rules)} cópias`
+                                            )
+                                            .join('; ')}
+                                        .
+                                    </p>
+                                )}
                                 <h3>
                                     {importPreview.entries.reduce((sum, e) => sum + e.qty, 0)}{' '}
                                     cartas em {importPreview.entries.length} códigos
@@ -1784,6 +2012,9 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                     disabled={
                                         (!result && !archetypeId) ||
                                         !importPreview.entries.length ||
+                                        importCopyIssues.length > 0 ||
+                                        rulesBusy ||
+                                        !rulesAvailable ||
                                         ((unknownImport.length > 0 ||
                                             importPreview.errors.length > 0) &&
                                             !acknowledged)

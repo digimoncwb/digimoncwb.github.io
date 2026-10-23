@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Format, MicroContext } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
+import { FormatRulesEditor } from './FormatRulesEditor';
+import './format-admin.css';
 export function DeckFormatForm({
     format,
     context,
@@ -20,7 +22,7 @@ export function DeckFormatForm({
             wide
         >
             <form
-                className="deck-library-form"
+                className="deck-library-form deck-format-admin-form"
                 onSubmit={async (e) => {
                     e.preventDefault();
                     if (busy) return;
@@ -29,6 +31,20 @@ export function DeckFormatForm({
                     const data = new FormData(e.currentTarget);
                     try {
                         const validation = String(data.get('validation') || '').trim();
+                        const errors = String(data.get('validationErrors') || '');
+                        if (errors) throw new Error(errors);
+                        const rules = validation ? JSON.parse(validation) : null;
+                        if (data.get('pointsCatalogPending'))
+                            throw new Error(
+                                'Aguarde a conferência do catálogo antes de salvar a pontuação. Se houver falha de carregamento, tente novamente.'
+                            );
+                        if (
+                            data.has('published') &&
+                            (rules?.points_pending?.length || data.get('pointsCatalogPending'))
+                        )
+                            throw new Error(
+                                'Confira os códigos pendentes da pontuação antes de publicar. Você pode salvar o formato sem marcar a publicação.'
+                            );
                         const payload = {
                             code: String(data.get('code') || format?.code || '')
                                 .trim()
@@ -37,7 +53,7 @@ export function DeckFormatForm({
                             description: String(data.get('description') || '').trim() || null,
                             rules_text: String(data.get('rules') || '').trim() || null,
                             rules_url: String(data.get('url') || '').trim() || null,
-                            validation_rules: validation ? JSON.parse(validation) : null,
+                            validation_rules: rules,
                             is_community_highlight: data.has('highlight'),
                             is_active: data.has('active'),
                             rules_status: data.has('published') ? 'published' : 'draft',
@@ -122,26 +138,7 @@ export function DeckFormatForm({
                         placeholder="https://"
                     />
                 </label>
-                <details>
-                    <summary>Regras de validação específicas</summary>
-                    <p className="muted">
-                        Preencha as quantidades para publicar. Use JSON para definir main_count,
-                        egg_max, copies, banned_codes, limited_cards, unlimited_codes,
-                        allowed_colors, allowed_sets ou choice_groups.
-                    </p>
-                    <label>
-                        Configuração de validação
-                        <textarea
-                            name="validation"
-                            defaultValue={
-                                format?.validation_rules
-                                    ? JSON.stringify(format.validation_rules, null, 2)
-                                    : ''
-                            }
-                            rows={9}
-                        />
-                    </label>
-                </details>
+                <FormatRulesEditor context={context} initial={format?.validation_rules} />
                 <label>
                     Descrição desta alteração
                     <input
@@ -150,7 +147,7 @@ export function DeckFormatForm({
                         maxLength={1000}
                     />
                 </label>
-                <label>
+                <label className="format-inline-check">
                     <input
                         type="checkbox"
                         name="published"
@@ -158,7 +155,7 @@ export function DeckFormatForm({
                     />{' '}
                     Regulamento publicado e validação ativa
                 </label>
-                <label>
+                <label className="format-inline-check">
                     <input
                         type="checkbox"
                         name="active"
@@ -166,7 +163,7 @@ export function DeckFormatForm({
                     />{' '}
                     Formato ativo
                 </label>
-                <label>
+                <label className="format-inline-check">
                     <input
                         type="checkbox"
                         name="highlight"

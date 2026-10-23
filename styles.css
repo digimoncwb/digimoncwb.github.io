@@ -13102,7 +13102,7 @@ body.decklist-builder-page :is(
     .decklist-search-results-scroll,
     .decklist-builder-header-actions
 ) {
-    scrollbar-color: #536a9a #101827;
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
 }
 
 body.decklist-builder-page :is(
@@ -13121,7 +13121,7 @@ body.decklist-builder-page :is(
     .decklist-search-results-scroll,
     .decklist-builder-header-actions
 )::-webkit-scrollbar-track {
-    background: #101827;
+    background: var(--ds-scroll-track);
     border-radius: 999px;
 }
 
@@ -13131,8 +13131,8 @@ body.decklist-builder-page :is(
     .decklist-search-results-scroll,
     .decklist-builder-header-actions
 )::-webkit-scrollbar-thumb {
-    background: #536a9a;
-    border: 2px solid #101827;
+    background: var(--ds-scroll-thumb);
+    border: 2px solid var(--ds-scroll-track);
     border-radius: 999px;
 }
 
@@ -13142,7 +13142,7 @@ body.decklist-builder-page :is(
     .decklist-search-results-scroll,
     .decklist-builder-header-actions
 )::-webkit-scrollbar-thumb:hover {
-    background: #6f86bc;
+    background: var(--ds-accent);
 }
 
 .decklist-search-header h2,

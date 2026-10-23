@@ -4,12 +4,12 @@ import type { MicroContext } from '../../contracts';
 import { mountReact, Loader } from '../../shared/runtime';
 import { DomainForms } from './DomainForms';
 import { PageHeading } from '../../shared/PageHeading';
-import { usePageSizeSelects } from './PageSizeSelects';
 import { DecksPage, PlayersPage } from './CatalogPages';
 import { TournamentsPage, type TournamentCommand } from './TournamentsPage';
 import { TournamentSteps } from './TournamentSteps';
 import './catalog.css';
 import { PortraitEditor } from './PortraitEditor';
+import { AdminFormatsPage } from './AdminFormatsPage';
 const Forms = memo(DomainForms);
 let initialized: Promise<void> | null = null;
 const view = (name: string) => (name === 'manage' ? 'tournaments' : name);
@@ -62,7 +62,7 @@ function LegacyWorkspace({
     native: boolean;
     onEditorClosed(): void;
 }) {
-    const toolsHost = usePageSizeSelects();
+    const toolsHost = useRef<HTMLDivElement>(null);
     const [adminAuthenticated, setAdminAuthenticated] = useState(
         () => window.digistatsAdminAuthenticated === true
     );
@@ -200,6 +200,14 @@ function LegacyWorkspace({
             <div data-workspace-root="true" ref={toolsHost}>
                 <Forms />
             </div>
+            {context.route.name === 'admin' &&
+                !busy &&
+                adminAuthenticated &&
+                document.getElementById('adminGameFormatsPanel') &&
+                createPortal(
+                    <AdminFormatsPage context={context} />,
+                    document.getElementById('adminGameFormatsPanel')!
+                )}
             {context.route.name === 'admin' &&
                 !busy &&
                 adminAuthenticated &&

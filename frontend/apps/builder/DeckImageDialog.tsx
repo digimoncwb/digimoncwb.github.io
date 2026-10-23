@@ -9,12 +9,14 @@ export function DeckImageDialog({
     context,
     entries,
     cards,
+    scoring,
     metadata,
     onClose
 }: {
     context: MicroContext;
     entries: Entry[];
     cards: Map<string, Card>;
+    scoring?: { limit: number; points: Record<string, number> };
     metadata: {
         name: string;
         player: string;
@@ -42,6 +44,7 @@ export function DeckImageDialog({
     const [retry, setRetry] = useState(0);
     const exportCards = entries.map((entry) => ({
         ...entry,
+        points: scoring?.points[entry.code],
         image:
             cards.get(entry.code)?.image ||
             `https://digimon.digilab.cards/api/card/${entry.code}.jpg`
@@ -56,7 +59,7 @@ export function DeckImageDialog({
             canvas.current,
             exportCards,
             metadata,
-            { accent, page, showCodes, showBackgroundIcon, opacity },
+            { accent, page, showCodes, showBackgroundIcon, opacity, pointsLimit: scoring?.limit },
             context.asset('icons/Symbol_of_Digital_Hazard.svg'),
             () => current
         )

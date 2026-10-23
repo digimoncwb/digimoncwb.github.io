@@ -82,7 +82,10 @@ export async function renderDeckPost(
         [
             metadata.date,
             ['padrao', 'standard'].includes(formatKey) ? '' : metadata.format,
-            metadata.tournament
+            metadata.tournament,
+            settings.pointsLimit != null
+                ? `${cards.reduce((sum, card) => sum + card.qty * (card.points || 0), 0)} / ${settings.pointsLimit} pontos`
+                : ''
         ]
             .filter(Boolean)
             .join(' · '),
@@ -117,13 +120,31 @@ export async function renderDeckPost(
             ctx.font = '600 17px Arial';
             ctx.fillText(card.code, x + 8, y + height / 2, width - 16);
         }
+        const scored = Number.isInteger(card.points) && card.points >= 0;
+        const quantityX = scored ? x : x + width - 45;
         ctx.fillStyle = '#101519';
-        ctx.fillRect(x + width - 45, y + height - 38, 45, 38);
+        ctx.fillRect(quantityX, y + height - 38, 45, 38);
         ctx.fillStyle = '#fff';
         ctx.font = '800 25px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(`×${card.qty}`, x + width - 22, y + height - 10, 41);
+        ctx.fillText(`×${card.qty}`, quantityX + 23, y + height - 10, 41);
         ctx.textAlign = 'left';
+        if (scored) {
+            ctx.fillStyle = '#050505';
+            ctx.beginPath();
+            ctx.arc(x + width - 32, y + height - 32, 28, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#f02732';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            ctx.fillStyle = '#ffe52f';
+            ctx.font = '900 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(card.points), x + width - 32, y + height - 32, 48);
+            ctx.textBaseline = 'alphabetic';
+            ctx.textAlign = 'left';
+        }
         if (settings.showCodes !== false) {
             ctx.fillStyle = '#c0c9d1';
             ctx.font = '500 17px Arial';

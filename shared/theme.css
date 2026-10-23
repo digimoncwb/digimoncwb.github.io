@@ -7,6 +7,8 @@
     --ds-text: #f1f4f2;
     --ds-muted: #a0aaa5;
     --ds-accent: #ef646b;
+    --ds-action-bg: color-mix(in srgb, var(--ds-accent) 4%, var(--ds-bg));
+    --ds-action-hover-bg: color-mix(in srgb, var(--ds-accent) 12%, var(--ds-bg));
     --ds-red: var(--ds-accent);
     --ds-red-soft: color-mix(in srgb, var(--ds-accent) 15%, #0b0e0f);
     --ds-blue: #66a7f5;
@@ -32,11 +34,13 @@
     min-width: 36px;
     border: 0 !important;
     border-radius: 0 !important;
-    background: url('../icons/digimon-cwb-mark.svg') center / contain no-repeat !important;
+    background: url('../icons/digimon-cwb-loader.svg') center / contain no-repeat !important;
     -webkit-mask: none;
     mask: none;
     filter: drop-shadow(0 0 5px rgba(215, 54, 72, 0.35));
     animation: digital-hazard-spin 1.5s linear infinite !important;
+    transform-origin: 50% 50% !important;
+    flex-shrink: 0;
     vertical-align: middle;
 }
 .v2-loader[hidden] {
@@ -46,6 +50,29 @@
     width: 20px !important;
     height: 20px !important;
     min-width: 20px;
+}
+:root {
+    --ds-scroll-thumb: color-mix(in srgb, var(--ds-accent) 65%, var(--ds-panel));
+    --ds-scroll-track: var(--ds-control-bg);
+}
+* {
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
+    scrollbar-width: thin;
+}
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+*::-webkit-scrollbar-track {
+    background: var(--ds-scroll-track);
+}
+*::-webkit-scrollbar-thumb {
+    background: var(--ds-scroll-thumb);
+    border: 2px solid var(--ds-scroll-track);
+    border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--ds-accent);
 }
 @keyframes digital-hazard-spin {
     to {

@@ -81,14 +81,6 @@
     color: var(--ds-muted);
     line-height: 1.7;
 }
-.format-version-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px 24px;
-    color: var(--ds-muted);
-    font-size: 13px;
-    margin: 18px 0;
-}
 .format-pending {
     border: 1px solid #b98b26;
     background: #b98b260d;
@@ -106,31 +98,56 @@
     font-size: 19px;
     margin: 24px 0 14px;
 }
-.format-rules-list {
-    border: 1px solid var(--ds-line);
-    border-radius: 8px;
-    overflow: hidden;
+.format-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 24px 0 18px;
 }
-.format-rule-row {
+.format-stat {
     display: flex;
-    gap: 18px;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid var(--ds-line);
-    padding: 14px;
-    font-size: 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 18px;
+    border: 1px solid var(--ds-line);
+    border-top: 2px solid color-mix(in srgb, var(--accent) 60%, var(--ds-line));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 3%, var(--ds-bg));
+    min-width: 0;
 }
-.format-rule-row:last-child {
-    border-bottom: 0;
-}
-.format-rule-row strong {
-    flex-shrink: 0;
-    font-weight: 550;
-}
-.format-rule-row > span {
+.format-stat > span {
     color: var(--ds-muted);
-    text-align: right;
+    font-size: 12px;
+}
+.format-stat > strong {
+    color: var(--accent) !important;
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+.format-stat > small {
+    color: var(--ds-muted);
+    font-size: 12px;
+}
+.format-summary-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.format-summary-tags > span {
+    padding: 7px 12px;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ds-line));
+    border-radius: 999px;
+    color: var(--ds-text);
     font-size: 13px;
+}
+.format-details .format-banlist-note,
+.format-details .format-points-note {
+    font-size: 13px;
+    color: var(--ds-muted);
+    margin: 12px 0;
 }
 .format-card-restrictions {
     display: grid;
@@ -138,7 +155,7 @@
     margin: 16px 0;
 }
 .format-card-restrictions details,
-.format-history,
+.format-points-reference,
 .format-regulation {
     border: 1px solid var(--ds-line);
     border-radius: 8px;
@@ -162,16 +179,103 @@
     line-height: 1.7;
     font-size: 14px;
 }
-.format-history {
-    margin: 20px 0;
+.format-points-reference {
+    margin: 18px 0;
 }
-.format-history ol {
-    padding-left: 22px;
-    margin-bottom: 0;
+.format-points-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 16px 12px;
+    margin-top: 16px;
 }
-.format-history li {
-    margin-bottom: 12px;
-    font-size: 13px;
+.format-point-card {
+    min-width: 0;
+    margin: 0;
+}
+.format-point-art {
+    position: relative;
+    aspect-ratio: 630 / 880;
+    overflow: hidden;
+    border-radius: 6px;
+    background: var(--ds-bg, #080a0b);
+}
+.format-point-art img {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.format-point-art img[hidden] {
+    display: none;
+}
+.format-point-fallback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--ds-muted);
+    font-size: 12px;
+}
+.format-point-badge {
+    box-sizing: border-box;
+    position: absolute;
+    z-index: 2;
+    bottom: 5px;
+    right: 5px;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border: 4px solid #f02732;
+    border-radius: 50%;
+    background: #050505;
+    color: #ffe52f;
+    font-size: 16px;
+    font-weight: 900;
+    font-style: normal;
+    line-height: 1;
+    padding: 0;
+    letter-spacing: 0;
+    box-shadow:
+        0 0 0 1px #160000,
+        0 2px 4px #000b;
+}
+.format-point-badge svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: currentColor;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    font-variant-numeric: lining-nums tabular-nums;
+}
+.format-point-card figcaption {
+    margin-top: 5px;
+    color: var(--ds-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+.format-card-rule-note {
+    display: block;
+    margin-top: 3px;
+    color: var(--ds-text);
+    font-size: 12px;
+}
+.format-choice-groups {
+    display: grid;
+    gap: 16px;
+    margin-top: 12px;
+}
+.format-choice-group {
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    padding: 12px;
+}
+.format-choice-group > p {
+    margin: 0;
 }
 .format-detail-actions {
     display: flex;
@@ -202,13 +306,12 @@
     .format-details {
         padding: 16px;
     }
-    .format-rule-row {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 6px;
+    .format-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
     }
-    .format-rule-row > span {
-        text-align: left;
+    .format-stat {
+        padding: 14px;
     }
     .format-detail-actions {
         flex-direction: column;

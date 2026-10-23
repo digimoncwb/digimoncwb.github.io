@@ -2494,7 +2494,7 @@ dialog::backdrop {
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--accent) 35%, var(--line)) #171b1e;
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
     border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line));
     border-radius: 11px;
     background: #171b1e;
@@ -2528,7 +2528,7 @@ dialog::backdrop {
 }
 .format-select-options [aria-selected='true']:is(:hover, :focus-visible) {
     background: color-mix(in srgb, var(--accent) 14.12%, transparent);
-    color: #ffb0b7;
+    color: color-mix(in srgb, var(--accent) 70%, white);
 }
 .format-select-check {
     width: 16px;
@@ -2627,7 +2627,7 @@ dialog::backdrop {
     min-height: 0;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--accent) 25%, var(--line)) #111517;
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
 }
 .event-results-summary {
     display: flex;

@@ -1,6 +1,7 @@
 export interface FormatRules {
     main_count?: number;
     egg_max?: number;
+    security_count?: number;
     copies?: number;
     banned_codes?: string[];
     limited_cards?: Record<string, number>;
@@ -8,6 +9,10 @@ export interface FormatRules {
     allowed_colors?: string[];
     allowed_sets?: string[];
     choice_groups?: string[][];
+    allowed_rarities?: string[];
+    points_limit?: number | null;
+    card_points?: Record<string, { name: string; points: number }>;
+    points_pending?: { code: string; name: string; points: number }[];
 }
 export function pendingFormatRules(format?: {
     rules_status?: string;
@@ -18,6 +23,10 @@ export function pendingFormatRules(format?: {
     if (format?.validation_rules?.egg_max == null) pending.push('Quantidade de Digi-Eggs');
     if (format?.validation_rules?.copies == null) pending.push('Limite de cópias');
     if (format?.rules_status !== 'published') pending.push('Publicação do regulamento');
+    if (format?.validation_rules?.points_pending?.length)
+        pending.push(
+            `${format.validation_rules.points_pending.length} códigos da pontuação aguardando correção`
+        );
     return pending;
 }
 export interface Card {
@@ -30,6 +39,7 @@ export interface Card {
     image: string;
     payload: Record<string, unknown>;
     known: boolean;
+    rarity: string;
 }
 export interface Entry {
     code: string;
@@ -74,6 +84,22 @@ export const isDigimonCardCode = (value: string) =>
     /^(?:BT\d+|EX\d+|ST\d+|RB\d+|AD\d+|LM\d*|P)-\d{1,4}$/.test(value);
 const numeric = (value: unknown) =>
     value === '' || value == null || !Number.isFinite(Number(value)) ? null : Number(value);
+export function normalizeRarity(value: unknown): string {
+    const rarity = textKey(value);
+    return (
+        (
+            {
+                common: 'C',
+                comum: 'C',
+                uncommon: 'U',
+                incomum: 'U',
+                incomun: 'U',
+                uc: 'U',
+                unknown: ''
+            } as Record<string, string>
+        )[rarity] ?? rarity.toUpperCase()
+    );
+}
 export function normalizeCard(row: Record<string, unknown>): Card {
     const payload =
         row.card_payload && typeof row.card_payload === 'object'
@@ -101,6 +127,7 @@ export function normalizeCard(row: Record<string, unknown>): Card {
         cost: numeric(row.play_cost ?? payload.play_cost ?? payload.playcost),
         image: `https://digimon.digilab.cards/api/card/${encodeURIComponent(code)}.jpg`,
         payload,
+        rarity: normalizeRarity(row.rarity || payload.rarity),
         known: Boolean(
             isDigimonCardCode(code) &&
             ['digimon', 'digi-egg', 'tamer', 'option', 'dual'].includes(type) &&
@@ -127,9 +154,10 @@ export function effectiveRules(
     base: FormatRules,
     custom?: FormatRules | null
 ): Required<FormatRules> {
-    return {
+    const rules: Required<FormatRules> = {
         main_count: 50,
         egg_max: 5,
+        security_count: 5,
         copies: 4,
         banned_codes: [],
         limited_cards: {},
@@ -137,12 +165,84 @@ export function effectiveRules(
         allowed_colors: [],
         allowed_sets: [],
         choice_groups: [],
+        allowed_rarities: [],
+        points_limit: null,
+        card_points: {},
+        points_pending: [],
         ...base,
         ...custom
     };
+    // A format can add restrictions, but it cannot silently remove the system banlist.
+    rules.banned_codes = [
+        ...new Set([...(base.banned_codes || []), ...(custom?.banned_codes || [])])
+    ];
+    rules.limited_cards = { ...base.limited_cards, ...custom?.limited_cards };
+    for (const [code, limit] of Object.entries(base.limited_cards || {}))
+        rules.limited_cards[code] = Math.min(limit, rules.limited_cards[code] ?? limit);
+    return rules;
+}
+export function cardPoints(code: string, rules: Required<FormatRules>) {
+    return rules.card_points[code]?.points ?? 0;
+}
+export function formatSpecificRestrictions(base: FormatRules, custom?: FormatRules | null) {
+    const general = effectiveRules(base);
+    const rules = effectiveRules(base, custom);
+    const groupKey = (codes: string[]) => [...new Set(codes)].sort().join('|');
+    const baseGroups = new Set(general.choice_groups.map(groupKey));
+    return {
+        banned_codes: rules.banned_codes.filter((code) => !general.banned_codes.includes(code)),
+        limited_cards: Object.fromEntries(
+            Object.entries(rules.limited_cards).filter(
+                ([code, limit]) =>
+                    !rules.banned_codes.includes(code) && limit < copyLimit(code, general)
+            )
+        ),
+        unlimited_codes: rules.unlimited_codes.filter(
+            (code) => !general.unlimited_codes.includes(code)
+        ),
+        choice_groups: rules.choice_groups.filter((group) => !baseGroups.has(groupKey(group)))
+    };
+}
+export function copyLimit(code: string, rules: Required<FormatRules>) {
+    if (rules.banned_codes.includes(code)) return 0;
+    return (
+        rules.limited_cards[code] ??
+        (rules.unlimited_codes.includes(code) ? rules.main_count : rules.copies)
+    );
+}
+export function adjustCopies(
+    entries: Entry[],
+    code: string,
+    delta: number,
+    rules: Required<FormatRules>
+) {
+    const combined = aggregate(entries);
+    const current = combined.find((entry) => entry.code === code)?.qty || 0;
+    const next =
+        delta > 0
+            ? Math.min(current + delta, Math.max(current, copyLimit(code, rules)))
+            : Math.max(0, current + delta);
+    return aggregate([...combined.filter((entry) => entry.code !== code), { code, qty: next }]);
+}
+export function orderCatalog(cards: Card[], sets: { code: string; created_at: string }[]) {
+    const dates = new Map(sets.map((set) => [set.code, Date.parse(set.created_at) || 0]));
+    return [...cards].sort((a, b) => {
+        const [setA, numberA] = a.code.split('-');
+        const [setB, numberB] = b.code.split('-');
+        if (setA === setB) return Number(numberA) - Number(numberB) || a.code.localeCompare(b.code);
+        return (
+            (dates.get(setB) || 0) - (dates.get(setA) || 0) ||
+            setB.localeCompare(setA, undefined, { numeric: true })
+        );
+    });
 }
 export function cardEligibility(card: Card, rules: Required<FormatRules>): string {
     if (rules.banned_codes.includes(card.code)) return 'Carta proibida neste formato';
+    if (rules.allowed_rarities.length) {
+        if (!card.rarity) return 'Raridade não confirmada';
+        if (!rules.allowed_rarities.map(normalizeRarity).includes(normalizeRarity(card.rarity)))
+            return `Raridade não permitida (${card.rarity})`;
+    }
     if (rules.allowed_sets.length && !rules.allowed_sets.includes(card.code.split('-')[0]))
         return 'Coleção não permitida neste formato';
     if (
@@ -161,11 +261,13 @@ export function validateDeck(
 ) {
     const issues: Issue[] = [];
     let main = 0,
-        eggs = 0;
+        eggs = 0,
+        points = 0;
     const quantities = new Map<string, number>();
     for (const item of entries)
         quantities.set(item.code, (quantities.get(item.code) || 0) + item.qty);
     for (const [code, qty] of quantities) {
+        points += qty * cardPoints(code, rules);
         const card = cards.get(code);
         if (card?.type === 'digi-egg') eggs += qty;
         else main += qty;
@@ -184,9 +286,7 @@ export function validateDeck(
                 message: `${code} permanece no rascunho. Remova a carta ou revise o formato.`,
                 codes: [code]
             });
-        const limit =
-            rules.limited_cards[code] ??
-            (rules.unlimited_codes.includes(code) ? rules.main_count : rules.copies);
+        const limit = copyLimit(code, rules);
         if (!rules.banned_codes.includes(code) && qty > limit)
             issues.push({
                 id: `copies-${code}`,
@@ -234,12 +334,31 @@ export function validateDeck(
                 'Não foi possível carregar todas as regras. Tente novamente antes de considerar o deck válido.',
             codes: []
         });
-    return { main, eggs, issues, valid: available && issues.length === 0 };
+    if (rules.points_limit !== null && points > rules.points_limit)
+        issues.push({
+            id: 'points',
+            title: `Pontuação: ${points} / ${rules.points_limit}`,
+            message: `O deck excede o limite em ${points - rules.points_limit} pontos. Cada cópia soma os pontos da carta.`,
+            codes: [...quantities.keys()].filter((code) => cardPoints(code, rules) > 0)
+        });
+    const raritiesValid =
+        !rules.allowed_rarities.length ||
+        [...quantities.keys()].every((code) => {
+            const card = cards.get(code);
+            return (
+                card?.known &&
+                !!card.rarity &&
+                rules.allowed_rarities.map(normalizeRarity).includes(normalizeRarity(card.rarity))
+            );
+        });
+    return { main, eggs, points, raritiesValid, issues, valid: available && issues.length === 0 };
 }
 export interface CatalogFilters {
     query: string;
     color: string;
     color2: string;
+    colors?: string[];
+    rarities?: string[];
     type: string;
     level: string;
     cost: string;
@@ -266,6 +385,10 @@ export function filterCatalog(
                 ).includes(query)) &&
             (!filters.color || card.colors.includes(filters.color)) &&
             (!filters.color2 || card.colors.includes(filters.color2)) &&
+            (!filters.colors?.length ||
+                filters.colors.some((color) => card.colors.includes(color))) &&
+            (!filters.rarities?.length ||
+                filters.rarities.map(normalizeRarity).includes(normalizeRarity(card.rarity))) &&
             (!filters.type || card.type === filters.type) &&
             (!filters.level || String(card.level) === filters.level) &&
             (!filters.cost || String(card.cost) === filters.cost) &&

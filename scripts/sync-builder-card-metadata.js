@@ -34,7 +34,10 @@ function metadata(row) {
         card_type: types[type] || null,
         card_level: Number.isFinite(level) && level > 0 ? Math.trunc(level) : null,
         is_digi_egg: types[type] === 'Digi-Egg',
-        card_payload: p
+        card_payload:
+            code === 'BT26-091' && String(p.rarity).toUpperCase() === 'RC'
+                ? { ...p, rarity: 'R' }
+                : p
     };
 }
 function complete(row) {
@@ -90,7 +93,15 @@ async function main() {
             ].filter((code) => GAME_CODE.test(code))
         )
     ];
-    const pending = gameCodes.filter((code) => !db.has(code) || !complete(db.get(code)));
+    const pending = gameCodes.filter(
+        (code) =>
+            !db.has(code) ||
+            !complete(db.get(code)) ||
+            (process.argv.includes('--rarities') &&
+                !String(db.get(code)?.card_payload?.rarity || '')
+                    .trim()
+                    .match(/^(?!unknown$).+/i))
+    );
     const updates = new Map();
     // Correct typed columns from already persisted rich payloads, including Dual cards.
     for (const row of existing.filter((r) => GAME_CODE.test(r.card_code))) {
@@ -135,11 +146,28 @@ async function main() {
         await new Promise((r) => setTimeout(r, 700));
     }
     const unresolved = pending.filter((code) => !updates.has(code));
+    const unresolvedRarities = process.argv.includes('--rarities')
+        ? pending.filter(
+              (code) =>
+                  !String(updates.get(code)?.card_payload?.rarity || '')
+                      .trim()
+                      .match(/^(?!unknown$).+/i)
+          )
+        : [];
     fs.mkdirSync('.tmp', { recursive: true });
+    fs.writeFileSync(
+        '.tmp/builder-card-metadata-values.json',
+        JSON.stringify([...updates.values()])
+    );
     fs.writeFileSync(
         '.tmp/builder-card-metadata-report.json',
         JSON.stringify(
-            { checked: gameCodes.length, updates: [...updates.keys()], unresolved },
+            {
+                checked: gameCodes.length,
+                updates: [...updates.keys()],
+                unresolved,
+                unresolvedRarities
+            },
             null,
             2
         )
@@ -147,6 +175,8 @@ async function main() {
     console.log(
         `Verified updates: ${updates.size}; unresolved: ${unresolved.join(', ') || 'none'}.`
     );
+    if (unresolvedRarities.length)
+        console.log(`Source has no confirmed rarity for: ${unresolvedRarities.join(', ')}.`);
     if (apply) {
         const rows = [...updates.values()];
         for (let offset = 0; offset < rows.length; offset += 100) {

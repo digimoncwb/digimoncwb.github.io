@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { MicroContext, Format } from '../../contracts';
-import { DeckFormatForm } from './DeckFormatForm';
+import type { MicroContext } from '../../contracts';
 import { FormatsRulesPage } from './FormatsRulesPage';
 import { orderListCards } from '../builder/editor-service';
 import { useData, Loader } from '../../shared/runtime';
@@ -44,6 +43,24 @@ type Preview = {
     participation?: Participation;
 };
 
+function ListViewIcon() {
+    return (
+        <svg
+            className="deck-view-icon"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+            <circle cx="12" cy="12" r="3" />
+        </svg>
+    );
+}
+
 export function DecksPage({ context }: { context: MicroContext }) {
     const { data, loading: dataLoading, error: dataError } = useData(context.data);
     const params = context.route.params;
@@ -69,13 +86,6 @@ export function DecksPage({ context }: { context: MicroContext }) {
     const [busy, setBusy] = useState(false);
     const [actionError, setActionError] = useState('');
     const [replace, setReplace] = useState(false);
-    const [admin, setAdmin] = useState(Boolean(window.digistatsAdminAuthenticated));
-    const [editingFormat, setEditingFormat] = useState<Format | 'new' | null>(null);
-    useEffect(() => {
-        const update = () => setAdmin(Boolean(window.digistatsAdminAuthenticated));
-        window.addEventListener('digistats:admin-auth-changed', update);
-        return () => window.removeEventListener('digistats:admin-auth-changed', update);
-    }, []);
     const activeFormats = (data.deckFormats || []).filter((f) => f.is_active !== false);
     const formatLabel = (code: string) =>
         (data.deckFormats || []).find((f) => f.code === code)?.name || code;
@@ -312,10 +322,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                     <FormatsRulesPage
                         context={context}
                         formats={data.deckFormats || []}
-                        admin={admin}
                         onCreate={(id) => beginCreate(false, id)}
-                        onEdit={setEditingFormat}
-                        onNew={() => setEditingFormat('new')}
                         onBrowse={(id) =>
                             update({
                                 tab: 'free',
@@ -589,7 +596,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                                             })
                                                         }
                                                     >
-                                                        Ver lista →
+                                                        <ListViewIcon /> Ver lista
                                                     </button>
                                                     <button
                                                         className="button secondary"
@@ -724,9 +731,11 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                                             className="button secondary"
                                                             onClick={() => openParticipation(item)}
                                                         >
-                                                            <span aria-hidden="true">
-                                                                {item.hasList ? '◉' : '＋'}
-                                                            </span>
+                                                            {item.hasList ? (
+                                                                <ListViewIcon />
+                                                            ) : (
+                                                                <span aria-hidden="true">＋</span>
+                                                            )}
                                                             {item.hasList
                                                                 ? 'Ver lista'
                                                                 : 'Criar lista'}
@@ -747,13 +756,6 @@ export function DecksPage({ context }: { context: MicroContext }) {
                     </>
                 )}
             </div>
-            {editingFormat && (
-                <DeckFormatForm
-                    context={context}
-                    format={editingFormat === 'new' ? null : editingFormat}
-                    onClose={() => setEditingFormat(null)}
-                />
-            )}
             {create && (
                 <Dialog
                     title={create.importing ? 'Importar lista' : 'Criar deck'}

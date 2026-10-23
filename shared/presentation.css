@@ -77,7 +77,7 @@ button:is(.cancel-close, .clear-action):disabled {
     filter: none;
 }
 .button.primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent) 85%, white);
+    background: var(--ds-action-hover-bg);
     filter: none;
 }
 .native-back-link {

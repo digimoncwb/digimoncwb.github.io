@@ -69,7 +69,7 @@
     --color-table-header: var(--ds-raised);
     --color-row-hover: color-mix(in srgb, var(--accent) 3.14%, transparent);
     color-scheme: dark;
-    scrollbar-color: #4d353c var(--ds-panel);
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
     background: transparent !important;
 }
 /* Layout containers stay transparent; only cards and controls receive a surface. */
@@ -496,9 +496,9 @@
     color: color-mix(in srgb, var(--accent) 70%, white) !important;
 }
 :root.v2-tools body.native-v2 #v2Tools .decklist-builder-action-btn.btn-primary {
-    background: var(--ds-red) !important;
+    background: var(--ds-action-bg) !important;
     border-color: var(--ds-red) !important;
-    color: #190c0e !important;
+    color: var(--ds-accent) !important;
 }
 /* Search/control rows use consistent spacing without forcing legacy inline tools wider. */
 :root.v2-tools body.native-v2 #v2Tools :is(.players-row-search, .decks-list-controls) {

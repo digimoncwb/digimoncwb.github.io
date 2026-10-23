@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v138';
+const CACHE_VERSION = 'v157';
 const CACHE_NAME = `digistats-${CACHE_VERSION}`;
 
 // Cache screens as they are visited, rather than downloading every tool during
@@ -69,7 +69,10 @@ self.addEventListener('fetch', (event) => {
     if (isScriptOrStyle) {
         // Versioned and content-hashed files are immutable within a release.
         // Unversioned files still check the network to pick up new deployments.
-        if (url.searchParams.has('v') || /\/(?:assets|mfe\/shared)\/[^/]+-[\w-]{8,}\.(?:m?js|css)$/.test(url.pathname)) {
+        if (
+            url.searchParams.has('v') ||
+            /\/(?:assets|mfe\/shared)\/[^/]+-[\w-]{8,}\.(?:m?js|css)$/.test(url.pathname)
+        ) {
             event.respondWith(cacheFirst(request));
             return;
         }

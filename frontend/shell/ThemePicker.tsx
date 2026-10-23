@@ -3,10 +3,29 @@ const colors = [
     { id: 'red', label: 'Vermelho', color: '#ef646b' },
     { id: 'blue', label: 'Azul', color: '#66a7f5' },
     { id: 'green', label: 'Verde', color: '#4edb9b' },
-    { id: 'yellow', label: 'Amarelo', color: '#f1cc5b' }
+    { id: 'yellow', label: 'Amarelo', color: '#f1cc5b' },
+    { id: 'custom', label: 'Personalizada', color: '#bb86fc' }
 ];
-function applyAccent(value: string) {
-    const color = colors.find((c) => c.id === value) || colors[0];
+function readPalette() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('digimon-cwb-accent-palette') || 'null');
+        return colors.map((color) => {
+            const entry = Array.isArray(saved) ? saved.find((item) => item?.id === color.id) : null;
+            return {
+                ...color,
+                color: /^#[0-9a-f]{6}$/i.test(entry?.color) ? entry.color : color.color,
+                label:
+                    typeof entry?.label === 'string' && entry.label.trim()
+                        ? entry.label.trim().slice(0, 30)
+                        : color.label
+            };
+        });
+    } catch {
+        return colors;
+    }
+}
+function applyAccent(value: string, palette = readPalette()) {
+    const color = palette.find((c) => c.id === value) || palette[0];
     const root = document.documentElement;
     root.dataset.accent = color.id;
     root.style.setProperty('--ds-accent', color.color);
@@ -22,12 +41,20 @@ export function restoreAccent() {
     applyAccent(value);
 }
 export function ThemePicker() {
+    const [palette, setPalette] = useState(readPalette);
+    const [draftPalette, setDraftPalette] = useState(palette);
     const [saved, setSaved] = useState(() => document.documentElement.dataset.accent || 'red');
     const [draft, setDraft] = useState(saved),
         [open, setOpen] = useState(false),
         [error, setError] = useState('');
     const dialog = useRef<HTMLDialogElement>(null),
         trigger = useRef<HTMLButtonElement>(null);
+    const current = draftPalette.find((color) => color.id === draft) || draftPalette[0];
+    function editCurrent(change: Partial<{ color: string; label: string }>) {
+        setDraftPalette((items) =>
+            items.map((item) => (item.id === draft ? { ...item, ...change } : item))
+        );
+    }
     useEffect(() => {
         if (open) dialog.current?.showModal();
         else dialog.current?.close();
@@ -43,6 +70,7 @@ export function ThemePicker() {
                 className="site-theme-opener"
                 onClick={() => {
                     setDraft(saved);
+                    setDraftPalette(palette);
                     setError('');
                     setOpen(true);
                 }}
@@ -50,7 +78,7 @@ export function ThemePicker() {
                 <span>Aparência</span>
                 <span className="theme-current">
                     <i aria-hidden="true" />
-                    {colors.find((c) => c.id === saved)?.label}
+                    {palette.find((c) => c.id === saved)?.label}
                 </span>
             </button>
             <dialog
@@ -88,7 +116,7 @@ export function ThemePicker() {
                     Confira a prévia. O tema só muda quando você clicar em Aplicar.
                 </p>
                 <div className="theme-color-options" role="group" aria-label="Cor do tema">
-                    {colors.map((c) => (
+                    {draftPalette.map((c) => (
                         <button
                             key={c.id}
                             type="button"
@@ -104,12 +132,41 @@ export function ThemePicker() {
                         </button>
                     ))}
                 </div>
+                <div className="theme-custom-fields">
+                    <label>
+                        Cor do tema
+                        <input
+                            type="color"
+                            value={current.color}
+                            onChange={(event) => editCurrent({ color: event.target.value })}
+                        />
+                    </label>
+                    <label>
+                        Nome da cor
+                        <input
+                            type="text"
+                            maxLength={30}
+                            value={current.label}
+                            onChange={(event) => editCurrent({ label: event.target.value })}
+                        />
+                    </label>
+                    <button
+                        type="button"
+                        className="button secondary"
+                        onClick={() => {
+                            const original = colors.find((color) => color.id === draft)!;
+                            editCurrent({ color: original.color, label: original.label });
+                        }}
+                    >
+                        Restaurar cor e nome
+                    </button>
+                </div>
                 <div
                     className="theme-preview"
                     style={
                         {
-                            '--accent': colors.find((c) => c.id === draft)?.color,
-                            '--ds-accent': colors.find((c) => c.id === draft)?.color
+                            '--accent': current.color,
+                            '--ds-accent': current.color
                         } as React.CSSProperties
                     }
                 >
@@ -132,10 +189,22 @@ export function ThemePicker() {
                     <button
                         type="button"
                         className="button primary"
+                        disabled={!current.label.trim()}
                         onClick={() => {
                             try {
+                                const nextPalette = draftPalette.map((item) => ({
+                                    ...item,
+                                    label:
+                                        item.label.trim() ||
+                                        colors.find((color) => color.id === item.id)!.label
+                                }));
+                                localStorage.setItem(
+                                    'digimon-cwb-accent-palette',
+                                    JSON.stringify(nextPalette)
+                                );
                                 localStorage.setItem('digimon-cwb-accent', draft);
-                                applyAccent(draft);
+                                applyAccent(draft, nextPalette);
+                                setPalette(nextPalette);
                                 setSaved(draft);
                                 setOpen(false);
                                 trigger.current?.focus();

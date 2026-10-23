@@ -39,6 +39,25 @@ test('Deck exports stay unavailable while any card image is missing', async () =
     assert.equal(result.ready, false);
     assert.match(result.message, /1 imagens não carregaram/);
 });
+
+test('Scored formats export per-card circles and the total including every copy', async () => {
+    const { api, canvas, labels } = renderer();
+    await api.renderDeckPost(
+        canvas,
+        [
+            { code: 'EX1-066', qty: 2, points: 20 },
+            { code: 'BT9-098', qty: 4, points: 15 },
+            { code: 'BT1-010', qty: 4 }
+        ],
+        { name: 'DigiCrest' },
+        { pointsLimit: 100 },
+        ''
+    );
+    assert.ok(labels.some((text) => text.includes('100 / 100 pontos')));
+    assert.ok(labels.includes('20'));
+    assert.ok(labels.includes('15'));
+    assert.equal(labels.includes('0'), false);
+});
 test('Deck image pages retain all cards and quantities beyond a single post', () => {
     const { api } = renderer();
     const cards = Array.from({ length: 54 }, (_, i) => ({ code: `P-${i + 1}`, qty: i + 1 }));

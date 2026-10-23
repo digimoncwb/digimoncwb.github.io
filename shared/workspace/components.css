@@ -1,7 +1,7 @@
 /* Components: shared visual contracts for the consolidated feature modules. */
 :root.v2-tools #v2Tools .btn-modal-save {
-    background: var(--ds-red) !important;
-    color: #190c0e !important;
+    background: var(--ds-action-bg) !important;
+    color: var(--ds-accent) !important;
     border: 1px solid var(--ds-red) !important;
     padding: 12px 18px;
 }
@@ -64,8 +64,8 @@
 :root.v2-tools
     #v2Tools
     :is(.btn-create-filter, .btn-primary, .btn-save, .btn-add, .admin-digilab-action.is-primary) {
-    background: var(--ds-red) !important;
-    color: #190c0e !important;
+    background: var(--ds-action-bg) !important;
+    color: var(--ds-accent) !important;
     border: 1px solid var(--ds-red) !important;
 }
 :root.v2-tools

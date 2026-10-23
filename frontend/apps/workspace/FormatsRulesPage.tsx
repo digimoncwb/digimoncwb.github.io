@@ -2,48 +2,73 @@ import { useEffect, useState } from 'react';
 import type { Format, MicroContext } from '../../contracts';
 import { Loader } from '../../shared/runtime';
 import { EmptyState } from '../../shared/ListPage';
-import { readRows } from './catalog-service';
+import { PointsBadge } from '../../shared/PointsBadge';
 import { loadAssets, loadRules } from '../builder/editor-service';
 import {
     effectiveRules,
+    formatSpecificRestrictions,
     pendingFormatRules,
     textKey,
     colorLabels,
     type FormatRules
 } from '../builder/editor-model';
 import './formats-rules.css';
-interface RuleVersion {
-    version: number;
-    created_at: string;
-    description: string;
+function FormatRuleCard({
+    code,
+    name = code,
+    points,
+    note
+}: {
+    code: string;
+    name?: string;
+    points?: number;
+    note?: string;
+}) {
+    return (
+        <figure
+            className="format-point-card"
+            title={`${name}${note ? ` · ${note}` : ''}${points != null ? ` · ${points} pontos por cópia` : ''}`}
+        >
+            <div className="format-point-art">
+                <span className="format-point-fallback" aria-hidden="true">
+                    {code}
+                </span>
+                <img
+                    src={`https://digimon.digilab.cards/api/card/${encodeURIComponent(code)}.jpg`}
+                    alt={name}
+                    loading="lazy"
+                    decoding="async"
+                    width="630"
+                    height="880"
+                    onError={(event) => {
+                        event.currentTarget.hidden = true;
+                    }}
+                />
+                {points != null && <PointsBadge className="format-point-badge" points={points} />}
+            </div>
+            <figcaption>
+                {code}
+                {note && <strong className="format-card-rule-note">{note}</strong>}
+            </figcaption>
+        </figure>
+    );
 }
-const dateLabel = (date?: string) => (date ? new Date(date).toLocaleDateString('pt-BR') : '');
 export function FormatsRulesPage({
     context,
     formats,
-    admin,
     onCreate,
-    onBrowse,
-    onEdit,
-    onNew
+    onBrowse
 }: {
     context: MicroContext;
     formats: Format[];
-    admin: boolean;
     onCreate(id: string): void;
     onBrowse(id: string): void;
-    onEdit(format: Format): void;
-    onNew(): void;
 }) {
     const [query, setQuery] = useState('');
     const [base, setBase] = useState<FormatRules>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [revision, setRevision] = useState(0);
-    const [history, setHistory] = useState<RuleVersion[]>([]);
-    const [historyLoading, setHistoryLoading] = useState(false);
-    const [historyError, setHistoryError] = useState('');
-    const [historyRevision, setHistoryRevision] = useState(0);
     const [selectedId, setSelectedId] = useState(context.route.params.get('rulesFormat') || '');
     const available = formats.filter((format) => format.is_active !== false);
     const selected =
@@ -71,27 +96,6 @@ export function FormatsRulesPage({
             });
         return () => controller.abort();
     }, [revision]);
-    useEffect(() => {
-        if (!selected) return;
-        const controller = new AbortController();
-        setHistoryLoading(true);
-        setHistoryError('');
-        readRows<RuleVersion>(
-            `/rest/v1/deck_format_rule_versions?deck_format_id=eq.${encodeURIComponent(selected.id)}&select=version,created_at,description&order=version.desc`,
-            controller.signal
-        )
-            .then((rows) => {
-                if (!controller.signal.aborted) setHistory(rows);
-            })
-            .catch(() => {
-                if (!controller.signal.aborted)
-                    setHistoryError('Não foi possível carregar o histórico.');
-            })
-            .finally(() => {
-                if (!controller.signal.aborted) setHistoryLoading(false);
-            });
-        return () => controller.abort();
-    }, [selected?.id, historyRevision]);
     const choose = (id: string) => {
         setSelectedId(id);
         const url = new URL(location.href);
@@ -103,10 +107,17 @@ export function FormatsRulesPage({
     const rules = effectiveRules(base, selected?.validation_rules);
     const ruleValue = (key: 'main_count' | 'egg_max' | 'copies') =>
         selected?.validation_rules?.[key] == null ? 'A definir' : String(rules[key]);
-    const changeRule = (name: string, value: string) => (
-        <div className="format-rule-row">
-            <strong>{name}</strong>
-            <span>{value}</span>
+    const specific = formatSpecificRestrictions(base, selected?.validation_rules);
+    const hasSpecific =
+        specific.banned_codes.length ||
+        Object.keys(specific.limited_cards).length ||
+        specific.unlimited_codes.length ||
+        specific.choice_groups.length;
+    const stat = (label: string, value: string | number, note: string) => (
+        <div className="format-stat">
+            <span>{label}</span>
+            <strong>{value}</strong>
+            <small>{note}</small>
         </div>
     );
     return (
@@ -114,11 +125,6 @@ export function FormatsRulesPage({
             <div className="deck-section-heading">
                 <h2>Formatos e regras</h2>
                 <p className="muted">Entenda cada formato e escolha como montar seu deck.</p>
-                {admin && (
-                    <button className="button secondary" onClick={onNew}>
-                        ＋ Novo formato de jogo
-                    </button>
-                )}
             </div>
             {!available.length ? (
                 <EmptyState>Nenhum formato disponível.</EmptyState>
@@ -185,24 +191,8 @@ export function FormatsRulesPage({
                                 >
                                     {pending.length ? 'Em definição' : 'Disponível'}
                                 </span>
-                                {admin && (
-                                    <button
-                                        className="button secondary"
-                                        onClick={() => onEdit(selected)}
-                                    >
-                                        Editar formato
-                                    </button>
-                                )}
                             </div>
                             <p>{selected.description || 'Descrição ainda não publicada.'}</p>
-                            <div className="format-version-meta">
-                                {selected.rules_revision && (
-                                    <span>▤ Regulamento · versão {selected.rules_revision}</span>
-                                )}
-                                {selected.updated_at && (
-                                    <span>◷ Atualizado em {dateLabel(selected.updated_at)}</span>
-                                )}
-                            </div>
                             {loading ? (
                                 <Loader text="Carregando regras de construção…" />
                             ) : error ? (
@@ -227,101 +217,203 @@ export function FormatsRulesPage({
                                             <p>Pendente: {pending.join(', ')}.</p>
                                         </div>
                                     )}
-                                    <h4>Regras de construção</h4>
-                                    <div className="format-rules-list">
-                                        {changeRule(
-                                            'Deck principal',
-                                            selected.validation_rules?.main_count == null
-                                                ? 'A definir'
-                                                : `${ruleValue('main_count')} cartas`
+                                    <div className="format-stats">
+                                        {stat('Deck principal', ruleValue('main_count'), 'cartas')}
+                                        {stat('Digi-Eggs', ruleValue('egg_max'), 'no máximo')}
+                                        {stat('Security', rules.security_count, 'cartas iniciais')}
+                                        {stat(
+                                            'Cópias por carta',
+                                            ruleValue('copies'),
+                                            'salvo exceções'
                                         )}
-                                        {changeRule(
-                                            'Digi-Eggs',
-                                            selected.validation_rules?.egg_max == null
-                                                ? 'A definir'
-                                                : `Até ${ruleValue('egg_max')} cartas`
+                                        {rules.points_limit !== null &&
+                                            stat(
+                                                'Limite de pontos',
+                                                rules.points_limit,
+                                                'somando cada cópia'
+                                            )}
+                                    </div>
+                                    <div className="format-summary-tags">
+                                        {rules.allowed_rarities.length > 0 && (
+                                            <span>
+                                                Raridades · {rules.allowed_rarities.join(' / ')}
+                                            </span>
                                         )}
-                                        {changeRule(
-                                            'Limite de cópias',
-                                            selected.validation_rules?.copies == null
-                                                ? 'A definir'
-                                                : `${ruleValue('copies')} por carta, respeitando as exceções abaixo`
+                                        {rules.allowed_colors.length > 0 && (
+                                            <span>
+                                                Cores ·{' '}
+                                                {rules.allowed_colors
+                                                    .map((color) => colorLabels[color] || color)
+                                                    .join(', ')}
+                                            </span>
                                         )}
-                                        {changeRule(
-                                            'Cores permitidas',
-                                            pending.length
-                                                ? 'A definir'
-                                                : rules.allowed_colors.length
-                                                  ? rules.allowed_colors
-                                                        .map((c) => colorLabels[c] || c)
-                                                        .join(', ')
-                                                  : 'Todas as cores'
-                                        )}
-                                        {changeRule(
-                                            'Coleções permitidas',
-                                            pending.length
-                                                ? 'A definir'
-                                                : rules.allowed_sets.length
-                                                  ? rules.allowed_sets.join(', ')
-                                                  : 'Todas as coleções do catálogo'
+                                        {rules.allowed_sets.length > 0 && (
+                                            <span>Coleções · {rules.allowed_sets.join(', ')}</span>
                                         )}
                                     </div>
                                     {ready && (
-                                        <div className="format-card-restrictions">
-                                            <details>
-                                                <summary>
-                                                    Cartas proibidas · {rules.banned_codes.length}
-                                                </summary>
-                                                <p>
-                                                    {rules.banned_codes.join(', ') ||
-                                                        'Nenhuma proibição adicional cadastrada.'}
+                                        <p className="format-banlist-note">
+                                            Banlist padrão da Bandai aplicada.
+                                        </p>
+                                    )}
+                                    {rules.points_limit !== null && (
+                                        <p className="format-points-note">
+                                            Cada cópia soma pontos. Cartas fora da lista valem 0.
+                                        </p>
+                                    )}
+                                    {rules.points_limit !== null && (
+                                        <details className="format-points-reference">
+                                            <summary>
+                                                Pontuação por carta ·{' '}
+                                                {Object.keys(rules.card_points).length} cartas
+                                            </summary>
+                                            <div className="format-points-grid">
+                                                {Object.entries(rules.card_points)
+                                                    .sort(([a], [b]) =>
+                                                        a.localeCompare(b, undefined, {
+                                                            numeric: true
+                                                        })
+                                                    )
+                                                    .map(([code, value]) => (
+                                                        <FormatRuleCard
+                                                            key={code}
+                                                            code={code}
+                                                            name={value.name}
+                                                            points={value.points}
+                                                        />
+                                                    ))}
+                                            </div>
+                                            {!!rules.points_pending.length && (
+                                                <p className="format-pending">
+                                                    Códigos aguardando correção:{' '}
+                                                    {rules.points_pending
+                                                        .map((row) => row.code)
+                                                        .join(', ')}
+                                                    .
                                                 </p>
-                                            </details>
-                                            <details>
-                                                <summary>
-                                                    Limites específicos ·{' '}
-                                                    {Object.keys(rules.limited_cards).length}
-                                                </summary>
-                                                <ul>
-                                                    {Object.entries(rules.limited_cards).map(
-                                                        ([code, count]) => (
-                                                            <li key={code}>
-                                                                {code}: {count}{' '}
-                                                                {count === 1 ? 'cópia' : 'cópias'}
-                                                            </li>
-                                                        )
+                                            )}
+                                        </details>
+                                    )}
+                                    {ready && !!hasSpecific && (
+                                        <div className="format-card-restrictions">
+                                            {!!specific.banned_codes.length && (
+                                                <details>
+                                                    <summary>
+                                                        Cartas proibidas ·{' '}
+                                                        {specific.banned_codes.length}
+                                                    </summary>
+                                                    {specific.banned_codes.length ? (
+                                                        <div
+                                                            className="format-points-grid"
+                                                            data-rule-cards="banned"
+                                                        >
+                                                            {specific.banned_codes.map((code) => (
+                                                                <FormatRuleCard
+                                                                    key={code}
+                                                                    code={code}
+                                                                    note="Proibida"
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p>
+                                                            Nenhuma proibição adicional cadastrada.
+                                                        </p>
                                                     )}
-                                                </ul>
-                                            </details>
-                                            {rules.unlimited_codes.length > 0 && (
+                                                </details>
+                                            )}
+                                            {!!Object.keys(specific.limited_cards).length && (
+                                                <details>
+                                                    <summary>
+                                                        Limites específicos ·{' '}
+                                                        {Object.keys(specific.limited_cards).length}
+                                                    </summary>
+                                                    <div
+                                                        className="format-points-grid"
+                                                        data-rule-cards="limited"
+                                                    >
+                                                        {Object.entries(specific.limited_cards).map(
+                                                            ([code, count]) => (
+                                                                <FormatRuleCard
+                                                                    key={code}
+                                                                    code={code}
+                                                                    note={`Máximo: ${count} ${count === 1 ? 'cópia' : 'cópias'}`}
+                                                                />
+                                                            )
+                                                        )}
+                                                    </div>
+                                                    {!Object.keys(specific.limited_cards)
+                                                        .length && (
+                                                        <p>Nenhum limite específico cadastrado.</p>
+                                                    )}
+                                                </details>
+                                            )}
+                                            {specific.unlimited_codes.length > 0 && (
                                                 <details>
                                                     <summary>
                                                         Cartas com exceção ao limite geral
                                                     </summary>
                                                     <p>
-                                                        {rules.unlimited_codes.join(', ')} · até{' '}
-                                                        {rules.main_count} cópias, respeitando a
+                                                        Até {rules.main_count} cópias, respeitando a
                                                         quantidade do principal.
                                                     </p>
+                                                    <div
+                                                        className="format-points-grid"
+                                                        data-rule-cards="unlimited"
+                                                    >
+                                                        {specific.unlimited_codes.map((code) => (
+                                                            <FormatRuleCard
+                                                                key={code}
+                                                                code={code}
+                                                                note={`Até ${rules.main_count} cópias`}
+                                                            />
+                                                        ))}
+                                                    </div>
                                                 </details>
                                             )}
-                                            <details>
-                                                <summary>
-                                                    Combinações restritas ·{' '}
-                                                    {rules.choice_groups.length}
-                                                </summary>
-                                                <ul>
-                                                    {rules.choice_groups.map((group, index) => (
-                                                        <li key={index}>
-                                                            Use apenas uma destas cartas:{' '}
-                                                            {group.join(', ')}.
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                                {!rules.choice_groups.length && (
-                                                    <p>Nenhuma combinação restrita cadastrada.</p>
-                                                )}
-                                            </details>
+                                            {!!specific.choice_groups.length && (
+                                                <details>
+                                                    <summary>
+                                                        Combinações restritas ·{' '}
+                                                        {specific.choice_groups.length}
+                                                    </summary>
+                                                    <div className="format-choice-groups">
+                                                        {specific.choice_groups.map(
+                                                            (group, index) => (
+                                                                <section
+                                                                    className="format-choice-group"
+                                                                    key={index}
+                                                                    aria-label={`Combinação restrita ${index + 1}`}
+                                                                >
+                                                                    <p>
+                                                                        <strong>
+                                                                            Combinação {index + 1}
+                                                                        </strong>{' '}
+                                                                        · Use apenas uma destas
+                                                                        cartas no deck.
+                                                                    </p>
+                                                                    <div
+                                                                        className="format-points-grid"
+                                                                        data-rule-cards="choice"
+                                                                    >
+                                                                        {group.map((code) => (
+                                                                            <FormatRuleCard
+                                                                                key={code}
+                                                                                code={code}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                </section>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                    {!specific.choice_groups.length && (
+                                                        <p>
+                                                            Nenhuma combinação restrita cadastrada.
+                                                        </p>
+                                                    )}
+                                                </details>
+                                            )}
                                         </div>
                                     )}
                                     {selected.rules_text && (
@@ -342,36 +434,6 @@ export function FormatsRulesPage({
                                     )}
                                 </>
                             )}
-                            <details className="format-history">
-                                <summary>◷ Histórico de alterações</summary>
-                                {historyLoading ? (
-                                    <Loader text="Carregando histórico…" />
-                                ) : historyError ? (
-                                    <p role="alert">
-                                        {historyError}
-                                        <button
-                                            className="button secondary"
-                                            onClick={() => setHistoryRevision((v) => v + 1)}
-                                        >
-                                            Tentar novamente
-                                        </button>
-                                    </p>
-                                ) : history.length ? (
-                                    <ol>
-                                        {history.map((version) => (
-                                            <li key={version.version}>
-                                                <strong>
-                                                    Versão {version.version} ·{' '}
-                                                    {dateLabel(version.created_at)}
-                                                </strong>
-                                                <p>{version.description}</p>
-                                            </li>
-                                        ))}
-                                    </ol>
-                                ) : (
-                                    <p>Nenhuma alteração registrada.</p>
-                                )}
-                            </details>
                             <div className="format-detail-actions">
                                 <button
                                     className="button primary"
@@ -389,9 +451,6 @@ export function FormatsRulesPage({
                                     ☷ Ver decks deste formato
                                 </button>
                             </div>
-                            <small className="muted">
-                                O formato será selecionado automaticamente no editor.
-                            </small>
                         </article>
                     )}
                 </div>

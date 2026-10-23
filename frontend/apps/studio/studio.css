@@ -24,7 +24,7 @@
     min-height: 0;
     overflow: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--line) transparent;
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
 }
 .studio-select-options {
     z-index: 1000;
@@ -100,7 +100,7 @@
     min-width: 0;
     overflow: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--line) transparent;
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
 }
 .studio-post-caption {
     flex: 1 0 260px;
@@ -258,7 +258,7 @@
     font-size: 13px;
     line-height: 1.5;
     scrollbar-width: thin;
-    scrollbar-color: var(--line) var(--ds-control-bg);
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
     scrollbar-gutter: stable;
 }
 .studio-post-caption textarea:focus-visible {

@@ -7,6 +7,7 @@ import { readRoute, subscribeRoute, href, navigate } from './routes';
 import styles from './Shell.module.css';
 import { SiteFooter } from './SiteFooter';
 import { restoreAccent } from './ThemePicker';
+import { useNativeSelects } from '../shared/NativeSelects';
 import { loadStylesheet } from './styles';
 import '../../shared/theme.css';
 import '../../demo-v2/styles.css';
@@ -73,6 +74,7 @@ const sectionsLabel: Record<RouteName, string> = {
     builder: 'Biblioteca / Decklists'
 };
 function Shell() {
+    useNativeSelects();
     const [route, setRoute] = useState(readRoute),
         [expanded, setExpanded] = useState(''),
         [mobileOpen, setMobileOpen] = useState(false),

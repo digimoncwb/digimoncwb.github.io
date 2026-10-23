@@ -98,6 +98,9 @@
 .deck-library .deck-library-filters {
     align-items: flex-end;
 }
+.deck-library .deck-community-notice {
+    margin-bottom: 24px;
+}
 .deck-library .deck-library-filters label {
     gap: 7px;
 }
@@ -217,15 +220,6 @@
 .deck-library .button {
     min-height: 42px;
     white-space: normal;
-}
-.deck-library-heading .button.primary {
-    /* The shared accent stylesheet uses !important for primary actions. */
-    background: var(--accent) !important;
-    color: #080a0b !important;
-    border-color: var(--accent) !important;
-}
-.deck-library-heading .button.primary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--accent) 90%, white) !important;
 }
 .deck-library .deck-library-filters .ds-select,
 .deck-library .deck-library-extra .ds-select,
@@ -575,4 +569,10 @@
     font-size: 18px;
     font-weight: 800;
     line-height: 1;
+}
+.deck-view-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    vertical-align: middle;
 }
