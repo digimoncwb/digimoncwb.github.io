@@ -1,4 +1,6 @@
 import type { SiteAuthConfig, SiteLegalDeclarations } from '../contracts';
+import { useState } from 'react';
+import { LegalDocument } from './LegalDocument';
 
 export const uncheckedDeclarations: SiteLegalDeclarations = {
     termsAccepted: false,
@@ -14,6 +16,7 @@ export function LegalChecks({
     value: SiteLegalDeclarations;
     onChange(value: SiteLegalDeclarations): void;
 }) {
+    const [reading, setReading] = useState<'terms' | 'privacy' | null>(null);
     const safe = (url?: string | null) => (url && /^https:\/\//.test(url) ? url : undefined);
     if (!config?.legal_ready || !safe(config.terms_url) || !safe(config.privacy_url))
         return (
@@ -23,37 +26,67 @@ export function LegalChecks({
         );
     return (
         <fieldset className="site-legal-checks">
-            <legend>Documentos e condição de cadastro</legend>
-            <label className="site-account-check">
-                <input
-                    type="checkbox"
-                    required
-                    checked={value.termsAccepted}
-                    onChange={(e) => onChange({ ...value, termsAccepted: e.target.checked })}
-                />
-                <span>
-                    Li e aceito os{' '}
-                    <a href={safe(config.terms_url)} target="_blank" rel="noopener noreferrer">
-                        Termos de Uso
-                    </a>{' '}
-                    (versão {config.terms_version}).
-                </span>
-            </label>
-            <label className="site-account-check">
-                <input
-                    type="checkbox"
-                    required
-                    checked={value.privacyRead}
-                    onChange={(e) => onChange({ ...value, privacyRead: e.target.checked })}
-                />
-                <span>
-                    Li o{' '}
-                    <a href={safe(config.privacy_url)} target="_blank" rel="noopener noreferrer">
-                        Aviso de Privacidade
-                    </a>{' '}
-                    (versão {config.privacy_version}).
-                </span>
-            </label>
+            <legend>Termos e privacidade</legend>
+            <div className="site-legal-option">
+                <details
+                    className="site-legal-document"
+                    open={reading === 'terms'}
+                    onToggle={(event) => {
+                        const open = event.currentTarget.open;
+                        setReading((current) =>
+                            open ? 'terms' : current === 'terms' ? null : current
+                        );
+                    }}
+                >
+                    <summary>Ler os Termos de Uso</summary>
+                    {reading === 'terms' && (
+                        <LegalDocument
+                            kind="terms"
+                            version={config.terms_version!}
+                            url={config.terms_url!}
+                        />
+                    )}
+                </details>
+                <label className="site-account-check">
+                    <input
+                        type="checkbox"
+                        required
+                        checked={value.termsAccepted}
+                        onChange={(e) => onChange({ ...value, termsAccepted: e.target.checked })}
+                    />
+                    <span>Li e aceito os Termos de Uso.</span>
+                </label>
+            </div>
+            <div className="site-legal-option">
+                <details
+                    className="site-legal-document"
+                    open={reading === 'privacy'}
+                    onToggle={(event) => {
+                        const open = event.currentTarget.open;
+                        setReading((current) =>
+                            open ? 'privacy' : current === 'privacy' ? null : current
+                        );
+                    }}
+                >
+                    <summary>Ler o Aviso de Privacidade</summary>
+                    {reading === 'privacy' && (
+                        <LegalDocument
+                            kind="privacy"
+                            version={config.privacy_version!}
+                            url={config.privacy_url!}
+                        />
+                    )}
+                </details>
+                <label className="site-account-check">
+                    <input
+                        type="checkbox"
+                        required
+                        checked={value.privacyRead}
+                        onChange={(e) => onChange({ ...value, privacyRead: e.target.checked })}
+                    />
+                    <span>Li e estou ciente do Aviso de Privacidade.</span>
+                </label>
+            </div>
             <label className="site-account-check">
                 <input
                     type="checkbox"

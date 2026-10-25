@@ -1,0 +1,58 @@
+:root {
+    color-scheme: dark light;
+    font:
+        16px/1.7 system-ui,
+        sans-serif;
+    background: #0b1011;
+    color: #eef1f2;
+}
+body {
+    margin: 0;
+}
+main {
+    max-width: 780px;
+    margin: auto;
+    padding: 28px 24px 60px;
+}
+nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px;
+}
+header {
+    margin: 40px 0;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #394349;
+}
+h1 {
+    line-height: 1.2;
+    font-size: 2rem;
+}
+h2 {
+    line-height: 1.4;
+    font-size: 1.2rem;
+    margin-top: 32px;
+}
+a {
+    color: #77b9ff;
+    overflow-wrap: anywhere;
+}
+a:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 4px;
+}
+footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #394349;
+}
+@media (prefers-color-scheme: light) {
+    :root {
+        background: #fafafa;
+        color: #202629;
+    }
+    a {
+        color: #145d9e;
+    }
+}

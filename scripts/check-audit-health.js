@@ -22,6 +22,8 @@ async function main() {
             severity: health.severity,
             missing_triggers: health.missing_triggers,
             failed_integrations_24h: health.failed_integrations_24h,
+            unresolved_failed_integrations_24h: health.unresolved_failed_integrations_24h,
+            recovered_failed_integrations_24h: health.recovered_failed_integrations_24h,
             stalled_integrations: health.stalled_integrations,
             retention_job_active: health.retention_job_active
         })

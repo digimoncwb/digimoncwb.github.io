@@ -83,7 +83,7 @@ function LoadError({ error, retry }: { error: string; retry(): void }) {
     return error ? (
         <div className="list-error" role="alert">
             <span>{error}</span>
-            <button className="button secondary" onClick={retry}>
+            <button className="text-action" onClick={retry}>
                 Tentar novamente
             </button>
         </div>
@@ -134,11 +134,7 @@ export function PlayersPage({ context }: { context: MicroContext }) {
     return (
         <section className="catalog-app">
             <div className="catalog-heading">
-                <PageHeading
-                    eyebrow="Pessoas da comunidade"
-                    title="Jogadores"
-                    description="Encontre jogadores e acompanhe seus resultados."
-                />
+                <PageHeading title="Jogadores" />
                 {canManage && (
                     <button className="button primary" onClick={() => setEditing({})}>
                         + Adicionar jogador
@@ -171,7 +167,7 @@ export function PlayersPage({ context }: { context: MicroContext }) {
                 <Loader text="Carregando jogadores…" />
             ) : (
                 <>
-                    <p className="catalog-count">{filtered.length} jogadores encontrados</p>
+                    <p className="catalog-count">{filtered.length} jogadores</p>
                     <div className="catalog-list">
                         {paging.items.map((player) => (
                             <article className="catalog-row" key={player.id}>
@@ -292,10 +288,9 @@ function PlayerForm({
         [busy, setBusy] = useState(false),
         [error, setError] = useState('');
     const fields = [
-        ['name', 'Nome', true],
-        ['bandai_nick', 'Apelido Bandai', false],
-        ['digilab_name', 'Nome no DigiLab', false],
-        ['bandai_id', 'ID Bandai', false]
+        ['bandai_nick', 'Apelido Bandai'],
+        ['digilab_name', 'Nome no DigiLab'],
+        ['bandai_id', 'ID Bandai']
     ] as const;
     return (
         <Dialog
@@ -319,21 +314,36 @@ function PlayerForm({
                     }
                 }}
             >
-                {fields.map(([field, label, required]) => (
-                    <label key={field}>
-                        {label}
-                        {required && ' *'}
-                        <input
-                            value={String(values[field] || '')}
-                            required={required}
-                            minLength={required ? 2 : undefined}
-                            disabled={busy}
-                            onChange={(event) =>
-                                setValues({ ...values, [field]: event.target.value })
-                            }
-                        />
-                    </label>
-                ))}
+                <label>
+                    Nome
+                    <input
+                        name="player_name"
+                        value={String(values.name || '')}
+                        required
+                        minLength={2}
+                        disabled={busy}
+                        autoComplete="name"
+                        onChange={(event) => setValues({ ...values, name: event.target.value })}
+                    />
+                </label>
+                <details className="player-extra-fields">
+                    <summary>
+                        Identificação adicional <span className="muted">(opcional)</span>
+                    </summary>
+                    {fields.map(([field, label]) => (
+                        <label key={field}>
+                            {label}
+                            <input
+                                name={field}
+                                value={String(values[field] || '')}
+                                disabled={busy}
+                                onChange={(event) =>
+                                    setValues({ ...values, [field]: event.target.value })
+                                }
+                            />
+                        </label>
+                    ))}
+                </details>
                 {error && (
                     <p className="list-error" role="alert">
                         {error}

@@ -41,6 +41,42 @@ const empty = {
     sort: ''
 };
 
+test('Community and personal libraries preserve their search/format filters and never expose another owners decks', () => {
+    const api = model();
+    const decks = [
+        { id: 1, name: 'Alpha', deck_format_id: 1, owner_user_id: 'a' },
+        { id: 2, name: 'Alpha Beta', deck_format_id: 2, owner_user_id: 'b' },
+        { id: 3, name: 'Gamma', deck_format_id: 1, owner_user_id: null }
+    ];
+    const filter = (filters) =>
+        Array.from(
+            api.filterCommunityDecks(decks, { query: '', format: '', mine: false, ...filters }),
+            (row) => row.id
+        );
+    assert.deepEqual(filter({}), [1, 2, 3]);
+    assert.deepEqual(filter({ mine: true, userId: 'a' }), [1]);
+    assert.deepEqual(filter({ mine: true, userId: 'b', format: '1' }), []);
+    assert.deepEqual(filter({ mine: true }), []);
+    assert.deepEqual(filter({ query: 'alpha', format: '2' }), [2]);
+    assert.deepEqual(filter({ mine: true, userId: 'a', query: 'gamma' }), []);
+});
+
+test('Deck claim loading requests only the current users deck ownership requests', async () => {
+    const api = model();
+    const calls = [];
+    api.readRows = async (path, signal) => {
+        calls.push({ path, signal });
+        return [{ id: 'request', decklist_id: 42, status: 'pending' }];
+    };
+    assert.equal((await api.loadMyDeckClaims('')).length, 0);
+    assert.equal(calls.length, 0);
+    const claims = await api.loadMyDeckClaims('account-a');
+    assert.equal(claims[0].status, 'pending');
+    assert.ok(calls[0].path.includes('user_id=eq.account-a'));
+    assert.ok(calls[0].path.includes('request_type=eq.deck_claim'));
+    assert.ok(calls[0].path.includes('decklist_id,status'));
+});
+
 test('Quick author edits patch only authorship and revision while protecting community decks from stale updates', async () => {
     const api = model();
     const deck = { id: 42, updated_at: '2026-10-25T12:00:00.123456+00:00' };

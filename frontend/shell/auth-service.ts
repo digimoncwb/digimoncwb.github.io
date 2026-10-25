@@ -1,16 +1,55 @@
 import { createClient, type Session } from '@supabase/supabase-js';
 import type { SiteAuth, SiteAuthState, SiteAuthConfig, SiteProfile } from '../contracts';
 
+export function createSiteSessionStorage(persistent: Storage, temporary: Storage) {
+    const preferenceKey = 'digistats.remember-account';
+    const remember = () => persistent.getItem(preferenceKey) !== 'false';
+    return {
+        remember,
+        setRemember(value: boolean) {
+            persistent.setItem(preferenceKey, String(value));
+        },
+        getItem(key: string) {
+            return (remember() ? persistent : temporary).getItem(key);
+        },
+        setItem(key: string, value: string) {
+            (remember() ? persistent : temporary).setItem(key, value);
+            (remember() ? temporary : persistent).removeItem(key);
+        },
+        removeItem(key: string) {
+            persistent.removeItem(key);
+            temporary.removeItem(key);
+        }
+    };
+}
+
 export function createSiteAuth(): SiteAuth {
+    const storage = createSiteSessionStorage(window.localStorage, window.sessionStorage);
+    const rememberedEmailKey = 'digistats.remembered-email';
+    const passwordManager = () =>
+        window as unknown as {
+            PasswordCredential?: new (data: { id: string; password: string }) => Credential;
+            navigator?: Navigator;
+        };
+    const callbackHash = new URL(location.href).hash;
+    const implicitEmailCallback =
+        /(?:^#|&)access_token=[^&]+/.test(callbackHash) &&
+        /(?:^#|&)refresh_token=[^&]+/.test(callbackHash) &&
+        /(?:^#|&)type=(?:recovery|invite|signup|email_change|magiclink)(?:&|$)/.test(callbackHash);
+    const callbackNeedsPassword =
+        implicitEmailCallback && /(?:^#|&)type=(?:recovery|invite)(?:&|$)/.test(callbackHash);
     const client = createClient(
         window.APP_CONFIG.SUPABASE_URL,
         window.APP_CONFIG.SUPABASE_ANON_KEY,
         {
             auth: {
-                flowType: 'pkce',
+                // Provider-issued invites and recovery links can use token
+                // fragments. The SDK validates them and removes the fragment.
+                flowType: implicitEmailCallback ? 'implicit' : 'pkce',
                 persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
+                storage,
                 storageKey: 'digistats.site-account'
             }
         }
@@ -18,6 +57,8 @@ export function createSiteAuth(): SiteAuth {
     let session: Session | null = null;
     let generation = 0;
     let initialization: Promise<void> | null = null;
+    let applyingSignupDeclarations: Promise<void> | null = null;
+    const pendingLegalKey = (id: string) => `digistats.pending-signup-declarations.${id}`;
     const listeners = new Set<() => void>();
     let state: SiteAuthState = {
         initialized: false,
@@ -57,8 +98,17 @@ export function createSiteAuth(): SiteAuth {
         return url.href;
     };
     const message = (error: { message?: string; code?: string }) => {
+        if (error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit')
+            return 'Muitas solicitações de e-mail. Aguarde alguns minutos antes de tentar novamente.';
+        if (
+            error.code === 'email_address_not_authorized' ||
+            (error.code === 'unexpected_failure' && /email|smtp/i.test(error.message || ''))
+        )
+            return 'O serviço de e-mail não conseguiu enviar a mensagem. Tente novamente mais tarde ou entre em contato com o suporte.';
         if (error.code === 'invalid_credentials') return 'E-mail ou senha incorretos.';
         if (error.code === 'email_not_confirmed') return 'Confirme seu e-mail antes de entrar.';
+        if (error.code === 'user_already_exists' || error.code === 'email_exists')
+            return 'Já existe uma conta com este e-mail. Faça Login ou recupere sua senha.';
         if (error.code === '23505') return 'Esse nome de usuário ou vínculo já está em uso.';
         if (error.code === '40001')
             return 'O registro foi alterado. Atualize os dados e tente novamente.';
@@ -88,7 +138,7 @@ export function createSiteAuth(): SiteAuth {
             });
             return;
         }
-        const { data, error } = await client.rpc('my_site_account');
+        let { data, error } = await client.rpc('my_site_account');
         if (revision !== generation || session?.user.id !== user.id) return;
         if (error) {
             publish({
@@ -101,6 +151,64 @@ export function createSiteAuth(): SiteAuth {
             });
             return;
         }
+        // Bind the declarations checked at signup to the verified identity only
+        // after confirmation. Signup metadata never grants membership or consent.
+        if (
+            user.email_confirmed_at &&
+            data?.profile &&
+            !data.legal_current &&
+            state.config?.legal_ready
+        ) {
+            let pending: { terms: string; privacy: string } | null = null;
+            try {
+                pending = JSON.parse(
+                    window.localStorage.getItem(pendingLegalKey(user.id)) || 'null'
+                );
+            } catch {
+                /* Re-read the documents if stored data is invalid. */
+            }
+            if (
+                pending?.terms === state.config.terms_version &&
+                pending?.privacy === state.config.privacy_version
+            ) {
+                if (!applyingSignupDeclarations) {
+                    const profile = data.profile;
+                    applyingSignupDeclarations = (async () => {
+                        const result = await client.rpc('save_my_site_profile_legal', {
+                            p_username: profile.username,
+                            p_display_name: profile.display_name,
+                            p_terms_version: pending!.terms,
+                            p_privacy_version: pending!.privacy,
+                            p_accept_terms: true,
+                            p_ack_privacy: true,
+                            p_declare_adult: true
+                        });
+                        if (result.error) throw new Error(message(result.error));
+                        window.localStorage.removeItem(pendingLegalKey(user.id));
+                    })().finally(() => {
+                        applyingSignupDeclarations = null;
+                    });
+                }
+                try {
+                    await applyingSignupDeclarations;
+                    const refreshed = await client.rpc('my_site_account');
+                    if (refreshed.error) throw new Error(message(refreshed.error));
+                    data = refreshed.data;
+                } catch (failure) {
+                    if (revision === generation && session?.user.id === user.id)
+                        publish({
+                            loading: false,
+                            profile: data.profile,
+                            isAdmin: false,
+                            isMember: false,
+                            legalCurrent: false,
+                            error: (failure as Error).message
+                        });
+                    return;
+                }
+            } else if (pending) window.localStorage.removeItem(pendingLegalKey(user.id));
+        }
+        if (revision !== generation || session?.user.id !== user.id) return;
         publish({
             profile: data?.profile || null,
             isAdmin: data?.is_admin === true,
@@ -127,6 +235,28 @@ export function createSiteAuth(): SiteAuth {
             };
         },
         getAccessToken: () => session?.access_token || null,
+        getRememberMe: () => storage.remember(),
+        getRememberedEmail: () =>
+            storage.remember() ? window.localStorage.getItem(rememberedEmailKey) || '' : '',
+        async recallLogin() {
+            const email = api.getRememberedEmail();
+            const manager = passwordManager();
+            if (!email || !manager.PasswordCredential || !manager.navigator?.credentials)
+                return null;
+            try {
+                const credential = (await manager.navigator.credentials.get({
+                    password: true,
+                    mediation: 'silent'
+                } as CredentialRequestOptions)) as (Credential & { password?: string }) | null;
+                return credential?.type === 'password' &&
+                    credential.id.toLowerCase() === email.toLowerCase() &&
+                    credential.password
+                    ? { email, password: credential.password }
+                    : null;
+            } catch {
+                return null;
+            }
+        },
         initialize() {
             return (initialization ||= (async () => {
                 try {
@@ -156,6 +286,7 @@ export function createSiteAuth(): SiteAuth {
                     if (error) throw error;
                     session = data.session;
                     await loadAccount();
+                    if (session && callbackNeedsPassword) publish({ recoveryRequired: true });
                     publish({ initialized: true });
                 } catch (error) {
                     publish({ initialized: true, loading: false, error: message(error as Error) });
@@ -174,14 +305,34 @@ export function createSiteAuth(): SiteAuth {
             }
             await loadAccount();
         },
-        async login(email, password) {
+        async login(email, password, rememberMe = true) {
+            const previousPreference = storage.remember();
+            storage.setRemember(rememberMe);
             const { data, error } = await client.auth.signInWithPassword({
                 email: email.trim(),
                 password
             });
-            if (error) throw new Error(message(error));
+            if (error) {
+                storage.setRemember(previousPreference);
+                throw new Error(message(error));
+            }
             session = data.session;
             await loadAccount();
+            if (rememberMe) {
+                window.localStorage.setItem(rememberedEmailKey, email.trim());
+                const manager = passwordManager();
+                if (manager.PasswordCredential && manager.navigator?.credentials) {
+                    try {
+                        await manager.navigator.credentials.store(
+                            new manager.PasswordCredential({ id: email.trim(), password })
+                        );
+                    } catch {
+                        /* Browser password saving is optional; authentication already succeeded. */
+                    }
+                }
+            } else {
+                window.localStorage.removeItem(rememberedEmailKey);
+            }
         },
         async signup(email, password, displayName, declarations) {
             if (password.length < 12)
@@ -196,16 +347,33 @@ export function createSiteAuth(): SiteAuth {
                 !declarations.adultDeclared
             )
                 throw new Error('Aceite os termos, leia o aviso e declare ter 18 anos ou mais.');
-            const { error } = await client.auth.signUp({
+            const { data, error } = await client.auth.signUp({
                 email: email.trim(),
                 password,
                 options: { emailRedirectTo: redirect(), data: { display_name: displayName.trim() } }
             });
             if (error) throw new Error(message(error));
+            // With email confirmation enabled, Auth can obfuscate a duplicate
+            // signup as a successful response with no linked identities.
+            if (data?.user?.identities?.length === 0)
+                throw new Error(
+                    'Já existe uma conta com este e-mail. Faça Login ou recupere sua senha.'
+                );
+            if (data?.user?.id)
+                window.localStorage.setItem(
+                    pendingLegalKey(data.user.id),
+                    JSON.stringify({
+                        terms: state.config.terms_version,
+                        privacy: state.config.privacy_version
+                    })
+                );
         },
         async logout() {
+            const email = session?.user.email || state.user?.email;
             const { error } = await client.auth.signOut();
             if (error) throw new Error(message(error));
+            if (storage.remember() && email) window.localStorage.setItem(rememberedEmailKey, email);
+            else window.localStorage.removeItem(rememberedEmailKey);
             session = null;
             generation++;
             publish({
@@ -213,6 +381,8 @@ export function createSiteAuth(): SiteAuth {
                 profile: null,
                 isAdmin: false,
                 isMember: false,
+                loading: false,
+                error: '',
                 recoveryRequired: false,
                 legalCurrent: false
             });
@@ -223,6 +393,14 @@ export function createSiteAuth(): SiteAuth {
         async recover(email) {
             const { error } = await client.auth.resetPasswordForEmail(email.trim(), {
                 redirectTo: redirect()
+            });
+            if (error) throw new Error(message(error));
+        },
+        async resendConfirmation(email) {
+            const { error } = await client.auth.resend({
+                type: 'signup',
+                email: email.trim(),
+                options: { emailRedirectTo: redirect() }
             });
             if (error) throw new Error(message(error));
         },
@@ -241,16 +419,44 @@ export function createSiteAuth(): SiteAuth {
             if (error) throw new Error(message(error));
         },
         async saveProfile(username, displayName, declarations) {
-            await api.rpc('save_my_site_profile_legal', {
-                p_username: username,
-                p_display_name: displayName,
-                p_privacy_version: state.config?.privacy_version,
-                p_terms_version: state.config?.terms_version,
-                p_accept_terms: declarations.termsAccepted,
-                p_ack_privacy: declarations.privacyRead,
-                p_declare_adult: declarations.adultDeclared
-            });
+            const owner = session?.user.id;
+            const parameters = {
+                p_username: username.trim().toLowerCase(),
+                p_display_name: displayName.trim()
+            };
+            const saved =
+                state.config?.legal_ready && !state.legalCurrent
+                    ? await api.rpc<SiteProfile>('save_my_site_profile_legal', {
+                          ...parameters,
+                          p_privacy_version: state.config?.privacy_version,
+                          p_terms_version: state.config?.terms_version,
+                          p_accept_terms: declarations.termsAccepted,
+                          p_ack_privacy: declarations.privacyRead,
+                          p_declare_adult: declarations.adultDeclared
+                      })
+                    : await api.rpc<SiteProfile>('update_my_site_profile', parameters);
+            if (!owner || session?.user.id !== owner)
+                throw new Error('Sua sessão mudou. Entre novamente.');
+            if (
+                saved?.user_id !== owner ||
+                saved.username !== username.trim().toLowerCase() ||
+                saved.display_name !== displayName.trim()
+            )
+                throw new Error(
+                    'Não foi possível confirmar o perfil salvo. Atualize e tente novamente.'
+                );
+            // Invalidate account reads started before the write completed.
+            generation++;
+            publish({ profile: saved, error: '' });
             await loadAccount();
+            if (state.error) throw new Error(state.error);
+            if (
+                state.profile?.username !== saved.username ||
+                state.profile?.display_name !== saved.display_name
+            )
+                throw new Error(
+                    'Não foi possível confirmar o perfil salvo. Atualize e tente novamente.'
+                );
         },
         async requireMember() {
             await api.refresh();

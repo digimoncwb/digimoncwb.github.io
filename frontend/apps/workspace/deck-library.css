@@ -345,12 +345,12 @@
 .deck-library-filters,
 .deck-library-extra {
     display: grid;
-    grid-template-columns: minmax(220px, 1.4fr) minmax(170px, 1fr) minmax(170px, 1fr) auto;
+    grid-template-columns: minmax(220px, 1.6fr) minmax(170px, 1fr) auto;
     align-items: end;
     gap: 12px;
 }
 .deck-library-extra {
-    grid-template-columns: 1fr 1fr 2fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: 16px;
     margin-top: 12px;
     border: 1px solid var(--library-border);
@@ -520,10 +520,74 @@
 }
 .deck-community-card .deck-library-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr) 44px;
     gap: 10px;
     padding-top: 14px;
     border-top: 1px solid var(--library-border);
+}
+.deck-actions-menu {
+    position: relative;
+}
+.deck-community-card:has(.deck-actions-trigger[aria-expanded='true']) {
+    position: relative;
+    z-index: 5;
+}
+.deck-community-card .deck-actions-trigger {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+}
+.deck-actions-trigger svg {
+    width: 21px;
+    height: 21px;
+}
+.deck-actions-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    z-index: 10;
+    width: 220px;
+    max-width: calc(100vw - 64px);
+    padding: 6px;
+    border: 1px solid var(--library-border);
+    border-radius: 10px;
+    background: var(--ds-raised);
+    box-shadow: 0 12px 32px #0006;
+}
+.deck-actions-popover button {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ds-text);
+    text-align: left;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+.deck-actions-popover button:hover:not(:disabled),
+.deck-actions-popover button:focus-visible {
+    background: var(--ds-action-hover-bg);
+}
+.deck-actions-popover button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+.deck-actions-popover button.is-danger {
+    color: #ff8d93;
+}
+.deck-ownership-badge {
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: var(--ds-action-hover-bg);
+    color: var(--ds-accent);
+}
+.deck-ownership-badge.is-pending {
+    color: var(--ds-muted);
+    background: var(--ds-raised);
 }
 .deck-community-card .deck-library-actions .button {
     display: inline-flex;
@@ -604,7 +668,7 @@
         grid-template-columns: 1fr 1fr;
     }
     .deck-library-extra > :last-child {
-        grid-column: 1 / -1;
+        grid-column: auto;
     }
 }
 @media (max-width: 780px) {
@@ -615,13 +679,15 @@
         flex: 1;
     }
     .deck-library-tabs {
-        gap: 0;
+        gap: 4px;
+        overflow-x: auto;
     }
     .deck-library-tabs button {
-        flex: 1;
+        flex: 0 0 auto;
         min-width: 0;
-        padding: 13px 6px;
+        padding: 13px 10px;
         font-size: 13px;
+        white-space: nowrap;
     }
     .deck-community-notice {
         align-items: flex-start;

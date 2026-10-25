@@ -3,14 +3,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { stripTypeScriptTypes } = require('node:module');
-function service(response) {
+function service(response, href = 'https://site.test/?player=Nome&token=privado#overview') {
     const calls = [];
     const context = {
         URL,
         AbortController,
         setTimeout,
         clearTimeout,
-        location: { href: 'https://site.test/?player=Nome&token=privado#overview' },
+        location: { href },
         navigator: { userAgent: 'Browser' },
         window: {
             APP_CONFIG: { SUPABASE_URL: 'https://api.test' },
@@ -49,4 +49,14 @@ test('feedback uses the existing endpoint and excludes URL query data', async ()
 test('feedback surfaces server errors instead of showing false success', async () => {
     const api = service({ ok: false, json: async () => ({ error: 'Envio indisponível' }) });
     await assert.rejects(api.send(feedback), /Envio indisponível/);
+});
+test('feedback excludes authentication fragments and requires an explicit server acknowledgement', async () => {
+    const api = service(
+        { ok: true, json: async () => ({ ok: true }) },
+        'https://site.test/?code=private#access_token=private&refresh_token=secret'
+    );
+    await api.send(feedback);
+    assert.equal(JSON.parse(api.calls[0].options.body).page_url, 'https://site.test/');
+    const invalid = service({ ok: true, json: async () => ({}) });
+    await assert.rejects(invalid.send(feedback), /não confirmou/);
 });

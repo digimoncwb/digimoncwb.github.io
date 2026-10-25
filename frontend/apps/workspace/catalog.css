@@ -179,6 +179,18 @@
     color: color-mix(in srgb, var(--accent) 75%, white);
     white-space: nowrap;
 }
+.player-extra-fields {
+    padding-top: 14px;
+    border-top: 1px solid var(--ds-line);
+}
+.player-extra-fields > summary {
+    cursor: pointer;
+    color: var(--ds-muted);
+    font-size: 14px;
+}
+.player-extra-fields > label {
+    margin-top: 14px;
+}
 .catalog-colors {
     display: inline-flex;
     align-items: center;

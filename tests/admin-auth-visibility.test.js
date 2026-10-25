@@ -40,3 +40,45 @@ test('admin visibility follows verified login and resets when the session is cle
     assert.equal(sandbox.window.digistatsAdminAuthenticated, false);
     assert.equal(events.at(-1).detail.authenticated, false);
 });
+
+test('Admin sections show only their tools and preserve the full standalone administration', () => {
+    const buttons = [
+        'digilab',
+        'stores',
+        'gameformats',
+        'formats',
+        'portraits',
+        'banlist',
+        'datarepair'
+    ].map((tab) => ({ dataset: { adminTab: tab }, hidden: false }));
+    const sandbox = {
+        window: { DIGISTATS_MICRO_FRONTENDS: true, location: { search: '?section=tournaments' } },
+        document: { getElementById: () => ({ querySelectorAll: () => buttons }) },
+        URLSearchParams
+    };
+    vm.runInNewContext(
+        fs.readFileSync('admin/script.js', 'utf8') +
+            ';this.select=applyAdminSection;this.active=()=>adminActiveTab;',
+        sandbox
+    );
+    const visible = () =>
+        buttons.filter((button) => !button.hidden).map((button) => button.dataset.adminTab);
+    sandbox.select();
+    assert.deepEqual(visible(), ['digilab', 'stores']);
+    assert.equal(sandbox.active(), 'digilab');
+    sandbox.window.location.search = '?section=catalog';
+    sandbox.select();
+    assert.deepEqual(visible(), ['gameformats', 'formats', 'portraits', 'banlist', 'datarepair']);
+    assert.equal(sandbox.active(), 'gameformats');
+    sandbox.window.location.search = '?section=accounts';
+    sandbox.select();
+    assert.deepEqual(visible(), []);
+    sandbox.window.location.search = '?section=unknown';
+    sandbox.select();
+    assert.deepEqual(visible(), ['digilab', 'stores']);
+    sandbox.window.location.search = '?section=toString';
+    sandbox.select();
+    assert.deepEqual(visible(), ['digilab', 'stores']);
+    sandbox.window.DIGISTATS_MICRO_FRONTENDS = false;
+    assert.equal(sandbox.select(), null);
+});

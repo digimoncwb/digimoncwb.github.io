@@ -3820,7 +3820,7 @@ body.decklist-builder-page .decklist-search-card img {
     width: 20px;
     height: 20px;
     cursor: pointer;
-    accent-color: #667eea;
+    accent-color: var(--ds-accent, var(--accent, #ef646b));
 }
 
 /* ============================================================
@@ -14882,7 +14882,7 @@ body[data-theme='light'] .donut-hole {
     width: 15px;
     height: 15px;
     cursor: pointer;
-    accent-color: #667eea;
+    accent-color: var(--ds-accent, var(--accent, #ef646b));
 }
 
 .decks-has-decklists-filter {
@@ -15737,9 +15737,9 @@ body[data-theme='dark'] .admin-change-password-modal input {
     -webkit-appearance: none;
     width: 18px;
     height: 18px;
-    border: 2px solid #3f4b68;
+    border: 2px solid var(--ds-control-line, #36363c);
     border-radius: 4px;
-    background: #1a2336;
+    background: var(--ds-control-bg, #121619);
     cursor: pointer;
     position: relative;
     flex-shrink: 0;
@@ -15749,8 +15749,8 @@ body[data-theme='dark'] .admin-change-password-modal input {
 #adminFormatModal input[type="checkbox"]:checked,
 #adminBanModal input[type="checkbox"]:checked,
 #adminStoreModal input[type="checkbox"]:checked {
-    background: #667eea;
-    border-color: #667eea;
+    background: var(--ds-accent, var(--accent, #ef646b));
+    border-color: var(--ds-accent, var(--accent, #ef646b));
 }
 
 #adminFormatModal input[type="checkbox"]:checked::after,
@@ -15762,15 +15762,13 @@ body[data-theme='dark'] .admin-change-password-modal input {
     top: 0;
     width: 8px;
     height: 11px;
-    border: 2px solid #fff;
+    border: 2px solid var(--ds-bg, #080a0b);
     border-top: none;
     border-left: none;
     transform: rotate(45deg);
 }
 
 #adminFormatModal .admin-checkbox-options input[type="checkbox"] {
-    appearance: auto !important;
-    -webkit-appearance: checkbox !important;
     accent-color: var(--accent, #f45e6c);
     width: 20px !important;
     height: 20px !important;

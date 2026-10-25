@@ -92,19 +92,16 @@ function Dashboard({ context }: { context: MicroContext }) {
             {snapshot.error && (
                 <div role="alert">
                     <p>{snapshot.error}</p>
-                    <button
-                        className="button secondary"
-                        onClick={() => void context.data.refresh()}
-                    >
+                    <button className="text-action" onClick={() => void context.data.refresh()}>
                         Tentar novamente
                     </button>
                 </div>
             )}
             {context.route.name === 'overview' ? (
                 <>
+                    <h1 className="sr-only">Visão geral</h1>
                     <div className="section-heading overview-tournaments-heading">
                         <div className="overview-section-title">
-                            <span className="overview-eyebrow">Comunidade</span>
                             <h2>Últimos torneios</h2>
                         </div>
                         <div className="overview-format-actions">
@@ -131,19 +128,7 @@ function Dashboard({ context }: { context: MicroContext }) {
                 </>
             ) : (
                 <>
-                    <PageHeading
-                        eyebrow={
-                            context.route.name === 'meta' ? 'Metagame do formato' : 'Comunidade'
-                        }
-                        title={
-                            context.route.name === 'meta' ? 'Estatísticas / Metagame' : 'Torneios'
-                        }
-                        description={
-                            context.route.name === 'meta'
-                                ? 'Participação e resultados por formato, período e loja.'
-                                : 'Uma visão direta dos eventos e de quem chegou ao topo.'
-                        }
-                    />
+                    <PageHeading title={context.route.name === 'meta' ? 'Metagame' : 'Torneios'} />
                     <div className="data-toolbar">
                         <Select
                             label="Período"

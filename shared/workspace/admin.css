@@ -352,3 +352,14 @@
         vertical-align: middle;
     }
 }
+:root.v2-tools #v2Tools #adminContainer > .page-header > .page-title,
+:root.v2-tools #v2Tools #adminSessionBar {
+    display: none !important;
+}
+:root.v2-tools #v2Tools #adminContainer > .page-header {
+    margin-top: 0;
+    padding-top: 0;
+}
+:root.v2-tools #v2Tools [data-admin-tab][hidden] {
+    display: none !important;
+}

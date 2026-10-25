@@ -19,8 +19,22 @@ test('External checker fails on provider outage or warning and omits raw respons
             Response.json([{ health: { severity: 'warning', missing_triggers: 1 } }]);
         await assert.rejects(main(), /requer/);
         globalThis.fetch = async () =>
-            Response.json([{ health: { severity: 'ok', missing_triggers: 0 } }]);
+            Response.json([
+                {
+                    health: {
+                        severity: 'ok',
+                        missing_triggers: 0,
+                        failed_integrations_24h: 2,
+                        unresolved_failed_integrations_24h: 0,
+                        recovered_failed_integrations_24h: 2
+                    }
+                }
+            ]);
         await main();
+        const recovered = JSON.parse(logs.at(-1));
+        assert.equal(recovered.failed_integrations_24h, 2);
+        assert.equal(recovered.recovered_failed_integrations_24h, 2);
+        assert.equal(recovered.unresolved_failed_integrations_24h, 0);
         assert.equal(
             logs.some(
                 (line) => line.includes('test-private-token') || line.includes('private-response')

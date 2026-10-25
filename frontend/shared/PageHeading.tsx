@@ -3,9 +3,9 @@ export function PageHeading({
     title,
     description
 }: {
-    eyebrow: string;
+    eyebrow?: string;
     title: string;
-    description: string;
+    description?: string;
 }) {
     return (
         <div className="page-heading">

@@ -1,5 +1,5 @@
 dialog.list-dialog:has(.site-account) {
-    width: min(680px, calc(100vw - 32px));
+    width: min(600px, calc(100vw - 32px));
     max-width: calc(100vw - 32px);
     max-height: calc(100dvh - 40px);
     box-sizing: border-box;
@@ -22,6 +22,12 @@ dialog.list-dialog:has(.site-account) > header {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    position: sticky;
+    top: -20px;
+    z-index: 2;
+    margin: -20px -20px 0;
+    padding: 16px 20px;
+    background: var(--ds-panel, #111517);
 }
 dialog.list-dialog:has(.site-account) > header h2 {
     margin: 0;
@@ -72,6 +78,169 @@ dialog.list-dialog:has(.site-account) > header h2 {
 .site-account input[type='checkbox'] {
     width: 18px;
     height: 18px;
+}
+.site-account-password-field {
+    display: grid;
+    gap: 7px;
+}
+.site-account-password {
+    position: relative;
+}
+.site-account .site-account-password input {
+    padding-right: 48px;
+    margin: 0;
+    display: block;
+}
+.site-account-password input::-ms-reveal {
+    display: none;
+}
+.site-account .site-password-toggle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    min-height: 0;
+    min-width: 0;
+    margin: 0;
+    line-height: 1;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--ds-muted);
+    cursor: pointer;
+}
+.site-account .site-password-toggle:hover {
+    color: var(--ds-accent);
+}
+.site-account .site-password-toggle:focus-visible {
+    outline: 2px solid var(--ds-accent);
+    outline-offset: -3px;
+}
+.site-password-toggle svg {
+    display: block;
+    width: 21px;
+    height: 21px;
+}
+.site-legal-reader {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+}
+.site-legal-checks {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+.site-legal-checks legend {
+    margin-bottom: 12px;
+    padding: 0;
+    font-weight: 600;
+}
+.site-legal-body {
+    max-height: min(45dvh, 340px);
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    line-height: 1.65;
+    padding: 14px;
+    border: 1px solid var(--ds-line);
+    border-radius: 7px;
+    background: var(--ds-bg);
+}
+.site-legal-document summary {
+    cursor: pointer;
+    color: var(--ds-accent);
+}
+.site-account .site-legal-document {
+    padding: 0;
+    border: 0;
+}
+.site-account .site-legal-option {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+}
+.site-account-remember {
+    display: grid;
+    gap: 6px;
+}
+.site-account-identity {
+    display: grid;
+    gap: 4px;
+}
+.site-account-identity > strong {
+    font-size: 18px;
+}
+.site-account-identity > span {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+.site-account-linked {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--ds-muted);
+}
+.site-account-linked svg {
+    width: 19px;
+    height: 19px;
+    flex-shrink: 0;
+    color: var(--ds-accent);
+}
+.site-account .site-profile-form {
+    padding: 0 0 4px;
+}
+.site-profile-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    gap: 16px;
+}
+.site-profile-fields small {
+    font-size: 11px;
+}
+.site-profile-save-row {
+    display: flex;
+    justify-content: flex-end;
+}
+.site-account .site-profile-save {
+    width: auto;
+    min-height: 38px;
+    padding: 8px 14px;
+    font-size: 13px;
+}
+.site-account-disclosure > summary {
+    padding: 4px 0;
+    font-size: 14px;
+    color: var(--ds-muted);
+}
+.site-account-disclosure[open] > summary {
+    margin-bottom: 14px;
+    color: var(--ds-text);
+}
+.site-account-disclosure > .site-account-actions {
+    align-items: center;
+}
+.site-account-request-history {
+    padding-left: 20px;
+    font-size: 13px;
+    color: var(--ds-muted);
+}
+@media (max-width: 480px) {
+    .site-profile-fields {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
 }
 .site-account a {
     color: var(--ds-accent);
@@ -125,4 +294,171 @@ dialog.list-dialog:has(.site-account) > header h2 {
     align-items: center;
     padding: 12px;
     flex-wrap: wrap;
+}
+.site-account-menu .site-account-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 12px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+}
+.site-account-menu .site-account-signup {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 10px;
+}
+.site-account-avatar {
+    display: grid;
+    place-items: center;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--ds-bg);
+    color: var(--ds-accent);
+}
+.site-account-avatar svg {
+    width: 21px;
+    height: 21px;
+}
+.site-account-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.site-admin-accounts {
+    margin: 24px;
+    padding: 24px;
+    border: 1px solid var(--ds-line);
+    border-radius: 12px;
+    background: var(--ds-bg);
+}
+.site-admin-heading {
+    margin: 26px 24px 20px;
+}
+.site-admin-heading h1 {
+    margin: 0 0 20px;
+    font-size: 30px;
+}
+.site-admin-heading nav {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--ds-line);
+}
+.site-admin-heading nav a {
+    padding: 12px 4px;
+    color: var(--ds-muted);
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    border-radius: 0;
+}
+.site-admin-heading nav a[aria-current='page'] {
+    color: var(--ds-accent);
+    border-bottom-color: var(--ds-accent);
+    background: transparent;
+}
+.site-admin-heading nav a:focus-visible {
+    outline: 2px solid var(--ds-accent);
+    outline-offset: -2px;
+}
+.audit-health-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+.audit-health-heading h2 {
+    margin: 0;
+    font-size: 20px;
+}
+.audit-health-issues {
+    margin: 0;
+    padding-left: 20px;
+    line-height: 1.6;
+}
+.audit-health-note {
+    font-size: 12px;
+}
+.audit-health-details > summary {
+    font-size: 14px;
+    color: var(--ds-muted);
+    padding-block: 6px;
+}
+.audit-health-details[open] > summary {
+    margin-bottom: 14px;
+}
+.audit-health-details dl {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px 16px;
+    font-size: 13px;
+}
+.audit-health-details dd {
+    margin: 0;
+}
+.site-account .site-account-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-bottom: 1px solid var(--ds-line);
+}
+.site-account .site-account-tabs .button {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 10px 4px;
+    color: var(--ds-muted);
+}
+.site-account .site-account-tabs .button[aria-pressed='true'] {
+    color: var(--ds-accent);
+    border-bottom-color: var(--ds-accent);
+}
+.audit-event-filters > summary {
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--ds-muted);
+}
+.audit-filter-form .site-account-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 12px;
+}
+.audit-filter-form > .button {
+    justify-self: start;
+}
+.site-admin-accounts > .site-account-admin,
+.site-account-admin > .audit-health {
+    border-top: 0;
+    padding-top: 0;
+}
+.site-account-admin > .text-action,
+.site-account-admin form > .text-action {
+    justify-self: start;
+}
+.site-account .site-admin-pagination {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+}
+.site-account .site-admin-pagination > .button {
+    flex: 0 0 auto;
+    width: auto;
+}
+@media (max-width: 600px) {
+    .site-admin-accounts {
+        margin: 12px;
+        padding: 16px;
+    }
+    .site-account-actions > .button {
+        flex: 1 1 150px;
+    }
 }

@@ -26,6 +26,62 @@
 :root[data-accent='yellow'] {
     --ds-accent: #f1cc5b;
 }
+/* Draw the control explicitly so browser defaults cannot hide the selected palette. */
+input[type='checkbox'] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    box-sizing: border-box !important;
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    min-height: 18px;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0 !important;
+    border: 2px solid var(--ds-control-line, #36363c) !important;
+    border-radius: 4px !important;
+    background: var(--ds-control-bg, #121619) !important;
+    box-shadow: none !important;
+    vertical-align: middle;
+    accent-color: var(--ds-accent, var(--accent, #ef646b)) !important;
+    cursor: pointer;
+}
+input[type='checkbox']:checked {
+    border-color: var(--ds-accent, var(--accent, #ef646b)) !important;
+    background: var(--ds-accent, var(--accent, #ef646b))
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 8 3.2 3.2L13 4.5' fill='none' stroke='%23080a0b' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+        center / 14px 14px no-repeat !important;
+}
+input[type='checkbox']:indeterminate {
+    border-color: var(--ds-accent, var(--accent, #ef646b)) !important;
+    background: var(--ds-accent, var(--accent, #ef646b))
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8h8' stroke='%23080a0b' stroke-width='2.3' stroke-linecap='round'/%3E%3C/svg%3E")
+        center / 14px 14px no-repeat !important;
+}
+input[type='checkbox']::after {
+    content: none !important;
+}
+input[type='checkbox']:hover:not(:disabled) {
+    border-color: var(--ds-accent, var(--accent, #ef646b)) !important;
+}
+input[type='checkbox']:focus-visible {
+    outline: 2px solid var(--ds-accent, var(--accent, #ef646b));
+    outline-offset: 3px;
+}
+input[type='checkbox']:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+@media (forced-colors: active) {
+    :root input[type='checkbox'] {
+        -webkit-appearance: checkbox !important;
+        appearance: auto !important;
+        background: revert !important;
+        border: revert !important;
+        opacity: 1;
+    }
+}
 /* Loading indicators alone rotate; branding and post watermarks stay upright. */
 :is(.spinner, .stats-loading-spinner, .admin-digilab-button-spinner, .loading-spinner, .v2-loader) {
     display: inline-block;

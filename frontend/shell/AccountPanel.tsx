@@ -1,14 +1,12 @@
 import { LegalChecks, uncheckedDeclarations } from './LegalChecks';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SiteAuth } from '../contracts';
 import { Dialog } from '../shared/ListPage';
 import { SearchSelect } from '../shared/SearchSelect';
 import { useSiteAuth } from '../shared/site-auth';
-import { downloadAccountJson } from '../shared/account-download';
-import { AccountsAdmin } from './AccountsAdmin';
 import './accounts.css';
 
-type View = 'login' | 'signup' | 'recover' | 'profile' | 'admin' | 'password';
+type View = 'login' | 'signup' | 'recover' | 'profile' | 'password';
 type RequestRow = {
     id: string;
     request_type: string;
@@ -16,21 +14,6 @@ type RequestRow = {
     created_at: string;
     review_note?: string;
 };
-const requestLabels: Record<string, string> = {
-    player_link: 'Reivindicar jogador existente (claim user)',
-    deck_claim: 'Propriedade de deck',
-    data_access: 'Acesso aos meus dados',
-    correction: 'Correção de dados',
-    erasure: 'Eliminação de dados',
-    account_closure: 'Encerramento de conta'
-};
-const statusLabels: Record<string, string> = {
-    pending: 'Pendente',
-    approved: 'Aprovada',
-    rejected: 'Recusada',
-    completed: 'Concluída'
-};
-
 export function AccountPanel({
     auth,
     view: initialView,
@@ -42,7 +25,9 @@ export function AccountPanel({
 }) {
     const state = useSiteAuth();
     const [view, setView] = useState<View>(initialView);
-    const [email, setEmail] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(() => auth.getRememberMe());
+    const [email, setEmail] = useState(() => auth.getRememberedEmail());
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [displayName, setDisplayName] = useState('');
@@ -55,17 +40,37 @@ export function AccountPanel({
     const [playersError, setPlayersError] = useState('');
     const [requests, setRequests] = useState<RequestRow[]>([]);
     const [requestsOwner, setRequestsOwner] = useState<string | null>(null);
-    const [requestType, setRequestType] = useState('player_link');
     const [playerId, setPlayerId] = useState('');
     const [note, setNote] = useState('');
     const [newEmail, setNewEmail] = useState('');
     const [reload, setReload] = useState(0);
+    const loginEdited = useRef(false);
+    const profileEdited = useRef(false);
+    useEffect(() => {
+        profileEdited.current = false;
+    }, [state.user?.id]);
+    useEffect(() => {
+        if (state.user || view !== 'login' || busy) return;
+        let live = true;
+        if (!loginEdited.current) setEmail(auth.getRememberedEmail());
+        void auth.recallLogin().then((saved) => {
+            if (live && saved && !loginEdited.current) {
+                setEmail(saved.email);
+                setPassword(saved.password);
+            }
+        });
+        return () => {
+            live = false;
+        };
+    }, [state.user?.id, view, busy, auth]);
     useEffect(() => {
         setView(initialView);
     }, [initialView]);
     useEffect(() => {
-        setDisplayName(state.profile?.display_name || '');
-        setUsername(state.profile?.username || '');
+        if (!profileEdited.current) {
+            setDisplayName(state.profile?.display_name || '');
+            setUsername(state.profile?.username || '');
+        }
         setDeclarations(
             state.legalCurrent
                 ? { termsAccepted: true, privacyRead: true, adultDeclared: true }
@@ -88,6 +93,16 @@ export function AccountPanel({
         setPlayersError('');
         (async () => {
             const result: { id: string; name: string }[] = [];
+            if (state.profile?.player_id) {
+                const response = await auth.request(
+                    `/rest/v1/players?id=eq.${encodeURIComponent(state.profile.player_id)}&select=id,name`,
+                    { signal: controller.signal }
+                );
+                if (!response.ok) throw new Error('Não foi possível carregar o jogador vinculado.');
+                const rows = await response.json();
+                if (!controller.signal.aborted) setPlayers(rows);
+                return;
+            }
             for (let offset = 0; ; offset += 1000) {
                 const response = await auth.request(
                     `/rest/v1/players?select=id,name&order=name&limit=1000&offset=${offset}`,
@@ -118,7 +133,7 @@ export function AccountPanel({
                 if (!controller.signal.aborted) setError(error.message);
             });
         return () => controller.abort();
-    }, [state.user?.id, view, reload, auth]);
+    }, [state.user?.id, state.profile?.player_id, view, reload, auth]);
     async function run(task: () => Promise<void>, success = '') {
         if (busy) return;
         setBusy(true);
@@ -135,39 +150,31 @@ export function AccountPanel({
             setConfirmPassword('');
         }
     }
-    const privacyUrl = state.config?.privacy_url;
-    const safePrivacy = privacyUrl && /^https:\/\//.test(privacyUrl) ? privacyUrl : undefined;
     const contact = state.config?.support_email || 'dulopes1997@gmail.com';
-    const loggedView = state.user && !['password', 'admin'].includes(view);
+    const loggedView = state.user && view !== 'password';
+    const ownRequests = requestsOwner === state.user?.id ? requests : [];
+    const pendingClaim = ownRequests.some(
+        (request) => request.request_type === 'player_link' && request.status === 'pending'
+    );
     const title =
-        view === 'admin'
-            ? 'Contas e auditoria'
-            : view === 'password'
-              ? 'Definir nova senha'
-              : loggedView
-                ? 'Minha conta'
-                : view === 'signup'
-                  ? 'Criar conta'
-                  : view === 'recover'
-                    ? 'Recuperar acesso'
-                    : 'Entrar';
+        view === 'password'
+            ? 'Definir nova senha'
+            : loggedView
+              ? 'Minha conta'
+              : view === 'signup'
+                ? 'Criar conta'
+                : view === 'recover'
+                  ? 'Recuperar acesso'
+                  : 'Login';
     return (
-        <Dialog
-            title={title}
-            onClose={onClose}
-            busy={busy}
-            wide={view === 'admin'}
-            closeLabel="Fechar"
-        >
+        <Dialog title={title} onClose={onClose} busy={busy} closeLabel="Fechar">
             <div className="site-account">
                 {!state.available && (
                     <p role="alert">O serviço de contas ainda não está disponível. {state.error}</p>
                 )}
                 {error && <p role="alert">{error}</p>}
                 {notice && <p role="status">{notice}</p>}
-                {view === 'admin' ? (
-                    <AccountsAdmin auth={auth} onBusy={setBusy} />
-                ) : view === 'password' ? (
+                {view === 'password' ? (
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
@@ -208,189 +215,157 @@ export function AccountPanel({
                     </form>
                 ) : loggedView ? (
                     <>
-                        <p>
-                            Conectado como <strong>{state.user?.email}</strong>
-                        </p>
-                        {!state.user?.confirmed && (
-                            <p role="status">
-                                Confirme seu e-mail para cadastrar e alterar informações.
+                        <div className="site-account-identity">
+                            <strong>{state.profile?.display_name || 'Minha conta'}</strong>
+                            <span className="muted">{state.user?.email}</span>
+                        </div>
+                        {state.profile?.player_id && (
+                            <p className="site-account-linked">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    aria-hidden="true"
+                                >
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="m7 12 3 3 7-7" />
+                                </svg>
+                                <span>
+                                    Vinculado a{' '}
+                                    <strong>
+                                        {players.find(
+                                            (player) => player.id === state.profile?.player_id
+                                        )?.name || 'seu jogador'}
+                                    </strong>
+                                </span>
                             </p>
                         )}
-                        {state.profile?.status !== 'active' && (
+                        {!state.user?.confirmed && (
+                            <div className="site-account-actions">
+                                <p role="status">Confirme seu e-mail para editar o perfil.</p>
+                                <button
+                                    type="button"
+                                    className="button secondary"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        void run(
+                                            () => auth.resendConfirmation(state.user?.email || ''),
+                                            'Confira sua caixa de entrada e o spam.'
+                                        )
+                                    }
+                                >
+                                    Reenviar confirmação
+                                </button>
+                            </div>
+                        )}
+                        {state.profile && state.profile.status !== 'active' && (
                             <p role="alert">
                                 Conta{' '}
-                                {state.profile?.status === 'closed' ? 'encerrada' : 'bloqueada'}.
-                                Entre em contato pelo e-mail {contact}.
+                                {state.profile.status === 'closed' ? 'encerrada' : 'bloqueada'}.{' '}
+                                <a href={`mailto:${contact}`}>Falar com suporte</a>
                             </p>
                         )}
                         {state.error && <p role="alert">{state.error}</p>}
                         <form
+                            className="site-profile-form"
                             onSubmit={(event) => {
                                 event.preventDefault();
-                                void run(
-                                    () => auth.saveProfile(username, displayName, declarations),
-                                    'Perfil atualizado.'
-                                );
+                                void run(async () => {
+                                    await auth.saveProfile(username, displayName, declarations);
+                                    profileEdited.current = false;
+                                    setUsername(auth.getSnapshot().profile?.username || username);
+                                    setDisplayName(
+                                        auth.getSnapshot().profile?.display_name || displayName
+                                    );
+                                }, 'Perfil salvo.');
                             }}
                         >
-                            <label>
-                                Nome de usuário
-                                <input
-                                    required
-                                    minLength={3}
-                                    maxLength={40}
-                                    pattern="[a-z0-9_-]{3,40}"
-                                    autoComplete="username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                                />
-                            </label>
-                            <label>
-                                Nome de exibição
-                                <input
-                                    required
-                                    maxLength={100}
-                                    value={displayName}
-                                    onChange={(e) => setDisplayName(e.target.value)}
-                                />
-                            </label>
-                            <LegalChecks
-                                config={state.config}
-                                value={declarations}
-                                onChange={setDeclarations}
-                            />
-                            <button
-                                className="button primary"
-                                disabled={
-                                    busy ||
-                                    !state.config?.legal_ready ||
-                                    state.profile?.status !== 'active' ||
-                                    !state.user?.confirmed
-                                }
-                            >
-                                Salvar perfil
-                            </button>
-                        </form>
-                        <div className="site-account-actions">
-                            <button
-                                className="button secondary"
-                                disabled={busy}
-                                onClick={() =>
-                                    void run(async () => {
-                                        downloadAccountJson(
-                                            'meus-dados.json',
-                                            await auth.rpc('my_site_data')
-                                        );
-                                    }, 'Arquivo preparado para download.')
-                                }
-                            >
-                                Baixar meus dados
-                            </button>
-                            <button
-                                className="button secondary"
-                                disabled={busy}
-                                onClick={() =>
-                                    void run(
-                                        () => auth.recover(state.user?.email || ''),
-                                        'Se o endereço estiver cadastrado, você receberá as instruções para trocar a senha.'
-                                    )
-                                }
-                            >
-                                Enviar link para trocar senha
-                            </button>
-                            {state.isAdmin && (
-                                <button
-                                    className="button secondary"
-                                    onClick={() => setView('admin')}
-                                >
-                                    Contas e auditoria
-                                </button>
-                            )}
-                            <button
-                                className="button secondary"
-                                disabled={busy}
-                                onClick={() =>
-                                    void run(async () => {
-                                        await auth.logout();
-                                        setView('login');
-                                    }, 'Sessão encerrada.')
-                                }
-                            >
-                                Sair
-                            </button>
-                        </div>
-                        <details>
-                            <summary>Alterar e-mail de acesso</summary>
-                            <form
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    void run(
-                                        () => auth.changeEmail(newEmail),
-                                        'Confira as mensagens de confirmação enviadas pelo serviço de autenticação.'
-                                    );
-                                }}
-                            >
+                            <div className="site-profile-fields">
                                 <label>
-                                    Novo e-mail
+                                    Nome de usuário
                                     <input
-                                        type="email"
+                                        name="profile_username"
                                         required
-                                        autoComplete="email"
-                                        value={newEmail}
-                                        onChange={(e) => setNewEmail(e.target.value)}
+                                        minLength={3}
+                                        maxLength={40}
+                                        pattern={'[a-z0-9_\\-]{3,40}'}
+                                        disabled={busy || state.loading}
+                                        autoComplete="off"
+                                        value={username}
+                                        aria-describedby="profile-username-help"
+                                        onInvalid={() =>
+                                            setError(
+                                                'Use de 3 a 40 letras, números, _ ou - no nome de usuário.'
+                                            )
+                                        }
+                                        onChange={(event) => {
+                                            profileEdited.current = true;
+                                            setUsername(event.target.value.toLowerCase());
+                                        }}
+                                    />
+                                    <small className="muted" id="profile-username-help">
+                                        3 a 40 letras, números, _ ou -.
+                                    </small>
+                                </label>
+                                <label>
+                                    Nome de exibição
+                                    <input
+                                        name="profile_display_name"
+                                        required
+                                        maxLength={100}
+                                        disabled={busy || state.loading}
+                                        autoComplete="nickname"
+                                        value={displayName}
+                                        onChange={(event) => {
+                                            profileEdited.current = true;
+                                            setDisplayName(event.target.value);
+                                        }}
                                     />
                                 </label>
-                                <button className="button secondary" disabled={busy}>
-                                    Solicitar alteração
-                                </button>
-                            </form>
-                        </details>
-                        <section>
-                            <h3>Solicitações de conta e privacidade</h3>
-                            <p>
-                                Vínculos e alterações em cadastros antigos são analisados pela
-                                administração. Contato: <a href={`mailto:${contact}`}>{contact}</a>.
-                            </p>
-                            {state.profile?.player_id && (
-                                <p>
-                                    Jogador vinculado:{' '}
-                                    {players.find(
-                                        (player) => player.id === state.profile?.player_id
-                                    )?.name || state.profile.player_id}
-                                </p>
+                            </div>
+                            {state.config?.legal_ready && !state.legalCurrent && (
+                                <LegalChecks
+                                    config={state.config}
+                                    value={declarations}
+                                    onChange={setDeclarations}
+                                />
                             )}
-                            <form
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    void run(async () => {
-                                        await auth.rpc('submit_account_request', {
-                                            p_type: requestType,
-                                            p_player_id:
-                                                requestType === 'player_link' ? playerId : null,
-                                            p_note: note
-                                        });
-                                        setNote('');
-                                        setReload((value) => value + 1);
-                                    }, 'Solicitação enviada para análise.');
-                                }}
-                            >
-                                <label>
-                                    Solicitação
-                                    <select
-                                        value={requestType}
-                                        onChange={(e) => setRequestType(e.target.value)}
+                            <div className="site-profile-save-row">
+                                <button
+                                    type="submit"
+                                    className="button primary site-profile-save"
+                                    disabled={
+                                        busy ||
+                                        state.loading ||
+                                        state.profile?.status !== 'active' ||
+                                        !state.user?.confirmed
+                                    }
+                                >
+                                    {busy ? 'Salvando…' : 'Salvar perfil'}
+                                </button>
+                            </div>
+                        </form>
+                        {!state.profile?.player_id && (
+                            <details className="site-account-disclosure">
+                                <summary>Vincular meu jogador</summary>
+                                {pendingClaim ? (
+                                    <p role="status">Seu vínculo está em análise.</p>
+                                ) : (
+                                    <form
+                                        onSubmit={(event) => {
+                                            event.preventDefault();
+                                            void run(async () => {
+                                                await auth.rpc('submit_account_request', {
+                                                    p_type: 'player_link',
+                                                    p_player_id: playerId,
+                                                    p_note: note
+                                                });
+                                                setNote('');
+                                                setReload((value) => value + 1);
+                                            }, 'Vínculo enviado para análise.');
+                                        }}
                                     >
-                                        {Object.entries(requestLabels)
-                                            .filter(([key]) => key !== 'deck_claim')
-                                            .map(([key, label]) => (
-                                                <option key={key} value={key}>
-                                                    {label}
-                                                </option>
-                                            ))}
-                                    </select>
-                                </label>
-                                {requestType === 'player_link' && (
-                                    <>
                                         <SearchSelect
                                             label="Qual jogador é você?"
                                             value={playerId}
@@ -402,59 +377,91 @@ export function AccountPanel({
                                                 label: player.name
                                             }))}
                                         />
-                                        <p>
-                                            Digite seu nome para encontrar seu cadastro. O vínculo
-                                            só será feito após a administração confirmar sua
-                                            identidade; isso não concede acesso administrativo.
-                                        </p>
-                                        {playersError && (
-                                            <p role="alert">
-                                                {playersError}{' '}
-                                                <button
-                                                    type="button"
-                                                    className="button secondary"
-                                                    onClick={() => setReload((value) => value + 1)}
-                                                >
-                                                    Tentar novamente
-                                                </button>
-                                            </p>
-                                        )}
-                                    </>
+                                        {playersError && <p role="alert">{playersError}</p>}
+                                        <label>
+                                            Observação (opcional)
+                                            <textarea
+                                                maxLength={1000}
+                                                value={note}
+                                                onChange={(event) => setNote(event.target.value)}
+                                            />
+                                        </label>
+                                        <div className="site-account-actions">
+                                            <button
+                                                className="button secondary"
+                                                disabled={busy || !playerId}
+                                            >
+                                                Solicitar vínculo
+                                            </button>
+                                        </div>
+                                    </form>
                                 )}
+                            </details>
+                        )}
+                        <details className="site-account-disclosure">
+                            <summary>Segurança e acesso</summary>
+                            <div className="site-account-actions">
+                                <button
+                                    type="button"
+                                    className="button secondary"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        void run(
+                                            () => auth.recover(state.user?.email || ''),
+                                            'Confira seu e-mail para trocar a senha.'
+                                        )
+                                    }
+                                >
+                                    Trocar senha
+                                </button>
+                                <button
+                                    type="button"
+                                    className="button secondary"
+                                    disabled={busy}
+                                    onClick={() =>
+                                        void run(async () => {
+                                            await auth.logout();
+                                            loginEdited.current = false;
+                                            setEmail(auth.getRememberedEmail());
+                                            setView('login');
+                                        }, 'Sessão encerrada.')
+                                    }
+                                >
+                                    Sair da conta
+                                </button>
+                            </div>
+                            <form
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void run(
+                                        () => auth.changeEmail(newEmail),
+                                        'Confira os e-mails de confirmação.'
+                                    );
+                                }}
+                            >
                                 <label>
-                                    Observação
-                                    <textarea
-                                        maxLength={1000}
-                                        rows={3}
-                                        value={note}
-                                        onChange={(e) => setNote(e.target.value)}
+                                    Novo e-mail
+                                    <input
+                                        type="email"
+                                        name="new_email"
+                                        required
+                                        autoComplete="email"
+                                        value={newEmail}
+                                        onChange={(event) => setNewEmail(event.target.value)}
                                     />
                                 </label>
-                                <button
-                                    className="button secondary"
-                                    disabled={busy || (requestType === 'player_link' && !playerId)}
-                                >
-                                    Enviar solicitação
-                                </button>
+                                <div className="site-account-actions">
+                                    <button className="button secondary" disabled={busy}>
+                                        Alterar e-mail
+                                    </button>
+                                </div>
                             </form>
-                            <ul>
-                                {(requestsOwner === state.user?.id ? requests : []).map(
-                                    (request) => (
-                                        <li key={request.id}>
-                                            {requestLabels[request.request_type] ||
-                                                request.request_type}{' '}
-                                            · {statusLabels[request.status] || request.status}
-                                            {request.review_note && <p>{request.review_note}</p>}
-                                        </li>
-                                    )
-                                )}
-                            </ul>
-                        </section>
+                        </details>
                     </>
                 ) : (
                     <>
                         <div className="site-account-actions">
-                            {(['login', 'signup', 'recover'] as const).map((tab) => (
+                            {(['login', 'recover'] as const).map((tab) => (
                                 <button
                                     className="button secondary"
                                     aria-pressed={view === tab}
@@ -466,15 +473,13 @@ export function AccountPanel({
                                         setNotice('');
                                     }}
                                 >
-                                    {tab === 'login'
-                                        ? 'Entrar'
-                                        : tab === 'signup'
-                                          ? 'Criar conta'
-                                          : 'Esqueci a senha'}
+                                    {tab === 'login' ? 'Login' : 'Esqueci a senha'}
                                 </button>
                             ))}
                         </div>
                         <form
+                            id="site-login-form"
+                            autoComplete="on"
                             onSubmit={(event) => {
                                 event.preventDefault();
                                 void run(async () => {
@@ -493,8 +498,8 @@ export function AccountPanel({
                                         setView('login');
                                         setNotice('Confira seu e-mail para confirmar o cadastro.');
                                     } else {
-                                        await auth.login(email, password);
-                                        setView('profile');
+                                        await auth.login(email, password, rememberMe);
+                                        onClose();
                                     }
                                 });
                             }}
@@ -514,26 +519,92 @@ export function AccountPanel({
                                 E-mail
                                 <input
                                     type="email"
-                                    autoComplete="email"
+                                    name="username"
+                                    id="site-login-email"
+                                    autoComplete="username"
                                     required
                                     value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    onChange={(e) => {
+                                        loginEdited.current = true;
+                                        setEmail(e.target.value);
+                                    }}
                                 />
                             </label>
                             {view !== 'recover' && (
-                                <label>
-                                    Senha
-                                    <input
-                                        type="password"
-                                        autoComplete={
-                                            view === 'signup' ? 'new-password' : 'current-password'
-                                        }
-                                        required
-                                        minLength={view === 'signup' ? 12 : undefined}
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                    />
-                                </label>
+                                <div className="site-account-password-field">
+                                    <label htmlFor="site-account-password">Senha</label>
+                                    <div className="site-account-password">
+                                        <input
+                                            id="site-account-password"
+                                            name="password"
+                                            type={showPassword ? 'text' : 'password'}
+                                            autoComplete={
+                                                view === 'signup'
+                                                    ? 'new-password'
+                                                    : 'current-password'
+                                            }
+                                            required
+                                            minLength={view === 'signup' ? 12 : undefined}
+                                            value={password}
+                                            onChange={(e) => {
+                                                loginEdited.current = true;
+                                                setPassword(e.target.value);
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="site-password-toggle"
+                                            aria-label={
+                                                showPassword ? 'Ocultar senha' : 'Mostrar senha'
+                                            }
+                                            title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                                            aria-pressed={showPassword}
+                                            aria-controls="site-account-password"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="1.8"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                aria-hidden="true"
+                                            >
+                                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                                                <circle cx="12" cy="12" r="3" />
+                                                {showPassword && <path d="m3 3 18 18" />}
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                            <p className="muted">
+                                {view === 'recover'
+                                    ? 'Enviaremos um link para redefinir sua senha. Confira também a pasta de spam.'
+                                    : view === 'signup'
+                                      ? 'Use uma senha com pelo menos 12 caracteres. Confirme o e-mail para ativar sua conta.'
+                                      : 'Use o e-mail e a senha da sua conta.'}
+                            </p>
+                            {view === 'login' && (
+                                <div className="site-account-remember">
+                                    <label className="site-account-check">
+                                        <input
+                                            type="checkbox"
+                                            checked={rememberMe}
+                                            disabled={busy}
+                                            onChange={(event) =>
+                                                setRememberMe(event.target.checked)
+                                            }
+                                            aria-describedby="remember-account-help"
+                                        />
+                                        Lembrar de mim
+                                    </label>
+                                    <small id="remember-account-help" className="muted">
+                                        Lembrar meu e-mail e manter a sessão. A senha é preenchida
+                                        pelo navegador.
+                                    </small>
+                                </div>
                             )}
                             {view === 'signup' && (
                                 <LegalChecks
@@ -556,9 +627,24 @@ export function AccountPanel({
                                       ? 'Enviar instruções'
                                       : view === 'signup'
                                         ? 'Criar conta'
-                                        : 'Entrar'}
+                                        : 'Login'}
                             </button>
                         </form>
+                        {view === 'login' && (
+                            <button
+                                type="button"
+                                className="button secondary"
+                                disabled={busy || !email.trim()}
+                                onClick={() =>
+                                    void run(
+                                        () => auth.resendConfirmation(email),
+                                        'Se houver um cadastro pendente, confira o e-mail de confirmação e a pasta de spam.'
+                                    )
+                                }
+                            >
+                                Reenviar confirmação de e-mail
+                            </button>
+                        )}
                     </>
                 )}
             </div>

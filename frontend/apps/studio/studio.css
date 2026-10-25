@@ -16,13 +16,13 @@
 .studio-view .studio-controls {
     display: flex;
     flex-direction: column;
-    contain: size;
+    contain: none;
     min-height: 0;
 }
 .studio-control-options {
-    flex: 1;
+    flex: none;
     min-height: 0;
-    overflow: auto;
+    overflow: visible;
     scrollbar-width: thin;
     scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
 }
@@ -52,7 +52,7 @@
     overflow-wrap: anywhere;
 }
 .studio-view .studio-export {
-    margin-top: auto;
+    margin-top: 16px;
     flex-shrink: 0;
 }
 .studio-view .studio-checkbox {
@@ -268,12 +268,53 @@
 }
 .studio-caption-status {
     margin: -4px 0 0;
-    min-height: 4.5em;
+    min-height: 0;
     font-size: 11px;
     line-height: 1.5;
 }
 .studio-caption-status:empty {
-    visibility: hidden;
+    display: none;
+}
+.studio-customization {
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+    margin-top: 14px;
+}
+.studio-customization > summary {
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding-block: 8px;
+}
+.studio-customization-body {
+    display: grid;
+    gap: 14px;
+    padding-top: 14px;
+}
+.studio-customization .studio-background-controls {
+    border: 0;
+    padding: 0;
+    background: none;
+}
+.studio-view .studio-export .muted {
+    min-height: 0;
+    font-size: 12px;
+}
+.studio-export [role='status']:empty {
+    display: none;
+}
+.studio-view .studio-export-specs {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    padding: 0;
+    border: 0;
+    background: none;
+}
+.studio-view .page-heading h1 {
+    font-size: 26px;
+    line-height: 1.25;
 }
 @media (max-width: 1000px) {
     .studio-view .studio-controls,

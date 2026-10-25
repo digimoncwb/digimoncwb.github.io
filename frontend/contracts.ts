@@ -136,9 +136,12 @@ export interface SiteAuth {
     getSnapshot(): SiteAuthState;
     subscribe(listener: () => void): () => void;
     getAccessToken(): string | null;
+    getRememberMe(): boolean;
+    getRememberedEmail(): string;
+    recallLogin(): Promise<{ email: string; password: string } | null>;
     initialize(): Promise<void>;
     refresh(): Promise<void>;
-    login(email: string, password: string): Promise<void>;
+    login(email: string, password: string, rememberMe?: boolean): Promise<void>;
     signup(
         email: string,
         password: string,
@@ -147,6 +150,7 @@ export interface SiteAuth {
     ): Promise<void>;
     logout(): Promise<void>;
     recover(email: string): Promise<void>;
+    resendConfirmation(email: string): Promise<void>;
     changePassword(password: string): Promise<void>;
     changeEmail(email: string): Promise<void>;
     saveProfile(

@@ -111,6 +111,8 @@ function LegacyWorkspace({
                     ? 'tournaments'
                     : view(latest.current.route.name);
                 await window.switchDashboardView(window.DIGISTATS_WORKSPACE_VIEW);
+                if (latest.current.route.name === 'admin')
+                    window.dispatchEvent(new Event('digistats:admin-section-changed'));
                 if (!current) return;
                 if (command) {
                     if (window.digistatsAuth?.getSnapshot().enabled)
@@ -158,43 +160,31 @@ function LegacyWorkspace({
             className={native ? 'tournament-editor-bridge' : ''}
             hidden={!context.active}
         >
-            {!native && (
+            {!native && context.route.name !== 'admin' && (
                 <div className="workspace-page-header">
-                    <PageHeading
-                        eyebrow={
-                            context.route.name === 'statistics'
-                                ? 'Análises do cenário'
-                                : context.route.name === 'admin'
-                                  ? ''
-                                  : 'Gestão da comunidade'
-                        }
-                        title={labels[0]}
-                        description={labels[1]}
-                    />
-                    {context.route.name !== 'admin' && (
-                        <a
-                            className="button secondary native-back-link"
-                            href={context.href(
+                    <PageHeading title={labels[0]} />
+                    <a
+                        className="button secondary native-back-link"
+                        href={context.href(
+                            context.route.name === 'manage'
+                                ? 'tournaments'
+                                : context.route.name === 'statistics'
+                                  ? 'meta'
+                                  : 'overview'
+                        )}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            context.navigate(
                                 context.route.name === 'manage'
                                     ? 'tournaments'
                                     : context.route.name === 'statistics'
                                       ? 'meta'
                                       : 'overview'
-                            )}
-                            onClick={(e) => {
-                                e.preventDefault();
-                                context.navigate(
-                                    context.route.name === 'manage'
-                                        ? 'tournaments'
-                                        : context.route.name === 'statistics'
-                                          ? 'meta'
-                                          : 'overview'
-                                );
-                            }}
-                        >
-                            ← Voltar
-                        </a>
-                    )}
+                            );
+                        }}
+                    >
+                        ← Voltar
+                    </a>
                 </div>
             )}
             {busy && <Loader text="Carregando ferramentas…" />}

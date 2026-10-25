@@ -412,8 +412,30 @@ function toggleAdminPassword(button) {
     input.focus();
 }
 
+function applyAdminSection() {
+    if (!window.DIGISTATS_MICRO_FRONTENDS) return null;
+    const groups = {
+        tournaments: ['digilab', 'stores'],
+        catalog: ['gameformats', 'formats', 'portraits', 'banlist', 'datarepair'],
+        accounts: [],
+        audit: []
+    };
+    const section = new URLSearchParams(window.location.search).get('section') || 'tournaments';
+    const allowed = Object.prototype.hasOwnProperty.call(groups, section)
+        ? groups[section]
+        : groups.tournaments;
+    const container = document.getElementById('adminContainer');
+    container?.querySelectorAll('[data-admin-tab]').forEach((button) => {
+        button.hidden = !allowed.includes(button.dataset.adminTab);
+    });
+    if (!allowed.includes(adminActiveTab)) adminActiveTab = allowed[0] || 'none';
+    return allowed;
+}
+
 function switchAdminTab(tab) {
     if (!adminAuthSession || !adminAuthProfile) return;
+    const allowed = applyAdminSection();
+    if (allowed && !allowed.includes(tab)) tab = allowed[0] || 'none';
     adminActiveTab = tab;
     const container = document.getElementById('adminContainer');
     if (!container) return;
@@ -448,10 +470,14 @@ function synchronizeSiteAdminSession() {
 async function initializeAdminAuth() {
     if (!adminSiteAuthListenerAttached) {
         window.addEventListener('digistats:auth-changed', synchronizeSiteAdminSession);
+        window.addEventListener('digistats:admin-section-changed', () => {
+            applyAdminSection();
+            if (adminAuthSession && adminAuthProfile) switchAdminTab(adminActiveTab);
+        });
         adminSiteAuthListenerAttached = true;
     }
-    if (window.digistatsAuth?.getSnapshot().available) {
-        await window.digistatsAuth.refresh();
+    if (window.digistatsAuth) {
+        await window.digistatsAuth.initialize();
         synchronizeSiteAdminSession();
         return;
     }
@@ -646,7 +672,10 @@ function setAdminAuthView(authenticated) {
     );
     const container = document.getElementById('adminContainer');
     if (!container) return;
-    document.getElementById('adminAuthGate')?.classList.toggle('is-hidden', authenticated);
+    applyAdminSection();
+    document
+        .getElementById('adminAuthGate')
+        ?.classList.toggle('is-hidden', authenticated || !!window.digistatsAuth);
     document.getElementById('adminSessionBar')?.classList.toggle('is-hidden', !authenticated);
     container.querySelector('.admin-tabs')?.classList.toggle('is-hidden', !authenticated);
     container.querySelectorAll('[data-admin-panel]').forEach((panel) => {

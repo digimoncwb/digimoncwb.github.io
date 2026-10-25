@@ -11,6 +11,7 @@ import { useNativeSelects } from '../shared/NativeSelects';
 import { loadStylesheet } from './styles';
 import { useSiteAuth } from '../shared/site-auth';
 import { AccountPanel } from './AccountPanel';
+import { AccountsAdmin } from './AccountsAdmin';
 import '../../shared/theme.css';
 import '../../demo-v2/styles.css';
 import '../../shared/presentation.css';
@@ -25,10 +26,7 @@ const sections: {
     {
         key: 'tournaments',
         label: 'Torneios',
-        links: [
-            ['Lista e calendário', 'tournaments'],
-            ['Cadastrar torneio', 'manage', { create: '1' }]
-        ]
+        links: [['Torneios', 'tournaments']]
     },
     {
         key: 'meta',
@@ -43,10 +41,7 @@ const sections: {
     {
         key: 'players',
         label: 'Jogadores',
-        links: [
-            ['Lista de jogadores', 'players'],
-            ['Cadastrar jogador', 'players', { action: 'create-player' }]
-        ]
+        links: [['Jogadores', 'players']]
     },
     { key: 'admin', label: 'Admin', links: [['DigiLab e configurações', 'admin']] },
     { key: 'posts', label: 'Criação de conteúdo', links: [['Criação de conteúdo', 'posts']] }
@@ -63,29 +58,21 @@ const labels: Record<RouteName, string> = {
     posts: 'Estúdio de posts',
     builder: 'Deckbuilder'
 };
-const sectionsLabel: Record<RouteName, string> = {
-    overview: 'Painel da comunidade',
-    tournaments: 'Eventos da comunidade',
-    manage: 'Gestão / Eventos',
-    meta: 'Comunidade / Análises',
-    statistics: 'Comunidade / Análises',
-    decks: 'Biblioteca da comunidade',
-    players: 'Comunidade / Cadastros',
-    admin: 'Configurações da comunidade',
-    posts: 'Criação de conteúdo',
-    builder: 'Biblioteca / Decklists'
-};
 function Shell() {
     useNativeSelects();
     const account = useSiteAuth();
     const [accountView, setAccountView] = useState<
-        'login' | 'profile' | 'admin' | 'password' | null
+        'login' | 'signup' | 'profile' | 'password' | null
     >(null);
     useEffect(() => {
         const open = (event: Event) => {
             const view = (event as CustomEvent).detail?.view;
+            if (view === 'admin') {
+                navigate('admin', { section: 'accounts' });
+                return;
+            }
             setAccountView(
-                ['login', 'profile', 'admin', 'password'].includes(view) ? view : 'login'
+                ['login', 'signup', 'profile', 'password'].includes(view) ? view : 'login'
             );
         };
         window.addEventListener('digistats:account-open', open);
@@ -100,10 +87,23 @@ function Shell() {
         [loading, setLoading] = useState(true),
         [error, setError] = useState(''),
         [retry, setRetry] = useState(0);
+    const [logoutBusy, setLogoutBusy] = useState(false);
+    const [logoutError, setLogoutError] = useState('');
+    const [accountsBusy, setAccountsBusy] = useState(false);
     const outlet = useRef<HTMLDivElement>(null);
     const handles = useRef(new Map<string, { element: HTMLElement; handle: MicroHandle }>());
     const manifest = useRef<Manifest | null>(null);
-    const adminDenied = route.name === 'admin' && !account.isAdmin;
+    const adminDenied = route.name === 'admin' && (!account.user || !account.isAdmin);
+    const adminSections = [
+        ['tournaments', 'Torneios'],
+        ['catalog', 'Catálogo'],
+        ['accounts', 'Contas'],
+        ['audit', 'Auditoria']
+    ] as const;
+    const adminSection = adminSections.some(([key]) => key === route.params.get('section'))
+        ? route.params.get('section')!
+        : 'tournaments';
+    const accountSection = route.name === 'admin' && ['accounts', 'audit'].includes(adminSection);
     useEffect(() => subscribeRoute(() => setRoute(readRoute())), []);
     const activeKey =
         (
@@ -275,7 +275,10 @@ function Shell() {
                     hidden={!mobileOpen}
                 >
                     {sections
-                        .filter((section) => section.key !== 'admin' || account.isAdmin)
+                        .filter(
+                            (section) =>
+                                section.key !== 'admin' || (!!account.user && account.isAdmin)
+                        )
                         .map((section) => (
                             <div
                                 key={section.key}
@@ -347,34 +350,98 @@ function Shell() {
                 {account.available && (
                     <div className="site-account-menu">
                         <button
-                            className="button secondary"
+                            className="button secondary site-account-trigger"
                             onClick={() => setAccountView(account.user ? 'profile' : 'login')}
                         >
-                            {account.user
-                                ? account.profile?.display_name || 'Minha conta'
-                                : 'Entrar'}
+                            <span className="site-account-avatar" aria-hidden="true">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <circle cx="12" cy="8" r="3.5" />
+                                    <path d="M5 20v-1.5a7 7 0 0 1 14 0V20" />
+                                </svg>
+                            </span>
+                            <span className="site-account-label">
+                                {account.user
+                                    ? account.profile?.display_name || 'Minha conta'
+                                    : 'Login'}
+                            </span>
                         </button>
-                        {account.isAdmin && (
+                        {!account.user && (
                             <button
-                                className="button secondary"
-                                onClick={() => setAccountView('admin')}
+                                type="button"
+                                className="button secondary site-account-signup"
+                                onClick={() => setAccountView('signup')}
                             >
-                                Contas e auditoria
+                                Criar conta
                             </button>
                         )}
+                        {account.user && (
+                            <button
+                                type="button"
+                                className="button secondary site-account-trigger"
+                                disabled={logoutBusy}
+                                onClick={async () => {
+                                    setLogoutBusy(true);
+                                    setLogoutError('');
+                                    try {
+                                        await window.digistatsAuth!.logout();
+                                    } catch (error) {
+                                        setLogoutError((error as Error).message);
+                                    } finally {
+                                        setLogoutBusy(false);
+                                    }
+                                }}
+                            >
+                                <span className="site-account-avatar" aria-hidden="true">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <path d="M9 5H5v14h4M9 12h12m-4-4 4 4-4 4" />
+                                    </svg>
+                                </span>
+                                <span className="site-account-label">
+                                    {logoutBusy ? 'Saindo…' : 'Sair da conta'}
+                                </span>
+                            </button>
+                        )}
+                        {logoutError && <p role="alert">{logoutError}</p>}
                     </div>
                 )}
                 <div id="sidebar-support" className="sidebar-support" hidden={!mobileOpen} />
             </aside>
             <main className={styles.main}>
-                {route.name !== 'builder' && (
-                    <header className="topbar">
-                        <div className="breadcrumb">
-                            <strong>{sectionsLabel[route.name]}</strong>
-                        </div>
+                {route.name === 'admin' && !adminDenied && (
+                    <header className="site-admin-heading">
+                        <h1>Administração</h1>
+                        <nav aria-label="Seções administrativas">
+                            {adminSections.map(([key, label]) => (
+                                <a
+                                    key={key}
+                                    href={href('admin', { section: key })}
+                                    aria-current={adminSection === key ? 'page' : undefined}
+                                    onClick={(event) => {
+                                        event.preventDefault();
+                                        navigate('admin', { section: key });
+                                    }}
+                                >
+                                    {label}
+                                </a>
+                            ))}
+                        </nav>
                     </header>
                 )}
-                {loading && <Loader />}
+                {loading && !accountSection && <Loader />}
                 {adminDenied && (
                     <div className={styles.failure} role="alert">
                         <p>Esta área exige uma conta administrativa ativa.</p>
@@ -394,7 +461,23 @@ function Shell() {
                         </button>
                     </div>
                 )}
-                <div ref={outlet} className={styles.content} />
+                <div ref={outlet} className={styles.content} hidden={accountSection} />
+                {accountSection && account.user && account.isAdmin && window.digistatsAuth && (
+                    <section
+                        id="site-accounts-admin"
+                        tabIndex={-1}
+                        className="site-account site-admin-accounts"
+                        aria-label="Contas e auditoria"
+                        aria-busy={accountsBusy}
+                    >
+                        <AccountsAdmin
+                            key={adminSection}
+                            scope={adminSection === 'audit' ? 'audit' : 'accounts'}
+                            auth={window.digistatsAuth}
+                            onBusy={setAccountsBusy}
+                        />
+                    </section>
+                )}
                 <SiteFooter />
             </main>
             {accountView && window.digistatsAuth && (

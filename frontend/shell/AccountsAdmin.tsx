@@ -2,7 +2,6 @@ import { AuditHealth } from './AuditHealth';
 import { AuditChanges } from './AuditChanges';
 import { prepareAuditExport } from './audit-export';
 import { AccountErasure } from './AccountErasure';
-import { LegalDocumentsAdmin } from './LegalDocumentsAdmin';
 import { useEffect, useRef, useState } from 'react';
 import type { SiteAuth } from '../contracts';
 import { useSiteAuth } from '../shared/site-auth';
@@ -16,7 +15,6 @@ type Account = {
     status: string;
     is_admin: boolean;
     player_id: string | null;
-    email: string | null;
     email_confirmed: boolean;
 };
 type Request = {
@@ -28,7 +26,6 @@ type Request = {
     status: string;
     player_id: string | null;
     player_name: string | null;
-    email: string | null;
     decklist_id: number | null;
     note: string;
     review_note: string | null;
@@ -46,26 +43,24 @@ type AuditEvent = {
     operation_id: string;
 };
 type LegacyDeck = { id: number; name: string; updated_at: string };
-type Configuration = {
-    accounts_enabled: boolean;
-    privacy_url: string | null;
-    privacy_version: string | null;
-    audit_retention_days: number | null;
-    retention_reason: string | null;
-    technical_contact: string;
-    support_email: string;
-};
 const tabs = [
     { value: 'accounts', label: 'Contas' },
     { value: 'requests', label: 'Solicitações' },
     { value: 'legacy', label: 'Propriedade de decks' },
-    { value: 'audit', label: 'Auditoria' },
-    { value: 'settings', label: 'Configuração' }
+    { value: 'audit', label: 'Auditoria' }
 ];
 
-export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: boolean): void }) {
+export function AccountsAdmin({
+    auth,
+    onBusy,
+    scope = 'accounts'
+}: {
+    auth: SiteAuth;
+    onBusy(value: boolean): void;
+    scope?: 'accounts' | 'audit';
+}) {
     const state = useSiteAuth();
-    const [tab, setTab] = useState('accounts');
+    const [tab, setTab] = useState(scope === 'audit' ? 'audit' : 'accounts');
     const [page, setPage] = useState(0);
     const [search, setSearch] = useState('');
     const [term, setTerm] = useState('');
@@ -76,11 +71,6 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
     const [outcome, setOutcome] = useState('');
     const [operation, setOperation] = useState('');
     const [legacy, setLegacy] = useState<LegacyDeck[]>([]);
-    const [configuration, setConfiguration] = useState<Configuration | null>(null);
-    const [privacyUrl, setPrivacyUrl] = useState('');
-    const [privacyVersion, setPrivacyVersion] = useState('');
-    const [days, setDays] = useState('');
-    const [reason, setReason] = useState('');
     const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
     const [transfer, setTransfer] = useState<LegacyDeck | null>(null);
     const [ownerId, setOwnerId] = useState('');
@@ -114,7 +104,6 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
         setRequests([]);
         setEvents([]);
         setLegacy([]);
-        setConfiguration(null);
         if (!state.isAdmin) return;
         setLoading(true);
         setError('');
@@ -147,16 +136,6 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                     throw new Error('Não foi possível carregar os decks sem proprietário.');
                 const rows = await response.json();
                 if (generation === requestGeneration.current) setLegacy(rows);
-            }
-            if (tab === 'settings') {
-                const config = await auth.rpc<Configuration>('admin_security_configuration');
-                if (generation === requestGeneration.current) {
-                    setConfiguration(config);
-                    setPrivacyUrl(config.privacy_url || '');
-                    setPrivacyVersion(config.privacy_version || '');
-                    setDays(config.audit_retention_days?.toString() || '');
-                    setReason(config.retention_reason || '');
-                }
             }
         })()
             .catch((error) => {
@@ -198,24 +177,28 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                 : events.length;
     return (
         <section className="site-account-admin">
-            <div className="site-account-actions">
-                {tabs.map((item) => (
-                    <button
-                        type="button"
-                        className="button secondary"
-                        key={item.value}
-                        aria-pressed={tab === item.value}
-                        disabled={busy}
-                        onClick={() => {
-                            setTab(item.value);
-                            setPage(0);
-                            setNotice('');
-                        }}
-                    >
-                        {item.label}
-                    </button>
-                ))}
-            </div>
+            {scope === 'accounts' && (
+                <div className="site-account-tabs" aria-label="Gerenciamento de contas">
+                    {tabs
+                        .filter((item) => item.value !== 'audit')
+                        .map((item) => (
+                            <button
+                                type="button"
+                                className="button secondary"
+                                key={item.value}
+                                aria-pressed={tab === item.value}
+                                disabled={busy}
+                                onClick={() => {
+                                    setTab(item.value);
+                                    setPage(0);
+                                    setNotice('');
+                                }}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                </div>
+            )}
             {error && (
                 <p role="alert">
                     {error}{' '}
@@ -243,10 +226,10 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="E-mail, nome de usuário ou nome de exibição"
+                            placeholder="Nome de usuário ou nome de exibição"
                         />
                     </label>
-                    <button className="button secondary" disabled={busy}>
+                    <button className="text-action" disabled={busy}>
                         Buscar
                     </button>
                 </form>
@@ -269,8 +252,7 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                                         <strong>{account.display_name}</strong>
                                         <br />@{account.username}
                                         <br />
-                                        <small>{account.email || 'Sem e-mail'}</small>
-                                        {account.email && !account.email_confirmed && (
+                                        {!account.email_confirmed && (
                                             <small> · E-mail não confirmado</small>
                                         )}
                                     </td>
@@ -319,11 +301,7 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                                                     busy ||
                                                     (!account.is_admin &&
                                                         (!account.email_confirmed ||
-                                                            account.status !== 'active' ||
-                                                            !account.email ||
-                                                            account.email.endsWith(
-                                                                '@admin.digistats.local'
-                                                            )))
+                                                            account.status !== 'active'))
                                                 }
                                                 onClick={() => {
                                                     if (
@@ -363,7 +341,6 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                         <h3>
                             {request.display_name} (@{request.username})
                         </h3>
-                        {request.email && <p>{request.email}</p>}
                         <p>
                             {
                                 (
@@ -477,8 +454,7 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                         Apenas decks sem proprietário
                     </label>
                     <p>
-                        O autor creditado não comprova propriedade. Valide a associação antes de
-                        atribuir um deck a uma conta.
+                        Decks de autores com conta vinculada recebem o proprietário automaticamente.
                     </p>
                     {legacy.map((deck) => (
                         <div className="site-account-actions" key={deck.id}>
@@ -564,13 +540,13 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                     />
                     <div className="site-account-actions">
                         <button
-                            className="button secondary"
+                            className="button primary"
                             disabled={busy || loading}
                             onClick={() =>
                                 void run(async () => {
                                     const controller = new AbortController();
                                     exportController.current = controller;
-                                    setExportProgress('Preparando exportacao...');
+                                    setExportProgress('Preparando exportação…');
                                     try {
                                         const result = await prepareAuditExport(
                                             auth,
@@ -584,10 +560,10 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                                         exportController.current = null;
                                         setExportProgress('');
                                     }
-                                }, 'Arquivo completo do intervalo preparado e operação registrada.')
+                                }, 'Arquivo preparado.')
                             }
                         >
-                            Exportar intervalo completo (JSON)
+                            Exportar eventos
                         </button>
                         {exportProgress && (
                             <>
@@ -602,103 +578,118 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                         )}
                     </div>
 
-                    <form
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            const until = new Date().toISOString();
-                            let end = until;
-                            if (to) {
-                                const date = new Date(`${to}T00:00:00`);
-                                date.setDate(date.getDate() + 1);
-                                end = new Date(Math.min(date.getTime(), Date.now())).toISOString();
-                            }
-                            setAuditQuery({
-                                p_entity: entity,
-                                p_entity_id: entityId,
-                                p_actor: actor || null,
-                                p_action: action,
-                                p_outcome: outcome,
-                                p_operation: operation,
-                                p_from: from ? new Date(`${from}T00:00:00`).toISOString() : null,
-                                p_to: end
-                            });
-                            setPage(0);
-                        }}
-                    >
-                        <div className="site-account-actions">
-                            <label>
-                                Entidade
-                                <input
-                                    value={entity}
-                                    onChange={(e) => setEntity(e.target.value)}
-                                    placeholder="decklists, players…"
-                                />
-                            </label>
-                            <label>
-                                ID do registro
-                                <input
-                                    value={entityId}
-                                    onChange={(e) => setEntityId(e.target.value)}
-                                />
-                            </label>
-                            <label>
-                                Conta responsável (UUID)
-                                <input
-                                    value={actor}
-                                    onChange={(e) => setActor(e.target.value)}
-                                    pattern="[0-9a-fA-F-]{36}"
-                                />
-                            </label>
-                            <label>
-                                Ação
-                                <input
-                                    value={action}
-                                    onChange={(e) => setAction(e.target.value)}
-                                    placeholder="decklists.update"
-                                />
-                            </label>
-                            <label>
-                                Resultado
-                                <select
-                                    value={outcome}
-                                    onChange={(e) => setOutcome(e.target.value)}
-                                >
-                                    <option value="">Todos</option>
-                                    <option value="success">Sucesso</option>
-                                    <option value="denied">Recusado</option>
-                                    <option value="failure">Falha</option>
-                                </select>
-                            </label>
-                            <label>
-                                Operação
-                                <input
-                                    value={operation}
-                                    onChange={(e) => setOperation(e.target.value)}
-                                />
-                            </label>
-                            <label>
-                                De
-                                <input
-                                    type="date"
-                                    value={from}
-                                    onChange={(e) => setFrom(e.target.value)}
-                                />
-                            </label>
-                            <label>
-                                Até
-                                <input
-                                    type="date"
-                                    value={to}
-                                    onChange={(e) => setTo(e.target.value)}
-                                />
-                            </label>
-                        </div>
-                        <button className="button secondary" disabled={busy}>
-                            Aplicar filtros
-                        </button>
-                    </form>
+                    <details className="audit-event-filters">
+                        <summary>
+                            Filtros de eventos
+                            {Object.entries(auditQuery).some(
+                                ([key, value]) => key !== 'p_to' && !!value
+                            ) || !!to
+                                ? ' (ativos)'
+                                : ''}
+                        </summary>
+                        <form
+                            className="audit-filter-form"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                const until = new Date().toISOString();
+                                let end = until;
+                                if (to) {
+                                    const date = new Date(`${to}T00:00:00`);
+                                    date.setDate(date.getDate() + 1);
+                                    end = new Date(
+                                        Math.min(date.getTime(), Date.now())
+                                    ).toISOString();
+                                }
+                                setAuditQuery({
+                                    p_entity: entity,
+                                    p_entity_id: entityId,
+                                    p_actor: actor || null,
+                                    p_action: action,
+                                    p_outcome: outcome,
+                                    p_operation: operation,
+                                    p_from: from
+                                        ? new Date(`${from}T00:00:00`).toISOString()
+                                        : null,
+                                    p_to: end
+                                });
+                                setPage(0);
+                            }}
+                        >
+                            <div className="site-account-actions">
+                                <label>
+                                    Entidade
+                                    <input
+                                        value={entity}
+                                        onChange={(e) => setEntity(e.target.value)}
+                                        placeholder="decklists, players…"
+                                    />
+                                </label>
+                                <label>
+                                    ID do registro
+                                    <input
+                                        value={entityId}
+                                        onChange={(e) => setEntityId(e.target.value)}
+                                    />
+                                </label>
+                                <label>
+                                    Conta responsável (UUID)
+                                    <input
+                                        value={actor}
+                                        onChange={(e) => setActor(e.target.value)}
+                                        pattern="[0-9a-fA-F-]{36}"
+                                    />
+                                </label>
+                                <label>
+                                    Ação
+                                    <input
+                                        value={action}
+                                        onChange={(e) => setAction(e.target.value)}
+                                        placeholder="decklists.update"
+                                    />
+                                </label>
+                                <label>
+                                    Resultado
+                                    <select
+                                        value={outcome}
+                                        onChange={(e) => setOutcome(e.target.value)}
+                                    >
+                                        <option value="">Todos</option>
+                                        <option value="success">Sucesso</option>
+                                        <option value="denied">Recusado</option>
+                                        <option value="failure">Falha</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    Operação
+                                    <input
+                                        value={operation}
+                                        onChange={(e) => setOperation(e.target.value)}
+                                    />
+                                </label>
+                                <label>
+                                    De
+                                    <input
+                                        type="date"
+                                        value={from}
+                                        onChange={(e) => setFrom(e.target.value)}
+                                    />
+                                </label>
+                                <label>
+                                    Até
+                                    <input
+                                        type="date"
+                                        value={to}
+                                        onChange={(e) => setTo(e.target.value)}
+                                    />
+                                </label>
+                            </div>
+                            <button className="button secondary" disabled={busy}>
+                                Aplicar filtros
+                            </button>
+                        </form>
+                    </details>
                     <button
-                        className="button secondary"
+                        className="text-action"
                         disabled={busy || loading}
                         onClick={() =>
                             void run(async () => {
@@ -708,10 +699,10 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                                     p_export: true
                                 });
                                 downloadAccountJson('auditoria-pagina.json', rows);
-                            }, 'Exportação da página registrada.')
+                            }, 'Página exportada.')
                         }
                     >
-                        Exportar esta página (JSON)
+                        Exportar esta página
                     </button>
                     <div className="site-account-table">
                         <table>
@@ -751,125 +742,10 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                         </table>
                         {!loading && !events.length && <p>Nenhum evento neste período.</p>}
                     </div>
-                    <p>
-                        Eventos de autenticação e recusas de API também devem ser consultados nos
-                        logs de segurança do provedor. Este painel registra as alterações de dados e
-                        operações instrumentadas.
-                    </p>
                 </>
             )}
-            {tab === 'settings' && configuration && (
-                <>
-                    <LegalDocumentsAdmin
-                        auth={auth}
-                        onBusy={(value) => {
-                            setBusy(value);
-                            onBusy(value);
-                        }}
-                        onSaved={() => setRevision((value) => value + 1)}
-                    />
-                    <p>
-                        Responsável técnico: {configuration.technical_contact}
-                        <br />
-                        Contato: {configuration.support_email}
-                        <br />
-                        Contas:{' '}
-                        {configuration.accounts_enabled ? 'controle ativo' : 'preparação / piloto'}
-                    </p>
-                    <form
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            void run(async () => {
-                                await auth.rpc('admin_configure_site_accounts', {
-                                    p_enabled: configuration.accounts_enabled,
-                                    p_privacy_url: privacyUrl,
-                                    p_privacy_version: privacyVersion,
-                                    p_retention_days: days ? Number(days) : null,
-                                    p_retention_reason: reason
-                                });
-                                await auth.refresh();
-                            }, 'Configuração salva.');
-                        }}
-                    >
-                        <label>
-                            URL HTTPS do aviso de privacidade
-                            <input
-                                type="url"
-                                pattern="https://.*"
-                                required
-                                value={privacyUrl}
-                                onChange={(e) => setPrivacyUrl(e.target.value)}
-                            />
-                        </label>
-                        <label>
-                            Versão do aviso
-                            <input
-                                required
-                                maxLength={50}
-                                value={privacyVersion}
-                                onChange={(e) => setPrivacyVersion(e.target.value)}
-                            />
-                        </label>
-                        <label>
-                            Retenção da auditoria (dias)
-                            <input
-                                type="number"
-                                min={30}
-                                max={3650}
-                                value={days}
-                                onChange={(e) => setDays(e.target.value)}
-                            />
-                        </label>
-                        <label>
-                            Justificativa da retenção
-                            <textarea
-                                minLength={10}
-                                rows={3}
-                                value={reason}
-                                onChange={(e) => setReason(e.target.value)}
-                            />
-                        </label>
-                        <button className="button primary" disabled={busy}>
-                            Salvar configuração
-                        </button>
-                    </form>
-                    {!configuration.accounts_enabled && (
-                        <>
-                            <p>
-                                Antes de ativar, valide os textos e procedimentos de privacidade, os
-                                e-mails e as permissões em ambiente de teste. Atualize seu perfil
-                                com a versão publicada do aviso e confirme um e-mail pessoal para o
-                                acesso administrativo.
-                            </p>
-                            <button
-                                className="button secondary"
-                                disabled={busy}
-                                onClick={() => {
-                                    if (
-                                        window.confirm(
-                                            'Ativar o controle de contas no site inteiro? As gravações públicas serão fechadas e os decks antigos sem proprietário só poderão ser editados por administradores.'
-                                        )
-                                    )
-                                        void run(async () => {
-                                            await auth.rpc('admin_configure_site_accounts', {
-                                                p_enabled: true,
-                                                p_privacy_url: privacyUrl,
-                                                p_privacy_version: privacyVersion,
-                                                p_retention_days: days ? Number(days) : null,
-                                                p_retention_reason: reason
-                                            });
-                                            await auth.refresh();
-                                        }, 'Controle de contas ativado.');
-                                }}
-                            >
-                                Ativar controle de contas
-                            </button>
-                        </>
-                    )}
-                </>
-            )}
-            {tab !== 'settings' && (
-                <div className="site-account-actions">
+            {(page > 0 || count >= (tab === 'audit' ? 100 : 50)) && (
+                <div className="site-account-actions site-admin-pagination">
                     <button
                         className="button secondary"
                         disabled={busy || loading || !page}

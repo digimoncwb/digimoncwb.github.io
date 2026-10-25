@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sendFeedback } from './feedback-service';
 import { ThemePicker } from './ThemePicker';
+import { siteLegalDocuments } from './legal-documents.generated';
 
 type Panel = 'bug' | 'suggestion' | 'privacy' | null;
 export function SiteFooter() {
@@ -181,74 +182,28 @@ export function SiteFooter() {
                 </div>
                 {panel === 'privacy' ? (
                     <div className="privacy-content">
-                        <p className="muted">Atualizada em 25 de outubro de 2026</p>
-                        <p>
-                            Esta política explica como o DIGIMON CWB trata dados ao apresentar
-                            resultados de torneios, gerenciar cadastros e receber mensagens de
-                            suporte.
-                        </p>
-                        <p>
-                            O site é organizado pela Comunidade Digimon CWB. Eduardo Lopes é o
-                            responsável técnico e o contato de contas e privacidade é{' '}
-                            <a href="mailto:dulopes1997@gmail.com">dulopes1997@gmail.com</a>.
-                        </p>
-                        <h3>Dados e finalidade</h3>
-                        <p>
-                            O histórico reúne nomes e apelidos de jogadores, identificadores Bandai
-                            / DigiLab, decks, classificações e participações. Esses dados são usados
-                            para organizar torneios e apresentar estatísticas; nomes e resultados
-                            aparecem nas consultas públicas.
-                        </p>
-                        <p>
-                            Ao enviar uma sugestão ou reportar um bug, são enviados sua mensagem,
-                            e-mail de contato opcional e informações básicas sobre a página e o
-                            navegador para ajudar a entender o problema. Dados de conexão também são
-                            usados para prevenir spam. Não envie senhas ou outros dados sensíveis.
-                        </p>
-                        <h3>Armazenamento e compartilhamento</h3>
-                        <p>
-                            Utilizamos serviços de apoio para armazenar os dados, permitir o acesso
-                            administrativo e encaminhar mensagens de suporte à equipe por e-mail.
-                            Imagens de cartas e logos podem ser fornecidas por outros sites, que
-                            recebem informações básicas de conexão ao exibi-las.
-                        </p>
-                        <p>
-                            O navegador guarda suas preferências, informações de acesso
-                            administrativo e cópias de arquivos para agilizar o carregamento. Você
-                            pode apagar esses dados nas configurações do navegador. Sair do Admin
-                            encerra o acesso administrativo naquele navegador.
-                        </p>
-                        <h3>Conservação dos dados</h3>
-                        <p>
-                            A auditoria da aplicação tem retenção de 90 dias, com rotina diária de
-                            limpeza. Esse prazo não se aplica automaticamente aos logs dos
-                            fornecedores, aos backups ou ao histórico público de torneios. As
-                            solicitações concluídas e mensagens de suporte resolvidas têm prazo de
-                            180 dias após conclusão, com revisão e limpeza manual pela equipe.
-                            Pedidos de correção, anonimização ou exclusão são avaliados conforme as
-                            condições aplicáveis.
-                        </p>
-                        <h3>Seus dados e contato</h3>
-                        <p>
-                            Você pode solicitar informações, acesso, correção ou exclusão dos seus
-                            dados, conforme as condições aplicáveis. Escreva para o contato de
-                            privacidade; não é necessário ter uma conta ou enviar sua senha.
-                        </p>
+                        <p className="muted">Versão {siteLegalDocuments.privacy.version}</p>
+                        {siteLegalDocuments.privacy.sections.map((section) => (
+                            <section key={section.title}>
+                                <h3>{section.title}</h3>
+                                {section.paragraphs.map((paragraph) => (
+                                    <p key={paragraph}>{paragraph}</p>
+                                ))}
+                            </section>
+                        ))}
+                        <a
+                            href={siteLegalDocuments.terms.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Termos de Uso
+                        </a>
                         <a
                             className="button secondary"
-                            href="mailto:dulopes1997@gmail.com?subject=Solicita%C3%A7%C3%A3o%20sobre%20meus%20dados%20-%20DIGIMON%20CWB"
+                            href="mailto:dulopes1997@gmail.com?subject=Solicita%C3%A7%C3%A3o%20sobre%20meus%20dados"
                         >
-                            Entrar em contato sobre meus dados
+                            Falar sobre meus dados
                         </a>
-                        <p>
-                            <a
-                                href="https://www.gov.br/anpd/pt-br/assuntos/titular-de-dados"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                Saiba mais sobre seus direitos na ANPD ↗
-                            </a>
-                        </p>
                     </div>
                 ) : sent ? (
                     <div className="feedback-complete">

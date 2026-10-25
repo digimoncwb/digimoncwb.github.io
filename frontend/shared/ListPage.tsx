@@ -66,6 +66,7 @@ export function Pagination({
     sizes?: number[];
     compact?: boolean;
 }) {
+    if (!total) return null;
     return (
         <div className={`list-pagination${compact ? ' is-compact' : ''}`}>
             {!compact && (
@@ -84,27 +85,29 @@ export function Pagination({
                     label: String(value)
                 }))}
             />
-            <nav aria-label="Paginação" className="list-pages">
-                <button
-                    className="button secondary"
-                    disabled={page <= 1}
-                    onClick={() => onPage(page - 1)}
-                    aria-label="Página anterior"
-                >
-                    ‹
-                </button>
-                <span>
-                    {page} / {pages}
-                </span>
-                <button
-                    className="button secondary"
-                    disabled={page >= pages}
-                    onClick={() => onPage(page + 1)}
-                    aria-label="Próxima página"
-                >
-                    ›
-                </button>
-            </nav>
+            {pages > 1 && (
+                <nav aria-label="Paginação" className="list-pages">
+                    <button
+                        className="button secondary"
+                        disabled={page <= 1}
+                        onClick={() => onPage(page - 1)}
+                        aria-label="Página anterior"
+                    >
+                        ‹
+                    </button>
+                    <span>
+                        {page} / {pages}
+                    </span>
+                    <button
+                        className="button secondary"
+                        disabled={page >= pages}
+                        onClick={() => onPage(page + 1)}
+                        aria-label="Próxima página"
+                    >
+                        ›
+                    </button>
+                </nav>
+            )}
         </div>
     );
 }

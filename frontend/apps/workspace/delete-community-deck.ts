@@ -3,7 +3,7 @@ export async function deleteCommunityDeck(
     updatedAt: string,
     session = window.digistatsAdminSession
 ) {
-    if (typeof window !== 'undefined' && window.digistatsAuth?.getSnapshot().enabled) {
+    if (typeof window !== 'undefined' && window.digistatsAuth?.getSnapshot().available) {
         await window.digistatsAuth.requireMember();
         const result = await window.digistatsAuth.rpc('delete_community_deck', {
             p_decklist_id: id,

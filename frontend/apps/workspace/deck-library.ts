@@ -18,6 +18,35 @@ export interface ListCard {
     qty: number;
     position: number;
 }
+export interface DeckClaim {
+    id: string;
+    decklist_id: string | number | null;
+    status: 'pending' | 'approved' | 'rejected' | 'completed';
+    created_at: string;
+}
+export function loadMyDeckClaims(userId: string, signal?: AbortSignal) {
+    if (!userId) return Promise.resolve([] as DeckClaim[]);
+    return readRows<DeckClaim>(
+        `/rest/v1/account_requests?user_id=eq.${encodeURIComponent(userId)}&request_type=eq.deck_claim&select=id,decklist_id,status,created_at&order=created_at.desc,id.desc`,
+        signal
+    );
+}
+export function filterCommunityDecks(
+    decks: LibraryDeck[],
+    filters: {
+        query: string;
+        format: string;
+        mine: boolean;
+        userId?: string;
+    }
+) {
+    return decks.filter(
+        (deck) =>
+            normalizeSearch(deck.name).includes(normalizeSearch(filters.query)) &&
+            (!filters.format || String(deck.deck_format_id) === filters.format) &&
+            (!filters.mine || (!!filters.userId && deck.owner_user_id === filters.userId))
+    );
+}
 export interface Participation {
     row: BuilderResultRecord;
     event: Tournament;

@@ -106,6 +106,191 @@ async function prepare(db) {
     );
 }
 
+test('Verified player links reconcile historical decks and future approvals without replacing owners', async () => {
+    const db = await setup();
+    const migration = readFileSync(
+        'database/migrations/20261025150000_reconcile_linked_player_deck_ownership.sql',
+        'utf8'
+    );
+    try {
+        await prepare(db);
+        await sqlOwner(db);
+        await db.query('update user_profiles set player_id=$1 where user_id=$2', [
+            ids.player,
+            ids.a
+        ]);
+        await db.query('update decklists set creator_player_id=$1', [ids.player]);
+        await db.query(
+            "insert into decklists(name,creator_player_id,owner_user_id) values('EXPLICIT OWNER',$1,$2)",
+            [ids.player, ids.b]
+        );
+        await db.exec(migration);
+        assert.equal(
+            (await db.query('select owner_user_id from decklists where id=1')).rows[0]
+                .owner_user_id,
+            ids.a
+        );
+        assert.equal(
+            (await db.query('select owner_user_id from decklists where id=2')).rows[0]
+                .owner_user_id,
+            null
+        );
+        assert.equal(
+            (await db.query("select owner_user_id from decklists where name='EXPLICIT OWNER'"))
+                .rows[0].owner_user_id,
+            ids.b
+        );
+        assert.equal(
+            (await db.query('select reconcile_linked_player_deck_ownership() count')).rows[0].count,
+            0
+        );
+        const otherPlayer = '20000000-0000-0000-0000-000000000002';
+        await db.query("insert into players(id,name) values($1,'Other player')", [otherPlayer]);
+        await db.query("insert into decklists(name,creator_player_id) values('AWAITING LINK',$1)", [
+            otherPlayer
+        ]);
+        await as(db, 'b');
+        const request = (
+            await db.query("select submit_account_request('player_link',$1) id", [otherPlayer])
+        ).rows[0].id;
+        await assert.rejects(
+            db.query('select reconcile_linked_player_deck_ownership()'),
+            /permission denied/
+        );
+        await as(db, 'admin');
+        await db.query("select admin_review_account_request($1,'approved')", [request]);
+        assert.equal(
+            (await db.query("select owner_user_id from decklists where name='AWAITING LINK'"))
+                .rows[0].owner_user_id,
+            ids.b
+        );
+        await sqlOwner(db);
+        await db.query("insert into decklists(name,creator_player_id) values('LATER IMPORT',$1)", [
+            otherPlayer
+        ]);
+        assert.equal(
+            (await db.query("select owner_user_id from decklists where name='LATER IMPORT'"))
+                .rows[0].owner_user_id,
+            ids.b
+        );
+        await db.query("update user_profiles set status='blocked' where user_id=$1", [ids.b]);
+        await db.query(
+            "insert into decklists(name,creator_player_id) values('BLOCKED AUTHOR',$1)",
+            [otherPlayer]
+        );
+        assert.equal(
+            (await db.query("select owner_user_id from decklists where name='BLOCKED AUTHOR'"))
+                .rows[0].owner_user_id,
+            null
+        );
+    } finally {
+        await db.close();
+    }
+});
+
+test('Deck assignment is immediate, cannot steal decks, and admin APIs omit private email', async () => {
+    const db = await setup([
+        '20261025110000_email_admin_accounts_and_player_claims.sql',
+        '20261025150000_reconcile_linked_player_deck_ownership.sql',
+        '20261025160000_direct_deck_claims_and_private_account_email.sql'
+    ]);
+    try {
+        await prepare(db);
+        await as(db, 'pending');
+        await assert.rejects(
+            db.query("select submit_account_request('deck_claim',null,1)"),
+            /confirme/
+        );
+        await as(db, 'a');
+        const request = (await db.query("select submit_account_request('deck_claim',null,1) id"))
+            .rows[0].id;
+        assert.equal(
+            (await db.query('select owner_user_id from decklists where id=1')).rows[0]
+                .owner_user_id,
+            ids.a
+        );
+        assert.equal(
+            (await db.query('select status from account_requests where id=$1', [request])).rows[0]
+                .status,
+            'approved'
+        );
+        await as(db, 'b');
+        await assert.rejects(
+            db.query("select submit_account_request('deck_claim',null,1)"),
+            /proprietário/
+        );
+        await assert.rejects(
+            db.query("select submit_account_request('deck_claim',null,2)"),
+            /disponível/
+        );
+        assert.equal(
+            (
+                await db.query('update decklists set owner_user_id=$1 where id=1 returning id', [
+                    ids.b
+                ])
+            ).rows.length,
+            0
+        );
+        await as(db, 'admin');
+        const accounts = (await db.query("select admin_list_site_accounts('user_a') rows")).rows[0]
+            .rows;
+        assert.ok(accounts.some((row) => row.user_id === ids.a));
+        assert.ok(accounts.every((row) => !Object.hasOwn(row, 'email')));
+        assert.equal(
+            (await db.query("select admin_list_site_accounts('a@example.test') rows")).rows[0].rows
+                .length,
+            0
+        );
+        const requests = (await db.query('select admin_account_requests() rows')).rows[0].rows;
+        assert.ok(requests.every((row) => !Object.hasOwn(row, 'email')));
+    } finally {
+        await db.close();
+    }
+});
+
+test('Basic profile editing does not require published legal documents or grant consent', async () => {
+    const db = await setup(['20261025140000_update_basic_site_profile.sql']);
+    try {
+        await as(db, 'a');
+        const saved = (
+            await db.query("select update_my_site_profile(' New_Name ',' Novo nome ') profile")
+        ).rows[0].profile;
+        assert.equal(saved.username, 'new_name');
+        assert.equal(saved.display_name, 'Novo nome');
+        assert.equal(saved.privacy_version, null);
+        await as(db, 'b');
+        await assert.rejects(
+            db.query("select update_my_site_profile('new_name','Duplicate')"),
+            /unique/
+        );
+        await as(db, 'a');
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.profile.username,
+            'new_name'
+        );
+        await assert.rejects(db.query("select update_my_site_profile('bad name','Bad')"), /3 a 40/);
+        await as(db, 'pending');
+        await assert.rejects(
+            db.query("select update_my_site_profile('pending','Pending')"),
+            /Confirme/
+        );
+        await as(db);
+        await assert.rejects(
+            db.query("select update_my_site_profile('anonymous','Anonymous')"),
+            /permission denied/
+        );
+        await sqlOwner(db);
+        await db.query('update user_profiles set status=$1 where user_id=$2', ['blocked', ids.a]);
+        await as(db, 'a');
+        await assert.rejects(
+            db.query("select update_my_site_profile('blocked','Blocked')"),
+            /Confirme/
+        );
+    } finally {
+        await db.close();
+    }
+});
+
 test('Email admin management keeps private email search restricted and validates grants and player claims', async () => {
     const db = await setup(['20261025110000_email_admin_accounts_and_player_claims.sql']);
     try {
@@ -260,6 +445,83 @@ test('Accounts migrate additively, enforce ownership against old public policies
         assert.equal(
             (await db.query('select count(*)::int n from decklists where id in (1,2)')).rows[0].n,
             2
+        );
+    } finally {
+        await db.close();
+    }
+});
+
+test('Community deletion permits owners and admins of anonymous decks, including direct SQL and rollout disabled', async () => {
+    const db = await setup(['20261025120000_community_deck_delete_permissions.sql']);
+    try {
+        await prepare(db);
+        await as(db, 'a');
+        const owned = (
+            await db.query(
+                `select save_deck_draft(null,null,'OWNED',1,'[]',0,'${ids.archetype}',null) value`
+            )
+        ).rows[0].value;
+        const stamp = (await db.query('select updated_at from decklists where id=$1', [owned.id]))
+            .rows[0].updated_at;
+        await as(db, 'admin');
+        await assert.rejects(
+            db.query('select delete_community_deck($1,$2)', [owned.id, stamp]),
+            /não pode/
+        );
+        assert.equal(
+            (await db.query('delete from decklists where id=$1 returning id', [owned.id])).rows
+                .length,
+            0
+        );
+        // RLS can be bypassed by SECURITY DEFINER functions; the trigger must still reject it.
+        await sqlOwner(db);
+        await db.exec(`create function public.test_delete_community(bigint) returns void language sql security definer as $$ delete from public.decklists where id=$1 $$;
+            grant execute on function public.test_delete_community(bigint) to authenticated;`);
+        await as(db, 'admin');
+        await assert.rejects(db.query('select test_delete_community($1)', [owned.id]), /próprios/);
+        // Model the pre-rollout configuration directly; the public admin RPC rightly forbids reopening access.
+        await sqlOwner(db);
+        await db.exec(
+            'update public.site_security_config set accounts_enabled=false where singleton'
+        );
+        await as(db, 'admin');
+        await assert.rejects(
+            db.query('select delete_community_deck($1,$2)', [owned.id, stamp]),
+            /não pode/
+        );
+        await assert.rejects(db.query('select test_delete_community($1)', [owned.id]), /próprios/);
+        await as(db, 'b');
+        await assert.rejects(
+            db.query('select delete_community_deck($1,$2)', [owned.id, stamp]),
+            /não pode/
+        );
+        await assert.rejects(
+            db.query(
+                'select delete_community_deck(1,(select updated_at from decklists where id=1))'
+            ),
+            /não pode/
+        );
+        await as(db);
+        assert.equal(
+            (await db.query('delete from decklists where id=$1 returning id', [owned.id])).rows
+                .length,
+            0
+        );
+        await as(db, 'a');
+        await assert.rejects(
+            db.query('select delete_community_deck($1,null)', [owned.id]),
+            /alterado/
+        );
+        await db.query('select delete_community_deck($1,$2)', [owned.id, stamp]);
+        await as(db, 'admin');
+        await db.query(
+            'select delete_community_deck(1,(select updated_at from decklists where id=1))'
+        );
+        await assert.rejects(
+            db.query(
+                'select delete_community_deck(2,(select updated_at from decklists where id=2))'
+            ),
+            /não encontrado/
         );
     } finally {
         await db.close();
@@ -549,6 +811,76 @@ async function prepareLegal(db) {
     );
 }
 const legalMigration = '20261025060000_versioned_terms_and_adult_declarations.sql';
+test('Published signup documents match the public pages, preserve rollout state and require separate declarations', async () => {
+    const db = await setup([legalMigration]);
+    try {
+        await sqlOwner(db);
+        await db.exec(
+            readFileSync(
+                'database/migrations/20261025180000_register_site_legal_documents.sql',
+                'utf8'
+            )
+        );
+        const config = (await db.query('select site_account_status() value')).rows[0].value;
+        assert.equal(config.legal_ready, true);
+        assert.equal(config.enabled, false);
+        const source = JSON.parse(readFileSync('legal/documents.json', 'utf8'));
+        await as(db, null);
+        const documents = (
+            await db.query(
+                'select kind,version,url,body,sha256 from site_legal_documents order by kind'
+            )
+        ).rows;
+        assert.equal(documents.length, 2);
+        for (const document of documents) {
+            const canonical = source[document.kind];
+            assert.equal(document.version, source.version);
+            assert.ok(document.url.endsWith(canonical.filename));
+            assert.equal(
+                document.body,
+                [
+                    canonical.title,
+                    `Versão ${source.version} · ${source.publishedDate}`,
+                    ...canonical.sections.flatMap((section) => [
+                        section.title,
+                        ...section.paragraphs
+                    ])
+                ].join('\n\n')
+            );
+            const html = readFileSync(`legal/${canonical.filename}`, 'utf8');
+            assert.ok(html.includes(canonical.title));
+            assert.ok(html.includes(source.version));
+        }
+        await as(db, 'a');
+        for (const declarations of [
+            [false, true, true],
+            [true, false, true],
+            [true, true, false]
+        ]) {
+            await assert.rejects(
+                db.query('select save_my_site_profile_legal($1,$2,$3,$4,$5,$6,$7)', [
+                    'user_a',
+                    'User A',
+                    source.version,
+                    source.version,
+                    ...declarations
+                ])
+            );
+        }
+        await db.query('select save_my_site_profile_legal($1,$2,$3,$4,true,true,true)', [
+            'user_a',
+            'User A',
+            source.version,
+            source.version
+        ]);
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.legal_current,
+            true
+        );
+    } finally {
+        await db.close();
+    }
+});
 test('Legal versions are immutable and membership requires authenticated, explicit adult acceptance', async () => {
     const db = await setup([legalMigration]);
     try {
@@ -564,6 +896,19 @@ test('Legal versions are immutable and membership requires authenticated, explic
         const current = (await db.query('select my_site_account() value')).rows[0].value;
         assert.equal(current.legal_current, true);
         assert.equal(current.is_member, true);
+        const savedProfile = (
+            await db.query(
+                "select save_my_site_profile_legal('renamed_user','Novo nome','v1','v1',true,true,true) value"
+            )
+        ).rows[0].value;
+        assert.equal(savedProfile.username, 'renamed_user');
+        // A later account load must read the same persisted values.
+        await as(db, 'b');
+        await as(db, 'a');
+        const reloadedProfile = (await db.query('select my_site_account() value')).rows[0].value
+            .profile;
+        assert.equal(reloadedProfile.username, 'renamed_user');
+        assert.equal(reloadedProfile.display_name, 'Novo nome');
         await assert.rejects(
             db.query("select save_my_site_profile_legal('user_a','A','v1','v1',true,true,false)"),
             /18 anos/
@@ -611,6 +956,49 @@ test('Legal versions are immutable and membership requires authenticated, explic
 const erasureMigration = '20261025070000_account_erasure_workflow.sql';
 const exportMigration = '20261025080000_audit_period_exports.sql';
 const monitorMigration = '20261025090000_audit_operation_monitoring.sql';
+test('Audit health recognizes a later scheduled catalog recovery while retaining failures and other alerts', async () => {
+    const db = await setup([
+        legalMigration,
+        exportMigration,
+        monitorMigration,
+        '20261025170000_audit_catalog_recovery_health.sql'
+    ]);
+    try {
+        await sqlOwner(db);
+        await db.exec(`create schema cron;
+            create table cron.job(jobid bigint,jobname text,active boolean);
+            insert into cron.job values(1,'site-audit-retention',true);
+            insert into site_audit.integration_runs(operation_id,operation,started_at,finished_at,http_status)
+            values(gen_random_uuid(),'digilab-deck-catalog',now()-interval '40 minutes',now()-interval '35 minutes',500);`);
+        const snapshot = async () =>
+            (await db.query('select site_audit.health_snapshot() value')).rows[0].value;
+        assert.equal((await snapshot()).severity, 'warning');
+        await db.exec(`insert into site_audit.integration_runs(operation_id,operation,actor_user_id,started_at,finished_at,http_status) values
+            (gen_random_uuid(),'another-integration',null,now()-interval '20 minutes',now()-interval '19 minutes',200),
+            (gen_random_uuid(),'digilab-deck-catalog','${ids.a}',now()-interval '20 minutes',now()-interval '19 minutes',200),
+            (gen_random_uuid(),'digilab-deck-catalog',null,now()-interval '45 minutes',now()-interval '19 minutes',200),
+            (gen_random_uuid(),'digilab-deck-catalog',null,now()-interval '20 minutes',now()-interval '19 minutes',401);`);
+        assert.equal((await snapshot()).unresolved_failed_integrations_24h, 1);
+        await db.exec(`insert into site_audit.integration_runs(operation_id,operation,started_at,finished_at,http_status)
+            values(gen_random_uuid(),'digilab-deck-catalog',now()-interval '20 minutes',now()-interval '19 minutes',200);`);
+        let health = await snapshot();
+        assert.equal(health.severity, 'ok');
+        assert.equal(health.failed_integrations_24h, 1);
+        assert.equal(health.unresolved_failed_integrations_24h, 0);
+        assert.equal(health.recovered_failed_integrations_24h, 1);
+        await db.exec(`insert into site_audit.integration_runs(operation_id,operation,started_at,finished_at,http_status)
+            values(gen_random_uuid(),'digilab-deck-catalog',now()-interval '5 minutes',now()-interval '4 minutes',500);`);
+        health = await snapshot();
+        assert.equal(health.severity, 'warning');
+        assert.equal(health.failed_integrations_24h, 2);
+        assert.equal(health.unresolved_failed_integrations_24h, 1);
+        assert.equal(health.recovered_failed_integrations_24h, 1);
+        await db.exec(`alter table decklists disable trigger site_audit_change`);
+        assert.equal((await snapshot()).severity, 'critical');
+    } finally {
+        await db.close();
+    }
+});
 test('Erasure requires reviewed workflow, keeps historical rows and confirms provider deletion before completion', async () => {
     const db = await setup([legalMigration, erasureMigration]);
     try {

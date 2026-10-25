@@ -28,3 +28,6 @@ export function canEditCommunityDeck(auth: SiteAuthState, owner?: string | null)
         !auth.enabled || (auth.isMember && (auth.isAdmin || (!!owner && owner === auth.user?.id)))
     );
 }
+export function canDeleteCommunityDeck(auth: SiteAuthState, owner?: string | null) {
+    return !!auth.user && auth.isMember && (owner ? owner === auth.user.id : auth.isAdmin);
+}

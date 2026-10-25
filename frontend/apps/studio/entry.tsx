@@ -78,6 +78,7 @@ function Studio({ context }: { context: MicroContext }) {
     );
     const [captionLink, setCaptionLink] = useState({ eventId: '', url: '', error: '' });
     const [copyStatus, setCopyStatus] = useState('');
+    const [customizing, setCustomizing] = useState(false);
     const captionField = useRef<HTMLTextAreaElement>(null);
     const currentWeek = week || weeks[0] || '';
     const captionLoaded =
@@ -117,7 +118,7 @@ function Studio({ context }: { context: MicroContext }) {
     async function copyCaption() {
         try {
             await navigator.clipboard.writeText(caption);
-            setCopyStatus('Legenda copiada!');
+            setCopyStatus('Legenda copiada.');
         } catch {
             captionField.current?.focus();
             captionField.current?.select();
@@ -218,7 +219,7 @@ function Studio({ context }: { context: MicroContext }) {
             link.download = `digimon-cwb-${template}-${date}${pageSuffix}.png`;
             link.click();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
-            setStatus('Post exportado em PNG.');
+            setStatus('Imagem baixada.');
         } catch (error) {
             setStatus((error as Error).message);
         } finally {
@@ -227,18 +228,12 @@ function Studio({ context }: { context: MicroContext }) {
     }
     return (
         <section className="view studio-view">
-            <PageHeading
-                eyebrow="Compartilhe os resultados"
-                title="Estúdio de posts"
-                description=""
-            />
+            <PageHeading title="Estúdio de posts" />
             <div className="studio studio-with-caption">
                 <div className="studio-controls">
                     <div className="studio-control-options">
                         <fieldset className="studio-group">
-                            <legend>
-                                <span>01</span> Conteúdo
-                            </legend>
+                            <legend>Conteúdo</legend>
                             <Select
                                 overlay
                                 label="Modelo"
@@ -315,64 +310,142 @@ function Studio({ context }: { context: MicroContext }) {
                                     }))}
                                 />
                             )}
-                            {template === 'podium' &&
-                                !currentEvent?.team &&
-                                !currentEvent?.deckless && (
-                                    <label className="studio-deck-line-control">
-                                        <span>Nome do deck: caracteres por linha</span>
-                                        <input
-                                            type="number"
-                                            min={1}
-                                            max={40}
-                                            step={1}
-                                            value={deckNameLineLengthInput}
-                                            onChange={(event) =>
-                                                setDeckNameLineLengthInput(event.target.value)
-                                            }
-                                            onBlur={() =>
-                                                setDeckNameLineLengthInput(
-                                                    String(deckNameLineLength)
-                                                )
-                                            }
-                                            aria-describedby="studio-deck-line-hint"
+                        </fieldset>
+                        <details
+                            className="studio-customization"
+                            onToggle={(event) => setCustomizing(event.currentTarget.open)}
+                        >
+                            <summary>Personalizar</summary>
+                            {customizing && (
+                                <div className="studio-customization-body">
+                                    <fieldset className="studio-group">
+                                        <legend>Aparência</legend>
+                                        <Select
+                                            overlay
+                                            label="Cor de destaque"
+                                            value={accent}
+                                            onChange={setAccent}
+                                            options={[
+                                                { value: '#ef646b', label: 'Vermelho' },
+                                                { value: '#66a7f5', label: 'Azul' },
+                                                { value: '#4edb9b', label: 'Verde' },
+                                                { value: '#f1cc5b', label: 'Amarelo' }
+                                            ]}
                                         />
-                                        <small id="studio-deck-line-hint">
-                                            Padrão: 11. A quebra se aplica aos três decks do pódio.
-                                        </small>
-                                    </label>
-                                )}
-                        </fieldset>
-                        <fieldset className="studio-group">
-                            <legend>
-                                <span>02</span> Aparência
-                            </legend>
-                            <Select
-                                overlay
-                                label="Cor de destaque"
-                                value={accent}
-                                onChange={setAccent}
-                                options={[
-                                    { value: '#ef646b', label: 'Vermelho' },
-                                    { value: '#66a7f5', label: 'Azul' },
-                                    { value: '#4edb9b', label: 'Verde' },
-                                    { value: '#f1cc5b', label: 'Amarelo' }
-                                ]}
-                            />
-                            <p className="studio-brand-note">
-                                Assinatura da comunidade, Instagram e X incluídos no post.
-                            </p>
-                        </fieldset>
+                                    </fieldset>
+                                    {template === 'podium' &&
+                                        !currentEvent?.team &&
+                                        !currentEvent?.deckless && (
+                                            <label className="studio-deck-line-control">
+                                                <span id="studio-deck-line-label">
+                                                    Caracteres por linha
+                                                </span>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    max={40}
+                                                    step={1}
+                                                    value={deckNameLineLengthInput}
+                                                    onChange={(event) =>
+                                                        setDeckNameLineLengthInput(
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    onBlur={() =>
+                                                        setDeckNameLineLengthInput(
+                                                            String(deckNameLineLength)
+                                                        )
+                                                    }
+                                                    aria-describedby="studio-deck-line-hint"
+                                                    aria-labelledby="studio-deck-line-label"
+                                                />
+                                                <small id="studio-deck-line-hint">
+                                                    Padrão: 11 caracteres para os nomes dos decks.
+                                                </small>
+                                            </label>
+                                        )}
+
+                                    {template === 'podium' && (
+                                        <section
+                                            className="studio-background-controls"
+                                            aria-labelledby="studio-background-title"
+                                        >
+                                            <h2 id="studio-background-title">Fundo</h2>
+                                            <label className="studio-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={showBackgroundIcon}
+                                                    onChange={(event) =>
+                                                        setShowBackgroundIcon(event.target.checked)
+                                                    }
+                                                />
+                                                Mostrar ícone no fundo
+                                            </label>
+                                            <fieldset
+                                                disabled={!showBackgroundIcon}
+                                                aria-label="Ajustar fundo"
+                                            >
+                                                {backgroundControls.map((control) => {
+                                                    const value = Math.round(
+                                                        background[control.key] * control.factor
+                                                    );
+                                                    const id = `studio-background-${control.key}`;
+                                                    return (
+                                                        <label
+                                                            key={control.key}
+                                                            htmlFor={id}
+                                                            className="studio-background-control"
+                                                        >
+                                                            <span>
+                                                                {control.label}
+                                                                <output htmlFor={id}>
+                                                                    {value}
+                                                                    {control.unit}
+                                                                </output>
+                                                            </span>
+                                                            <input
+                                                                id={id}
+                                                                type="range"
+                                                                aria-label={control.label}
+                                                                aria-valuetext={`${value}${control.unit}`}
+                                                                min={control.min}
+                                                                max={control.max}
+                                                                step={1}
+                                                                value={value}
+                                                                onChange={(event) => {
+                                                                    const next =
+                                                                        Number(event.target.value) /
+                                                                        control.factor;
+                                                                    setBackground((previous) => ({
+                                                                        ...previous,
+                                                                        [control.key]: next
+                                                                    }));
+                                                                }}
+                                                            />
+                                                        </label>
+                                                    );
+                                                })}
+                                            </fieldset>
+                                            <button
+                                                type="button"
+                                                className="text-action"
+                                                onClick={() => {
+                                                    setBackground(defaultBackground);
+                                                    setShowBackgroundIcon(true);
+                                                }}
+                                            >
+                                                Restaurar fundo
+                                            </button>
+                                        </section>
+                                    )}
+                                </div>
+                            )}
+                        </details>
                     </div>
                     <section className="studio-export" aria-label="Exportação">
-                        <h3>
-                            <span>03</span> Exportação
-                        </h3>
-                        <div className="studio-export-specs">
-                            <span>Instagram · Feed {POST_FORMAT.ratio}</span>
-                            <strong>
-                                {POST_FORMAT.width} × {POST_FORMAT.height} px · PNG
-                            </strong>
-                        </div>
+                        <small className="studio-export-specs">
+                            PNG &middot; {POST_FORMAT.width} &times; {POST_FORMAT.height} px
+                        </small>
                         <button
                             className="button primary"
                             disabled={!ready || loading}
@@ -386,16 +459,7 @@ function Studio({ context }: { context: MicroContext }) {
                     </section>
                 </div>
                 <div className="post-preview">
-                    <div className="preview-caption">
-                        <span>PRÉVIA · FEED {POST_FORMAT.ratio}</span>
-                        <span>
-                            {template === 'weekly'
-                                ? 'RESUMO SEMANAL'
-                                : template === 'teams'
-                                  ? 'CLASSIFICAÇÃO / DUPLAS'
-                                  : 'PÓDIO / TOP 3'}
-                        </span>
-                    </div>
+                    <div className="preview-caption">Prévia</div>
                     <canvas
                         ref={canvas}
                         width={POST_FORMAT.width}
@@ -404,79 +468,9 @@ function Studio({ context }: { context: MicroContext }) {
                     />
                 </div>
                 <aside className="studio-side" aria-label="Ajustes e legenda do post">
-                    {template === 'podium' && (
-                        <section
-                            className="studio-background-controls"
-                            aria-labelledby="studio-background-title"
-                        >
-                            <h2 id="studio-background-title">Background do post</h2>
-                            <label className="studio-checkbox">
-                                <input
-                                    type="checkbox"
-                                    checked={showBackgroundIcon}
-                                    onChange={(event) =>
-                                        setShowBackgroundIcon(event.target.checked)
-                                    }
-                                />
-                                Mostrar ícone no fundo
-                            </label>
-                            <fieldset
-                                disabled={!showBackgroundIcon}
-                                aria-label="Ajustar background do post"
-                            >
-                                {backgroundControls.map((control) => {
-                                    const value = Math.round(
-                                        background[control.key] * control.factor
-                                    );
-                                    const id = `studio-background-${control.key}`;
-                                    return (
-                                        <label
-                                            key={control.key}
-                                            className="studio-background-control"
-                                        >
-                                            <span>
-                                                {control.label}
-                                                <output htmlFor={id}>
-                                                    {value}
-                                                    {control.unit}
-                                                </output>
-                                            </span>
-                                            <input
-                                                id={id}
-                                                type="range"
-                                                min={control.min}
-                                                max={control.max}
-                                                step={1}
-                                                value={value}
-                                                onChange={(event) => {
-                                                    const next =
-                                                        Number(event.target.value) / control.factor;
-                                                    setBackground((previous) => ({
-                                                        ...previous,
-                                                        [control.key]: next
-                                                    }));
-                                                }}
-                                            />
-                                        </label>
-                                    );
-                                })}
-                            </fieldset>
-                            <button
-                                type="button"
-                                className="button primary"
-                                onClick={() => {
-                                    setBackground(defaultBackground);
-                                    setShowBackgroundIcon(true);
-                                }}
-                            >
-                                Restaurar padrão
-                            </button>
-                        </section>
-                    )}
                     <section className="studio-post-caption" aria-label="Legenda do post">
                         <header className="studio-caption-header">
                             <label htmlFor="studio-caption">Legenda para X / Instagram</label>
-                            <p>Texto pronto para acompanhar a publicação.</p>
                         </header>
                         <div className="studio-caption-body">
                             <textarea
@@ -487,7 +481,7 @@ function Studio({ context }: { context: MicroContext }) {
                                 rows={16}
                             />
                             <button
-                                className="button primary"
+                                className="text-action"
                                 disabled={!caption || loading || !captionLoaded}
                                 onClick={() => void copyCaption()}
                             >

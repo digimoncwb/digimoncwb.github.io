@@ -12,6 +12,13 @@ export async function sendFeedback(feedback: Feedback) {
     try {
         const page = new URL(location.href);
         page.search = '';
+        // Auth callbacks can temporarily carry session tokens in the fragment.
+        if (
+            !/^#(?:overview|tournaments|meta|decks|players|admin|manage|statistics|posts|builder)$/.test(
+                page.hash
+            )
+        )
+            page.hash = '';
         const response = await fetch(
             `${window.APP_CONFIG.SUPABASE_URL}/functions/v1/send-feedback`,
             {
@@ -33,6 +40,7 @@ export async function sendFeedback(feedback: Feedback) {
         );
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw Error(payload.error || 'Não foi possível enviar. Tente novamente.');
+        if (payload.ok !== true) throw Error('O servidor não confirmou o envio. Tente novamente.');
     } catch (error) {
         if (controller.signal.aborted) throw Error('O envio demorou demais. Tente novamente.');
         throw error;

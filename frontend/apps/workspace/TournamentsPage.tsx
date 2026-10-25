@@ -95,11 +95,7 @@ export function TournamentsPage({
     return (
         <section className="catalog-app">
             <div className="catalog-heading">
-                <PageHeading
-                    eyebrow="Resultados da comunidade"
-                    title="Torneios"
-                    description="Consulte os eventos, resultados e decklists em um só lugar."
-                />
+                <PageHeading title="Torneios" />
                 <button className="button primary" onClick={() => openEditor('create')}>
                     + Adicionar torneio
                 </button>
@@ -209,7 +205,7 @@ export function TournamentsPage({
                 }
             />
             <div className="catalog-list-heading">
-                <p className="catalog-count">{events.length} torneios encontrados</p>
+                <p className="catalog-count">{events.length} torneios</p>
                 <div className="catalog-view-switch" aria-label="Visualização">
                     <button
                         className={`button secondary${view === 'list' ? ' is-active' : ''}`}

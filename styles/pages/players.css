@@ -41,7 +41,7 @@
     width: 17px;
     height: 17px;
     margin: 0;
-    accent-color: var(--color-primary, #667eea);
+    accent-color: var(--ds-accent, var(--accent, #ef646b));
 }
 
 .decks-filter-options {

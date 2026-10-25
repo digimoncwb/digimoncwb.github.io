@@ -15,7 +15,8 @@ const directories = [
     'players',
     'torneios',
     'post-preview',
-    'feedback'
+    'feedback',
+    'legal'
 ];
 const extensions = new Set([
     '.html',
