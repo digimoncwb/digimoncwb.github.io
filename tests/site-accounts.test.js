@@ -660,7 +660,7 @@ test('Audit period exports use fixed snapshots, keyset pages and access restrict
         await prepareLegal(db);
         await sqlOwner(db);
         await db.query(
-            "insert into site_audit.events(actor_kind,action,entity_type,entity_id,changes) select 'maintenance','test.export','export_test',n::text,jsonb_build_object('name',jsonb_build_object('before','a','after','b')) from generate_series(1,1003) n"
+            "insert into site_audit.events(occurred_at,actor_kind,action,entity_type,entity_id,changes) select now()-interval '1 second','maintenance','test.export','export_test',n::text,jsonb_build_object('name',jsonb_build_object('before','a','after','b')) from generate_series(1,1003) n"
         );
         await as(db, 'admin');
         const job = (
