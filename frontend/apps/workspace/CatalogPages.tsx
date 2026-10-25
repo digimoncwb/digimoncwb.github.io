@@ -1,3 +1,4 @@
+import { tryCardImageFallback } from '../../shared/card-image-fallback';
 import { useEffect, useState } from 'react';
 import { playerStatistics } from './player-statistics';
 import { orderListCards } from '../builder/editor-service';
@@ -758,6 +759,12 @@ function HistoryEntry({
                                             <figure key={card.card_code}>
                                                 <img
                                                     src={`https://digimon.digilab.cards/api/card/${card.card_code}.jpg`}
+                                                    onError={(event) => {
+                                                        tryCardImageFallback(
+                                                            event.currentTarget,
+                                                            card.card_code
+                                                        );
+                                                    }}
                                                     alt={card.card_code}
                                                     loading="lazy"
                                                 />

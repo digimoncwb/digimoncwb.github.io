@@ -140,6 +140,7 @@
         // Fallback browser-side quando a Edge Function estiver indisponível
         const candidates = [
             `${DIGILAB_CARD_IMAGE_BASE_URL}${deckCode}.jpg`,
+            `https://aegis-digi.online/assets/card-images/${deckCode}-Sample.webp`,
             `https://digimoncardgame.fandom.com/wiki/Special:FilePath/${deckCode}-Sample.png`,
             `${IMAGE_BASE_URL}${deckCode}.jpg`,
             `${LEGACY_IMAGE_BASE_URL}${deckCode}.webp`,
@@ -301,6 +302,9 @@
                     const code = src
                         .slice(DIGILAB_CARD_IMAGE_BASE_URL.length)
                         .replace(/\.jpg$/, '');
+                    previewImage.src = `https://aegis-digi.online/assets/card-images/${code}-Sample.webp`;
+                } else if (src.startsWith('https://aegis-digi.online/assets/card-images/')) {
+                    const code = src.split('/').pop().replace(/-Sample\.webp$/, '');
                     previewImage.src = FANDOM_BASE_URL + code + '-Sample.png';
                 } else if (src.startsWith(FANDOM_BASE_URL)) {
                     const code = src.slice(FANDOM_BASE_URL.length).replace(/-Sample\.png$/, '');

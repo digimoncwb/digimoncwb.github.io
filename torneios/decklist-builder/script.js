@@ -1236,6 +1236,7 @@
         const encodedCode = encodeURIComponent(code);
         const guessedUrls = [
             `${IMAGE_BASE_URL}${encodedCode}.jpg`,
+            `https://aegis-digi.online/assets/card-images/${encodedCode}-Sample.webp`,
             `${LEGACY_IMAGE_BASE_URL}${encodedCode}.webp`,
             `${LEGACY_IMAGE_BASE_URL}${encodedCode}.png`,
             `https://card-list.prodigi.dev/images/cards/${encodedCode}.webp`,
@@ -1326,7 +1327,7 @@
     function getCardZoomImageUrls(rawCode) {
         const code = normalizeDeckCode(rawCode || '');
         if (!code) return ['', ''];
-        return [`${IMAGE_BASE_URL}${code}.jpg`, `${LEGACY_IMAGE_BASE_URL}${code}.webp`];
+        return [`${IMAGE_BASE_URL}${code}.jpg`, `https://aegis-digi.online/assets/card-images/${code}-Sample.webp`, `${LEGACY_IMAGE_BASE_URL}${code}.webp`];
     }
 
     function loadImageWithCors(url) {

@@ -307,8 +307,11 @@ function renderDecklistMvpBoard(errors = []) {
         img.addEventListener('error', () => {
             const code = img.closest('.decklist-mvp-card')?.dataset.code || 'CODE';
             const legacyUrl = `${LEGACY_IMAGE_BASE_URL}${code}.webp`;
+            const aegisUrl = `https://aegis-digi.online/assets/card-images/${encodeURIComponent(code)}-Sample.webp`;
             const placeholderUrl = `https://via.placeholder.com/220x308/667eea/ffffff?text=${encodeURIComponent(code)}`;
-            if (img.src !== legacyUrl && img.src !== placeholderUrl) {
+            if (img.src !== aegisUrl && img.src !== legacyUrl && img.src !== placeholderUrl) {
+                img.src = aegisUrl;
+            } else if (img.src === aegisUrl) {
                 img.src = legacyUrl;
             } else if (img.src !== placeholderUrl) {
                 img.src = placeholderUrl;
@@ -1553,6 +1556,7 @@ function renderDeckHistoryCardsHtml(cards) {
         const qty = Number(card.qty) || 1;
         const candidates = [
             `${IMAGE_BASE_URL}${code}.jpg`,
+            `https://aegis-digi.online/assets/card-images/${code}-Sample.webp`,
             `${LEGACY_IMAGE_BASE_URL}${code}.webp`,
             `https://card-list.prodigi.dev/images/cards/${code}.webp`,
             `https://card-list.prodigi.dev/images/cards/${code}.png`

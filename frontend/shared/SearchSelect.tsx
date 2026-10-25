@@ -19,7 +19,8 @@ export function SearchSelect({
     onChange,
     required = false,
     commitOnly = false,
-    placeholder = 'Digite para buscar'
+    placeholder = 'Digite para buscar',
+    emptyMessage = 'Nenhum tipo de deck encontrado.'
 }: {
     label: string;
     name?: string;
@@ -30,6 +31,7 @@ export function SearchSelect({
     required?: boolean;
     commitOnly?: boolean;
     placeholder?: string;
+    emptyMessage?: string;
 }) {
     const generatedId = useId(),
         id = suppliedId || generatedId;
@@ -210,7 +212,7 @@ export function SearchSelect({
                                 </span>
                             </button>
                         ))}
-                        {!matches.length && <p role="status">Nenhum tipo de deck encontrado.</p>}
+                        {!matches.length && <p role="status">{emptyMessage}</p>}
                     </div>,
                     root.current?.closest('dialog') || document.body
                 )}

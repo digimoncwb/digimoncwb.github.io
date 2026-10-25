@@ -177,6 +177,7 @@
         // Fallback browser-side quando a Edge Function estiver indisponível
         const candidates = [
             `${DIGILAB_CARD_IMAGE_BASE_URL}${deckCode}.jpg`,
+            `https://aegis-digi.online/assets/card-images/${deckCode}-Sample.webp`,
             `https://digimoncardgame.fandom.com/wiki/Special:FilePath/${deckCode}-Sample.png`,
             `${IMAGE_BASE_URL}${deckCode}.jpg`,
             `${LEGACY_IMAGE_BASE_URL}${deckCode}.webp`,

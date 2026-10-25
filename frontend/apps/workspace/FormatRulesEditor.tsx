@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { normalizeRarity, type FormatRules } from '../builder/editor-model';
+import type { MicroContext } from '../../contracts';
+import { FormatBanlistEditor } from './FormatBanlistEditor';
+import { banlistError } from './format-banlist-model';
 
 const baseKeys = [
     'main_count',
@@ -12,7 +15,13 @@ const baseKeys = [
     'card_points',
     'points_pending'
 ];
-export function FormatRulesEditor({ initial }: { initial?: FormatRules | null }) {
+export function FormatRulesEditor({
+    initial,
+    context
+}: {
+    initial?: FormatRules | null;
+    context: MicroContext;
+}) {
     const [main, setMain] = useState(String(initial?.main_count ?? 50));
     const [eggs, setEggs] = useState(String(initial?.egg_max ?? 5));
     const [security, setSecurity] = useState(String(initial?.security_count ?? 5));
@@ -33,14 +42,18 @@ export function FormatRulesEditor({ initial }: { initial?: FormatRules | null })
         )
     );
     const errors: string[] = [];
+    let validAdvanced = true;
     let extra: FormatRules = {};
     try {
         const parsed = JSON.parse(advanced || '{}');
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
         extra = parsed;
     } catch {
+        validAdvanced = false;
         errors.push('As restrições adicionais precisam ser um objeto JSON válido.');
     }
+    const restrictionError = banlistError(extra);
+    if (restrictionError) errors.push(restrictionError);
     const rules: FormatRules = {
         ...extra,
         main_count: Number(main),
@@ -221,8 +234,19 @@ export function FormatRulesEditor({ initial }: { initial?: FormatRules | null })
                     </p>
                 </section>
             )}
+            {validAdvanced && !restrictionError && (
+                <FormatBanlistEditor
+                    context={context}
+                    rules={extra}
+                    onChange={(next) => setAdvanced(JSON.stringify(next, null, 2))}
+                />
+            )}
             <details>
-                <summary>Restrições adicionais</summary>
+                <summary>Configuração avançada (JSON)</summary>
+                <p className="muted">
+                    As restrições da banlist acima são sincronizadas com este JSON. Outras regras
+                    avançadas também podem ser configuradas aqui.
+                </p>
                 <label>
                     Configuração avançada em JSON
                     <textarea

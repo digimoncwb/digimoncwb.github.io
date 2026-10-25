@@ -1,3 +1,4 @@
+import { tryCardImageFallback } from '../../shared/card-image-fallback';
 import { useEffect, useRef, useState } from 'react';
 import type { MicroContext, PortraitSetting } from '../../contracts';
 import './portrait-editor.css';
@@ -346,7 +347,9 @@ export function PortraitEditor({ context }: { context: MicroContext }) {
                                             });
                                             setImageReady(true);
                                         }}
-                                        onError={() => {
+                                        onError={(event) => {
+                                            if (tryCardImageFallback(event.currentTarget, code))
+                                                return;
                                             setImageReady(false);
                                             setMessage(
                                                 'Imagem não encontrada. Confira o código da carta.'

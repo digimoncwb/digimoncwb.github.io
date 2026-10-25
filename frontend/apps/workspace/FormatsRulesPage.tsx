@@ -3,6 +3,7 @@ import type { Format, MicroContext } from '../../contracts';
 import { Loader } from '../../shared/runtime';
 import { EmptyState } from '../../shared/ListPage';
 import { PointsBadge } from '../../shared/PointsBadge';
+import { tryCardImageFallback } from '../../shared/card-image-fallback';
 import { loadAssets, loadRules } from '../builder/editor-service';
 import {
     effectiveRules,
@@ -41,7 +42,8 @@ function FormatRuleCard({
                     width="630"
                     height="880"
                     onError={(event) => {
-                        event.currentTarget.hidden = true;
+                        const image = event.currentTarget;
+                        if (!tryCardImageFallback(image, code)) image.hidden = true;
                     }}
                 />
                 {points != null && <PointsBadge className="format-point-badge" points={points} />}

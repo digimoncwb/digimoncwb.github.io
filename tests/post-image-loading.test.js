@@ -123,6 +123,35 @@ test('posts preserve the registered image when it loads for canvas', async () =>
     assert.deepEqual(attempts, [src]);
 });
 
+test('cards try Aegis second and stop when the EX14 image loads', async () => {
+    const { api, attempts } = loader((src) => src.includes('digilab.cards'));
+    assert.ok(
+        await api.loadPostCardImage(
+            'EX14-012',
+            'https://digimon.digilab.cards/api/card/EX14-012.jpg'
+        )
+    );
+    assert.deepEqual(attempts, [
+        'https://digimon.digilab.cards/api/card/EX14-012.jpg',
+        'https://aegis-digi.online/assets/card-images/EX14-012-Sample.webp'
+    ]);
+});
+
+test('cards keep the primary image when available and exhaust fallbacks when missing', async () => {
+    const primary = 'https://digimon.digilab.cards/api/card/EX14-012.jpg';
+    const success = loader(() => false);
+    assert.ok(await success.api.loadPostCardImage('EX14-012', primary));
+    assert.deepEqual(success.attempts, [primary]);
+    const missing = loader(() => true);
+    assert.equal(await missing.api.loadPostCardImage('EX14-012', primary), null);
+    assert.deepEqual(missing.attempts, [
+        primary,
+        'https://aegis-digi.online/assets/card-images/EX14-012-Sample.webp',
+        'https://storage.example/storage/v1/object/public/deck-images/EX14-012.webp',
+        'https://deckbuilder.egmanevents.com/card_images/digimon/EX14-012.png'
+    ]);
+});
+
 test('posts fall back to card storage when the registered image fails CORS', async () => {
     const { api, attempts } = loader((src) => src.includes('digilab.cards'));
     assert.ok(await api.loadPostPortrait('https://digimon.digilab.cards/api/card/ST23-09.jpg'));

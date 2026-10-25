@@ -2778,6 +2778,7 @@ async function removeBanEntry(cardCode) {
 // ============================================================
 const CARD_IMAGE_CDNS = [
     (code) => `https://digimon.digilab.cards/api/card/${code}.jpg`,
+    (code) => `https://aegis-digi.online/assets/card-images/${code}-Sample.webp`,
     (code) => `https://deckbuilder.egmanevents.com//card_images/digimon/${code}.webp`
 ];
 

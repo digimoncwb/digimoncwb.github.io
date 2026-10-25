@@ -1,3 +1,4 @@
+import { tryCardImageFallback } from '../../shared/card-image-fallback';
 import { useEffect, useState } from 'react';
 import type { MicroContext } from '../../contracts';
 import { FormatsRulesPage } from './FormatsRulesPage';
@@ -895,7 +896,9 @@ export function DecksPage({ context }: { context: MicroContext }) {
                             e.preventDefault();
                             if (busy) return;
                             const form = new FormData(e.currentTarget);
-                            const name = String(form.get('name') || '').trim();
+                            const name = String(form.get('name') || '')
+                                .trim()
+                                .toLocaleUpperCase('pt-BR');
                             const format = String(form.get('format') || '');
                             const archetype = String(form.get('archetype') || '');
                             const creator = String(form.get('creator') || '');
@@ -946,7 +949,16 @@ export function DecksPage({ context }: { context: MicroContext }) {
                         </p>
                         <label>
                             Nome do deck
-                            <input name="name" required maxLength={120} autoFocus />
+                            <input
+                                name="name"
+                                required
+                                maxLength={120}
+                                autoFocus
+                                onChange={(event) => {
+                                    event.currentTarget.value =
+                                        event.currentTarget.value.toLocaleUpperCase('pt-BR');
+                                }}
+                            />
                         </label>
                         <label>
                             Formato
@@ -972,17 +984,16 @@ export function DecksPage({ context }: { context: MicroContext }) {
                             />
                             <p className="muted">Digite parte do nome e selecione uma sugestão.</p>
                         </div>
-                        <label>
-                            Jogador (opcional)
-                            <select name="creator" defaultValue="">
-                                <option value="">Sem jogador</option>
-                                {players.map((player) => (
-                                    <option key={player.id} value={player.id}>
-                                        {player.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                        <SearchSelect
+                            label="Jogador (opcional)"
+                            name="creator"
+                            placeholder="Digite o nome do jogador"
+                            emptyMessage="Nenhum jogador encontrado."
+                            options={players.map((player) => ({
+                                value: String(player.id),
+                                label: player.name
+                            }))}
+                        />
                         {identityError && (
                             <p role="alert">
                                 {identityError}
@@ -1203,6 +1214,12 @@ function ListPreview({
                                 <div className="deck-preview-art">
                                     <img
                                         src={`https://digimon.digilab.cards/api/card/${card.card_code}.jpg`}
+                                        onError={(event) => {
+                                            tryCardImageFallback(
+                                                event.currentTarget,
+                                                card.card_code
+                                            );
+                                        }}
                                         alt={card.card_code}
                                         loading="lazy"
                                     />

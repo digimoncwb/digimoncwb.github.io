@@ -2994,8 +2994,9 @@ async function loadDeckCardImage(code) {
     const supabaseUrl = window.APP_CONFIG?.SUPABASE_URL || '';
     const candidates = [
         supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/deck-images/${encodeURIComponent(code)}.webp?t=${Date.now()}` : null,
-        `https://digimoncardgame.fandom.com/wiki/Special:FilePath/${code}-Sample.png`,
         `https://digimon.digilab.cards/api/card/${code}.jpg`,
+        `https://aegis-digi.online/assets/card-images/${code}-Sample.webp`,
+        `https://digimoncardgame.fandom.com/wiki/Special:FilePath/${code}-Sample.png`,
     ].filter(Boolean);
 
     for (const src of candidates) {

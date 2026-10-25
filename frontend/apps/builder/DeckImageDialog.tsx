@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MicroContext } from '../../contracts';
 import { Dialog } from '../../shared/ListPage';
+import { Loader } from '../../shared/runtime';
 import { POST_FORMAT } from '../../../shared/posts/renderer.js';
 import { deckImagePages, renderDeckPost } from '../../../shared/posts/deck-renderer.js';
 import type { Card, Entry } from './editor-model';
@@ -23,6 +24,7 @@ export function DeckImageDialog({
         store: string;
         date: string;
         format: string;
+        collection?: string;
         tournament: string;
     };
     onClose(): void;
@@ -35,15 +37,20 @@ export function DeckImageDialog({
     );
     const [page, setPage] = useState(0);
     const [showCodes, setShowCodes] = useState(true);
+    const [showLevelDistribution, setShowLevelDistribution] = useState(true);
     const [showBackgroundIcon, setShowBackgroundIcon] = useState(true);
     const [opacity, setOpacity] = useState(0.08);
     const [ready, setReady] = useState(false);
+    const [rendering, setRendering] = useState(true);
     const [downloading, setDownloading] = useState(false);
     const [status, setStatus] = useState('Gerando prévia…');
     const [error, setError] = useState('');
     const [retry, setRetry] = useState(0);
     const exportCards = entries.map((entry) => ({
         ...entry,
+        level: cards.get(entry.code)?.level ?? null,
+        type: cards.get(entry.code)?.type || 'unknown',
+        colors: cards.get(entry.code)?.colors || [],
         points: scoring?.points[entry.code],
         image:
             cards.get(entry.code)?.image ||
@@ -53,24 +60,38 @@ export function DeckImageDialog({
     useEffect(() => {
         let current = true;
         setReady(false);
+        setRendering(true);
         setError('');
         setStatus('Gerando prévia…');
         renderDeckPost(
             canvas.current,
             exportCards,
             metadata,
-            { accent, page, showCodes, showBackgroundIcon, opacity, pointsLimit: scoring?.limit },
+            {
+                accent,
+                page,
+                showCodes,
+                showBackgroundIcon,
+                showLevelDistribution,
+                opacity,
+                pointsLimit: scoring?.limit,
+                onProgress: (completed: number, total: number) => {
+                    if (current) setStatus(`Carregando cartas… ${completed} de ${total}`);
+                }
+            },
             context.asset('icons/Symbol_of_Digital_Hazard.svg'),
             () => current
         )
             .then((result) => {
                 if (current) {
                     setReady(result.ready);
+                    setRendering(false);
                     setStatus(result.message);
                 }
             })
             .catch(() => {
                 if (current) {
+                    setRendering(false);
                     setStatus('');
                     setError('Não foi possível gerar a prévia.');
                 }
@@ -78,7 +99,7 @@ export function DeckImageDialog({
         return () => {
             current = false;
         };
-    }, [accent, page, showCodes, showBackgroundIcon, opacity, retry]);
+    }, [accent, page, showCodes, showBackgroundIcon, showLevelDistribution, opacity, retry]);
     async function download() {
         if (!canvas.current || !ready) return;
         setDownloading(true);
@@ -107,6 +128,14 @@ export function DeckImageDialog({
                 <aside className="ed-image-controls" aria-label="Configurar imagem">
                     <fieldset>
                         <legend>Aparência</legend>
+                        <label className="ed-checkbox">
+                            <input
+                                type="checkbox"
+                                checked={showLevelDistribution}
+                                onChange={(event) => setShowLevelDistribution(event.target.checked)}
+                            />
+                            Distribuição por nível
+                        </label>
                         <label>
                             Cor de destaque
                             <select value={accent} onChange={(e) => setAccent(e.target.value)}>
@@ -197,12 +226,19 @@ export function DeckImageDialog({
                         <span>PRÉVIA · FEED {POST_FORMAT.ratio}</span>
                         <span>DECKLIST</span>
                     </div>
-                    <canvas
-                        ref={canvas}
-                        width={POST_FORMAT.width}
-                        height={POST_FORMAT.height}
-                        aria-label={`Prévia da imagem de ${metadata.name}`}
-                    />
+                    <div className="ed-image-preview-body" aria-busy={rendering}>
+                        <canvas
+                            ref={canvas}
+                            width={POST_FORMAT.width}
+                            height={POST_FORMAT.height}
+                            aria-label={`Prévia da imagem de ${metadata.name}`}
+                        />
+                        {rendering && (
+                            <div className="ed-image-preview-loading">
+                                <Loader text={status} />
+                            </div>
+                        )}
+                    </div>
                 </section>
             </div>
         </Dialog>

@@ -994,6 +994,7 @@
         const candidates = [
             `https://digimoncardgame.fandom.com/wiki/Special:FilePath/${encodedCode}-Sample.png`,
             `https://digimon.digilab.cards/api/card/${encodedCode}.jpg`,
+            `https://aegis-digi.online/assets/card-images/${encodedCode}-Sample.webp`,
             `${CARD_IMAGE_BASE_URL}${encodedCode}.webp`,
             `${CARD_IMAGE_BASE_URL}${encodedCode}.png`,
             `https://card-list.prodigi.dev/images/cards/${encodedCode}.webp`,

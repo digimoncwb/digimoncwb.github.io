@@ -269,3 +269,55 @@
     color: var(--ds-text);
     font: inherit;
 }
+
+.format-banlist-editor,
+.format-banlist-add,
+.format-banlist-picker,
+.format-banlist-group {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+}
+.format-banlist-editor > p,
+.format-banlist-add p {
+    margin: 0;
+    line-height: 1.5;
+}
+.format-banlist-add {
+    padding: 14px;
+    background: var(--ds-bg);
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+}
+.format-banlist-add > button {
+    justify-self: start;
+}
+.format-banlist-add select {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    background: var(--ds-panel);
+    color: var(--ds-text);
+    font: inherit;
+}
+.format-banlist-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--ds-line);
+}
+.format-banlist-row > .format-registry-card,
+.format-banlist-row > .format-banlist-group {
+    flex: 1 1 180px;
+}
+.format-banlist-row > label {
+    flex: 0 1 120px;
+}
+.format-banlist-picker > small,
+.format-banlist-group > small {
+    color: var(--ds-muted);
+}

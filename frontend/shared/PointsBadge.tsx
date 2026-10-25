@@ -9,10 +9,17 @@ export function PointsBadge({
 }) {
     const center = useMemo(() => {
         const ctx = document.createElement('canvas').getContext('2d');
-        if (!ctx) return { x: 12, y: 12 };
+        if (!ctx) return { x: 12, y: 12, fontSize: 12 };
         ctx.font = '900 16px Arial';
+        const initial = ctx.measureText(String(points));
+        const fontSize = Math.min(
+            16,
+            (16 * 18) / Math.max(1, initial.actualBoundingBoxLeft + initial.actualBoundingBoxRight)
+        );
+        ctx.font = `900 ${fontSize}px Arial`;
         const metrics = ctx.measureText(String(points));
         return {
+            fontSize,
             x: 12 + (metrics.actualBoundingBoxLeft - metrics.actualBoundingBoxRight) / 2,
             y: 12 + (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2
         };
@@ -31,7 +38,7 @@ export function PointsBadge({
                         textAnchor: 'start',
                         dominantBaseline: 'alphabetic',
                         fontFamily: 'Arial, Helvetica, sans-serif',
-                        fontSize: '16px',
+                        fontSize: `${center.fontSize}px`,
                         fontWeight: 900
                     }}
                 >

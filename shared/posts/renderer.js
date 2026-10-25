@@ -87,6 +87,10 @@ export function loadPostCardImage(code, src) {
     const promise = (async () => {
         const direct = await loadPostImage(src);
         if (direct) return direct;
+        const aegis = await loadPostImage(
+            `https://aegis-digi.online/assets/card-images/${encodeURIComponent(code)}-Sample.webp`
+        );
+        if (aegis) return aegis;
         const app = globalThis.window;
         const storage = app?.APP_CONFIG?.SUPABASE_URL;
         if (storage) {
@@ -153,6 +157,7 @@ async function loadPostPortrait(src) {
             );
         candidates.push(
             `https://digimon.digilab.cards/api/card/${code}.jpg`,
+            `https://aegis-digi.online/assets/card-images/${code}-Sample.webp`,
             `https://deckbuilder.egmanevents.com/card_images/digimon/${code}.webp`
         );
     }

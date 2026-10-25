@@ -156,7 +156,7 @@ export function DeckFormatForm({
                         placeholder="https://"
                     />
                 </label>
-                <FormatRulesEditor initial={format?.validation_rules} />
+                <FormatRulesEditor initial={format?.validation_rules} context={context} />
                 <label>
                     Descrição desta alteração
                     <input

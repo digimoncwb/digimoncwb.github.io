@@ -151,7 +151,7 @@ export async function createLibraryDeck(name: string, formatId: string) {
         method: 'POST',
         headers: { Prefer: 'return=representation' },
         body: JSON.stringify({
-            name: name.trim(),
+            name: name.trim().toLocaleUpperCase('pt-BR'),
             deck_format_id: formatId,
             tournament_result_id: null,
             source: 'builder'

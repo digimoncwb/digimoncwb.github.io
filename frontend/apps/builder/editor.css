@@ -304,6 +304,16 @@
     display: block;
     aspect-ratio: 4/5;
 }
+.ed-image-preview-body {
+    position: relative;
+}
+.ed-image-preview-loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: #0b0e10ed;
+}
 @media (max-width: 780px) {
     .ed-image-studio {
         grid-template-columns: minmax(0, 1fr);
@@ -1707,14 +1717,14 @@
     box-sizing: border-box;
     position: absolute;
     right: 4px;
-    bottom: 4px;
+    top: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 56px;
-    height: 56px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    border: 4px solid #f02732;
+    border: 3px solid #f02732;
     background: #050505;
     color: #ffe52f !important;
     font-size: 14px;
@@ -1744,21 +1754,19 @@
     font-variant-numeric: lining-nums tabular-nums;
 }
 .deck-editor .ed-photo-art .ed-card-points {
-    width: min(56px, calc(100% - 32px));
+    width: min(28px, 36%);
     height: auto;
     aspect-ratio: 1;
-}
-.ed-photo-art:has(.ed-card-points) .ed-photo-quantity {
-    right: auto;
-    left: 0;
-    border-radius: 0 4px 0 4px;
+    top: 3px;
+    right: 3px;
+    border-width: 2px;
 }
 .deck-editor .ed-small-image .ed-card-points {
     width: 21px;
     height: 21px;
     font-size: 10px;
     right: 0;
-    bottom: 0;
+    top: 0;
     border-width: 2px;
 }
 .deck-editor .ed-small-image .ed-card-points svg {

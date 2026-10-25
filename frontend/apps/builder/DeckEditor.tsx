@@ -286,10 +286,10 @@ function CardImage({
     points?: number;
 }) {
     const [failed, setFailed] = useState(false);
-    const [fallback, setFallback] = useState(false);
+    const [fallback, setFallback] = useState(0);
     useEffect(() => {
         setFailed(false);
-        setFallback(false);
+        setFallback(0);
     }, [card.code, card.image]);
     const content = (
         <>
@@ -302,15 +302,17 @@ function CardImage({
             ) : (
                 <img
                     src={
-                        fallback
+                        fallback === 2
                             ? `https://deckbuilder.egmanevents.com/card_images/digimon/${card.code}.png`
-                            : card.image
+                            : fallback === 1
+                              ? `https://aegis-digi.online/assets/card-images/${encodeURIComponent(card.code)}-Sample.webp`
+                              : card.image
                     }
                     alt={card.name}
                     draggable={false}
                     loading="lazy"
                     onError={() => {
-                        if (!fallback) setFallback(true);
+                        if (fallback < 2) setFallback(fallback + 1);
                         else setFailed(true);
                     }}
                 />
@@ -481,7 +483,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const [retry, setRetry] = useState(0);
     const [record, setRecord] = useState<DeckRecord | null>(null);
     const [result, setResult] = useState<Record<string, unknown> | null>(null);
-    const [name, setName] = useState('Meu deck Digimon');
+    const [name, setName] = useState('MEU DECK DIGIMON');
     const nameField = useRef<HTMLTextAreaElement>(null);
     useLayoutEffect(() => {
         const field = nameField.current;
@@ -1215,6 +1217,10 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                     metadata={{
                         name,
                         format: format?.name || '',
+                        collection:
+                            sets.find((set) => set.is_default)?.code ||
+                            tournamentCollection?.code ||
+                            '',
                         player: String(
                             (result?.player as { name?: string })?.name ||
                                 record?.creator?.name ||
@@ -1493,7 +1499,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                             value={name}
                                             maxLength={120}
                                             onChange={(e) => {
-                                                setName(e.target.value.replace(/[\r\n]+/g, ' '));
+                                                setName(
+                                                    e.target.value
+                                                        .replace(/[\r\n]+/g, ' ')
+                                                        .toLocaleUpperCase('pt-BR')
+                                                );
                                             }}
                                             onKeyDown={(event) => {
                                                 if (event.key === 'Enter') {
@@ -1883,24 +1893,18 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                 >
                     <div className="ed-dialog-body">
                         {!result && (
-                            <label>
-                                Tipo de deck
-                                <select
-                                    aria-label="Tipo de deck da importação"
-                                    value={archetypeId}
-                                    onChange={(e) => {
-                                        setArchetypeId(e.target.value);
-                                    }}
-                                    required
-                                >
-                                    <option value="">Selecione um tipo de deck</option>
-                                    {archetypes.map((deck) => (
-                                        <option key={deck.id} value={deck.id}>
-                                            {deck.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
+                            <SearchSelect
+                                id="import-archetype"
+                                label="Tipo de deck"
+                                placeholder="Digite para buscar um tipo de deck"
+                                value={archetypeId}
+                                onChange={setArchetypeId}
+                                required
+                                options={archetypes.map((deck) => ({
+                                    value: String(deck.id),
+                                    label: deck.name
+                                }))}
+                            />
                         )}
                         <label>
                             Cole a decklist

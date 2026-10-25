@@ -157,6 +157,7 @@ export async function loadDeck(
         deck.name = String(
             (result?.deck as { name?: string })?.name || p.get('deck') || 'Meu deck Digimon'
         );
+    deck.name = deck.name.toLocaleUpperCase('pt-BR');
     if (deck.draft_cards != null) return { deck, entries: aggregate(deck.draft_cards), result };
     if (deck.id) {
         const cards = await readRows<{ card_code: string; qty: number }>(
@@ -185,7 +186,7 @@ export async function saveDraft(input: {
         body: JSON.stringify({
             p_decklist_id: input.id,
             p_result_id: input.resultId,
-            p_name: input.name,
+            p_name: input.name.trim().toLocaleUpperCase('pt-BR'),
             p_deck_format_id: input.formatId,
             p_cards: input.entries,
             p_expected_revision: input.revision,
