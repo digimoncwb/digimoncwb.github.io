@@ -116,7 +116,6 @@ const adminDigilabAutoLinkResults = new Map();
 const adminDigilabPreviewCache = new Map();
 const DIGILAB_AUTO_LINK_DELAY_MS = 1300;
 const ADMIN_AUTH_STORAGE_KEY = 'digistats.admin.session';
-const ADMIN_AUTH_DOMAIN = 'admin.digistats.local';
 
 function notifyTournamentListChanged(tournamentId, source = 'digilab') {
     window.dispatchEvent(
@@ -254,6 +253,7 @@ function setupAdminActions() {
         if (action === 'change-password-open') openAdminPasswordModal();
         if (action === 'change-password-close') closeAdminPasswordModal();
         if (action === 'logout') logoutAdmin();
+        if (action === 'manage-accounts') window.digistatsAuth?.open('admin');
         if (action === 'digilab-health') testDigilabHealth();
         if (action === 'digilab-refresh') {
             adminDigilabAutoLinkResults.clear();
@@ -435,7 +435,7 @@ function switchAdminTab(tab) {
 let adminSiteAuthListenerAttached = false;
 function synchronizeSiteAdminSession() {
     const auth = window.digistatsAuth;
-    if (!auth?.getSnapshot().enabled) return;
+    if (!auth?.getSnapshot().available) return;
     const account = auth.getSnapshot();
     if (!account.isAdmin || !account.user || !auth.getAccessToken()) {
         clearAdminSession();
@@ -450,7 +450,7 @@ async function initializeAdminAuth() {
         window.addEventListener('digistats:auth-changed', synchronizeSiteAdminSession);
         adminSiteAuthListenerAttached = true;
     }
-    if (window.digistatsAuth?.getSnapshot().enabled) {
+    if (window.digistatsAuth?.getSnapshot().available) {
         await window.digistatsAuth.refresh();
         synchronizeSiteAdminSession();
         return;
@@ -472,74 +472,19 @@ async function initializeAdminAuth() {
 
 async function loginAdmin(event) {
     event.preventDefault();
-    if (window.digistatsAuth?.getSnapshot().enabled) {
-        window.digistatsAuth.open('login');
+    const auth = window.digistatsAuth;
+    if (!auth?.getSnapshot().available) {
+        setAdminAuthStatus(
+            'O serviço de contas está indisponível. Recarregue e tente novamente.',
+            true
+        );
         return;
     }
-    const passwordInput = document.getElementById('adminLoginPassword');
-    const button = document.getElementById('adminLoginButton');
-    const password = String(passwordInput?.value || '');
-    if (!password) {
-        setAdminAuthStatus('Senha de acesso inválida.', true);
-        return;
-    }
-
-    if (button) button.disabled = true;
-    setAdminAuthStatus('Entrando…');
-    try {
-        const config = getAdminConfig();
-        const candidates = [await deriveAdminCredentialEmail(password)];
-        const legacyUsername = password.trim().toLowerCase();
-        if (/^[a-z0-9_-]{3,40}$/.test(legacyUsername)) {
-            candidates.push(`${legacyUsername}@${ADMIN_AUTH_DOMAIN}`);
-        }
-        let payload = null;
-        for (const email of [...new Set(candidates)]) {
-            const response = await fetch(
-                `${config.SUPABASE_URL}/auth/v1/token?grant_type=password`,
-                {
-                    method: 'POST',
-                    headers: {
-                        apikey: config.SUPABASE_ANON_KEY,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ email, password })
-                }
-            );
-            const attempt = await response.json().catch(() => ({}));
-            if (response.ok && attempt.access_token) {
-                payload = attempt;
-                break;
-            }
-        }
-        if (!payload) throw new Error('Usuário ou senha inválidos.');
-
-        adminAuthSession = payload;
-        adminAuthProfile = await loadAdminProfile();
-        persistAdminSession();
-        if (passwordInput) passwordInput.value = '';
-        setAdminAuthView(true);
-    } catch (error) {
-        clearAdminSession();
-        setAdminAuthStatus(error.message || 'Não foi possível entrar.', true);
-    } finally {
-        if (button) button.disabled = false;
-    }
-}
-
-async function deriveAdminCredentialEmail(password) {
-    const digest = await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(String(password || ''))
-    );
-    const hash = [...new Uint8Array(digest)]
-        .map((byte) => byte.toString(16).padStart(2, '0'))
-        .join('');
-    return `p-${hash.slice(0, 40)}@${ADMIN_AUTH_DOMAIN}`;
+    auth.open('login');
 }
 
 async function logoutAdmin() {
-    if (window.digistatsAuth?.getSnapshot().enabled) {
+    if (window.digistatsAuth?.getSnapshot().available) {
         await window.digistatsAuth.logout();
         clearAdminSession();
         return;
@@ -562,7 +507,7 @@ async function logoutAdmin() {
 }
 
 function openAdminPasswordModal() {
-    if (window.digistatsAuth?.getSnapshot().enabled) {
+    if (window.digistatsAuth?.getSnapshot().available) {
         window.digistatsAuth.open('profile');
         return;
     }
@@ -666,7 +611,7 @@ async function loadAdminProfile() {
 }
 
 async function refreshAdminSessionIfNeeded() {
-    if (window.digistatsAuth?.getSnapshot().enabled) {
+    if (window.digistatsAuth?.getSnapshot().available) {
         await window.digistatsAuth.requireAdmin();
         synchronizeSiteAdminSession();
         return;
@@ -745,7 +690,7 @@ function clearAdminSession() {
 }
 
 function persistAdminSession() {
-    if (window.digistatsAuth?.getSnapshot().enabled) return;
+    if (window.digistatsAuth?.getSnapshot().available) return;
     sessionStorage.setItem(ADMIN_AUTH_STORAGE_KEY, JSON.stringify(adminAuthSession));
 }
 

@@ -10,7 +10,6 @@ const CORS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
-const ADMIN_AUTH_DOMAIN = 'admin.digistats.local';
 
 Deno.serve(
     withSiteAudit(async (req) => {
@@ -43,7 +42,7 @@ Deno.serve(
         if (profileError || !profile) return json({ error: 'Administrador não autorizado.' }, 403);
         if (!(await siteActorAllowed(service, user.id)))
             return json({ error: 'Conta administrativa inativa.' }, 403);
-        if (await siteAccountsEnabled())
+        if (await siteAccountsEnabled() || !user.email.endsWith('@admin.digistats.local'))
             return json({ error: 'Use a recuperação da sua conta pessoal.' }, 409);
 
         let input: Record<string, unknown> = {};

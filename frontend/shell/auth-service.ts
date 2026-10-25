@@ -35,7 +35,7 @@ export function createSiteAuth(): SiteAuth {
     };
     const publish = (changes: Partial<SiteAuthState>) => {
         state = { ...state, ...changes };
-        if (state.available && state.enabled) {
+        if (state.available) {
             window.digistatsAdminAuthenticated = state.isAdmin;
             window.dispatchEvent(
                 new CustomEvent('digistats:admin-auth-changed', {

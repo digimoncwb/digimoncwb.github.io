@@ -103,7 +103,7 @@ function Shell() {
     const outlet = useRef<HTMLDivElement>(null);
     const handles = useRef(new Map<string, { element: HTMLElement; handle: MicroHandle }>());
     const manifest = useRef<Manifest | null>(null);
-    const adminDenied = route.name === 'admin' && account.enabled && !account.isAdmin;
+    const adminDenied = route.name === 'admin' && !account.isAdmin;
     useEffect(() => subscribeRoute(() => setRoute(readRoute())), []);
     const activeKey =
         (
@@ -275,10 +275,7 @@ function Shell() {
                     hidden={!mobileOpen}
                 >
                     {sections
-                        .filter(
-                            (section) =>
-                                section.key !== 'admin' || !account.enabled || account.isAdmin
-                        )
+                        .filter((section) => section.key !== 'admin' || account.isAdmin)
                         .map((section) => (
                             <div
                                 key={section.key}

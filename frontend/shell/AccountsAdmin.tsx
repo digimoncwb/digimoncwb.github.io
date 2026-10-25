@@ -16,6 +16,8 @@ type Account = {
     status: string;
     is_admin: boolean;
     player_id: string | null;
+    email: string | null;
+    email_confirmed: boolean;
 };
 type Request = {
     id: string;
@@ -25,6 +27,8 @@ type Request = {
     request_type: string;
     status: string;
     player_id: string | null;
+    player_name: string | null;
+    email: string | null;
     decklist_id: number | null;
     note: string;
     review_note: string | null;
@@ -239,7 +243,7 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Nome de usuário ou nome de exibição"
+                            placeholder="E-mail, nome de usuário ou nome de exibição"
                         />
                     </label>
                     <button className="button secondary" disabled={busy}>
@@ -265,7 +269,10 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                                         <strong>{account.display_name}</strong>
                                         <br />@{account.username}
                                         <br />
-                                        <small>{account.user_id}</small>
+                                        <small>{account.email || 'Sem e-mail'}</small>
+                                        {account.email && !account.email_confirmed && (
+                                            <small> · E-mail não confirmado</small>
+                                        )}
                                     </td>
                                     <td>
                                         {account.status === 'active'
@@ -308,7 +315,16 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                                             </button>
                                             <button
                                                 className="button secondary"
-                                                disabled={busy}
+                                                disabled={
+                                                    busy ||
+                                                    (!account.is_admin &&
+                                                        (!account.email_confirmed ||
+                                                            account.status !== 'active' ||
+                                                            !account.email ||
+                                                            account.email.endsWith(
+                                                                '@admin.digistats.local'
+                                                            )))
+                                                }
                                                 onClick={() => {
                                                     if (
                                                         window.confirm(
@@ -347,6 +363,7 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                         <h3>
                             {request.display_name} (@{request.username})
                         </h3>
+                        {request.email && <p>{request.email}</p>}
                         <p>
                             {
                                 (
@@ -362,7 +379,9 @@ export function AccountsAdmin({ auth, onBusy }: { auth: SiteAuth; onBusy(value: 
                             }{' '}
                             · {request.status}
                         </p>
-                        {request.player_id && <p>Jogador: {request.player_id}</p>}
+                        {request.player_id && (
+                            <p>Jogador: {request.player_name || request.player_id}</p>
+                        )}
                         {request.decklist_id && <p>Deck: {request.decklist_id}</p>}
                         <p>{request.note || 'Sem observação.'}</p>
                         {request.status === 'pending' && request.request_type === 'erasure' && (

@@ -1,12 +1,12 @@
 'use strict';
 
-// Same credential derivation, session key and admin_users verification as Admin.
+// Administrative permissions use the shared site account and verified server membership.
 const adminSession = {
     session: null,
     profile: null,
     async restore() {
         try {
-            if (window.digistatsAuth?.getSnapshot().enabled) {
+            if (window.digistatsAuth?.getSnapshot().available) {
                 await window.digistatsAuth.refresh();
                 await this.verify();
                 return true;
@@ -30,7 +30,7 @@ const adminSession = {
         sessionStorage.setItem('digistats.admin.session', JSON.stringify(this.session));
     },
     async request(path, options = {}) {
-        if (window.digistatsAuth?.getSnapshot().enabled)
+        if (window.digistatsAuth?.getSnapshot().available)
             return window.digistatsAuth.request(path, options);
         return fetch(`${window.APP_CONFIG.SUPABASE_URL}${path}`, {
             ...options,
@@ -41,7 +41,7 @@ const adminSession = {
         });
     },
     async verify() {
-        if (window.digistatsAuth?.getSnapshot().enabled) {
+        if (window.digistatsAuth?.getSnapshot().available) {
             const account = window.digistatsAuth.getSnapshot();
             if (!account.isAdmin) throw new Error('Acesso administrativo não autorizado.');
             this.profile = account.profile;
@@ -67,7 +67,7 @@ const adminSession = {
         this.profile = rows[0];
     },
     async refresh() {
-        if (window.digistatsAuth?.getSnapshot().enabled) {
+        if (window.digistatsAuth?.getSnapshot().available) {
             await window.digistatsAuth.refresh();
             await this.verify();
             return;
@@ -86,41 +86,13 @@ const adminSession = {
         this.session = payload;
         this.persist();
     },
-    async login(password) {
-        if (window.digistatsAuth?.getSnapshot().enabled) {
-            window.digistatsAuth.open('login');
-            throw new Error('Entre com o e-mail e a senha da sua conta no site.');
-        }
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
-        const hash = [...new Uint8Array(digest)]
-            .map((byte) => byte.toString(16).padStart(2, '0'))
-            .join('');
-        const candidates = [`p-${hash.slice(0, 40)}@admin.digistats.local`];
-        if (/^[a-z0-9_-]{3,40}$/.test(password.trim().toLowerCase()))
-            candidates.push(`${password.trim().toLowerCase()}@admin.digistats.local`);
-        this.session = null;
-        for (const email of candidates) {
-            const response = await this.request('/auth/v1/token?grant_type=password', {
-                method: 'POST',
-                body: JSON.stringify({ email, password })
-            });
-            const payload = await response.json();
-            if (response.ok && payload.access_token) {
-                this.session = payload;
-                break;
-            }
-        }
-        if (!this.session) throw new Error('Senha de acesso inválida.');
-        try {
-            await this.verify();
-            this.persist();
-        } catch (error) {
-            this.clear();
-            throw error;
-        }
+    async login() {
+        if (!window.digistatsAuth?.getSnapshot().available)
+            throw new Error('O serviço de contas está indisponível. Recarregue e tente novamente.');
+        window.digistatsAuth.open('login');
     },
     async logout() {
-        if (window.digistatsAuth?.getSnapshot().enabled) {
+        if (window.digistatsAuth?.getSnapshot().available) {
             await window.digistatsAuth.logout();
             this.clear();
             return;

@@ -1,9 +1,9 @@
 {
   "apiVersion": 1,
-  "version": "mvnjiagc",
+  "version": "mvnla911",
   "modules": {
     "dashboard": {
-      "entry": "demo-v2/mfe/dashboard/remote.js?v=mvnjiagc",
+      "entry": "demo-v2/mfe/dashboard/remote.js?v=mvnla911",
       "routes": [
         "overview",
         "meta"
@@ -13,7 +13,7 @@
       ]
     },
     "workspace": {
-      "entry": "demo-v2/mfe/workspace/remote.js?v=mvnjiagc",
+      "entry": "demo-v2/mfe/workspace/remote.js?v=mvnla911",
       "routes": [
         "tournaments",
         "manage",
@@ -30,7 +30,7 @@
       ]
     },
     "studio": {
-      "entry": "demo-v2/mfe/studio/remote.js?v=mvnjiagc",
+      "entry": "demo-v2/mfe/studio/remote.js?v=mvnla911",
       "routes": [
         "posts"
       ],
@@ -39,7 +39,7 @@
       ]
     },
     "builder": {
-      "entry": "demo-v2/mfe/builder/remote.js?v=mvnjiagc",
+      "entry": "demo-v2/mfe/builder/remote.js?v=mvnla911",
       "routes": [
         "builder"
       ],

@@ -17,7 +17,7 @@ type RequestRow = {
     review_note?: string;
 };
 const requestLabels: Record<string, string> = {
-    player_link: 'Vincular jogador',
+    player_link: 'Reivindicar jogador existente (claim user)',
     deck_claim: 'Propriedade de deck',
     data_access: 'Acesso aos meus dados',
     correction: 'Correção de dados',
@@ -392,7 +392,7 @@ export function AccountPanel({
                                 {requestType === 'player_link' && (
                                     <>
                                         <SearchSelect
-                                            label="Jogador cadastrado"
+                                            label="Qual jogador é você?"
                                             value={playerId}
                                             onChange={setPlayerId}
                                             required
@@ -402,6 +402,11 @@ export function AccountPanel({
                                                 label: player.name
                                             }))}
                                         />
+                                        <p>
+                                            Digite seu nome para encontrar seu cadastro. O vínculo
+                                            só será feito após a administração confirmar sua
+                                            identidade; isso não concede acesso administrativo.
+                                        </p>
                                         {playersError && (
                                             <p role="alert">
                                                 {playersError}{' '}

@@ -1,0 +1,29 @@
+name: Migrate existing admin emails
+on:
+    workflow_dispatch:
+        inputs:
+            apply:
+                description: Apply the privately configured admin email migration, preserving passwords
+                type: boolean
+                default: false
+permissions:
+    contents: read
+concurrency:
+    group: admin-account-migration
+    cancel-in-progress: false
+jobs:
+    migrate:
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22.19.0'
+            - name: Migrate approved identities without changing passwords
+              env:
+                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+                  SUPABASE_PROJECT_ID: vllqakohumoinpdwnsqa
+                  ADMIN_ACCOUNT_MIGRATION: ${{ secrets.ADMIN_ACCOUNT_MIGRATION }}
+                  APPLY_ADMIN_ACCOUNT_MIGRATION: ${{ inputs.apply }}
+              run: node scripts/migrate-admin-account-emails.js

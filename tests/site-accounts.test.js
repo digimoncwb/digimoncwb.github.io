@@ -106,6 +106,73 @@ async function prepare(db) {
     );
 }
 
+test('Email admin management keeps private email search restricted and validates grants and player claims', async () => {
+    const db = await setup(['20261025110000_email_admin_accounts_and_player_claims.sql']);
+    try {
+        await as(db, 'a');
+        await assert.rejects(
+            db.query("select admin_list_site_accounts('admin@example.test')"),
+            /administrativo/
+        );
+        await as(db, 'admin');
+        const rows = (
+            await db.query("select admin_list_site_accounts('a@example.test') as accounts")
+        ).rows[0].accounts;
+        assert.equal(rows.length, 1);
+        assert.equal(rows[0].email, 'a@example.test');
+        assert.equal(rows[0].email_confirmed, true);
+        await assert.rejects(
+            db.query(`select admin_update_site_account('${ids.pending}',null,true)`),
+            /confirmado/
+        );
+        await assert.rejects(
+            db.query(`select admin_update_site_account('${ids.legacy}',null,true)`),
+            /confirmado/
+        );
+        await assert.rejects(
+            db.query(`select admin_update_site_account('${ids.a}','blocked',true)`),
+            /confirmado/
+        );
+        await db.query(`select admin_update_site_account('${ids.a}',null,true)`);
+        await db.query(`select admin_update_site_account('${ids.a}',null,false)`);
+        await db.query(`select admin_update_site_account('${ids.legacy}',null,false)`);
+        await assert.rejects(
+            db.query(`select admin_update_site_account('${ids.admin}',null,false)`),
+            /última/
+        );
+        await as(db, 'a');
+        const id = (
+            await db.query(`select submit_account_request('player_link','${ids.player}') as id`)
+        ).rows[0].id;
+        await as(db, 'admin');
+        const requests = (await db.query('select admin_account_requests() as requests')).rows[0]
+            .requests;
+        assert.equal(requests[0].player_name, 'Registered player');
+        assert.equal(requests[0].email, 'a@example.test');
+        await db.query("select admin_review_account_request($1,'approved','Identity reviewed')", [
+            id
+        ]);
+        assert.equal(
+            (await db.query(`select player_id from user_profiles where user_id='${ids.a}'`)).rows[0]
+                .player_id,
+            ids.player
+        );
+        await as(db, 'b');
+        const conflicting = (
+            await db.query(`select submit_account_request('player_link','${ids.player}') as id`)
+        ).rows[0].id;
+        await as(db, 'admin');
+        await assert.rejects(
+            db.query("select admin_review_account_request($1,'approved','Reviewed')", [
+                conflicting
+            ]),
+            /unique/
+        );
+    } finally {
+        await db.close();
+    }
+});
+
 test('Accounts migrate additively, enforce ownership against old public policies and audit confirmed changes', async () => {
     const db = await setup();
     try {

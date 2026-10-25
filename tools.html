@@ -803,6 +803,13 @@
                             >
                                 Sair
                             </button>
+                            <button
+                                type="button"
+                                class="btn-primary"
+                                data-admin-action="manage-accounts"
+                            >
+                                Contas, vínculos e administradores
+                            </button>
                         </div>
                         <div class="admin-tabs admin-auth-content is-hidden">
                             <button
@@ -843,42 +850,13 @@
                                 Acesso administrativo
                             </h2>
                             <p class="admin-panel-desc">
-                                Digite sua senha individual para acessar as ferramentas do Admin.
+                                Entre com o e-mail e a senha da sua conta. O acesso depende da
+                                permissão administrativa.
                             </p>
                         </div>
                         <form id="adminLoginForm" class="admin-login-form">
-                            <div class="form-group">
-                                <label for="adminLoginPassword">Senha de acesso</label>
-                                <div class="admin-password-field">
-                                    <input
-                                        id="adminLoginPassword"
-                                        type="password"
-                                        autocomplete="current-password"
-                                        required
-                                    />
-                                    <button
-                                        type="button"
-                                        class="admin-password-toggle"
-                                        data-admin-action="toggle-password"
-                                        aria-label="Mostrar senha"
-                                        aria-pressed="false"
-                                        title="Mostrar senha"
-                                    >
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path
-                                                d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"
-                                            ></path>
-                                            <circle cx="12" cy="12" r="2.75"></circle>
-                                            <path
-                                                class="admin-password-slash"
-                                                d="M4 4l16 16"
-                                            ></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
                             <button id="adminLoginButton" type="submit" class="btn-primary">
-                                Entrar
+                                Entrar com minha conta
                             </button>
                             <p id="adminLoginStatus" class="admin-form-status" role="status"></p>
                         </form>

@@ -128,6 +128,32 @@ test('Global account login uses user JWT for requests and logout clears identity
     assert.ok(events.some((e) => e.type === 'digistats:private-data-cleared'));
     assert.ok(storage.includes('digistats.admin.session'));
 });
+
+test('Email admin identity is published during preparation while general account enforcement is disabled', async () => {
+    const { api, config, events, setAccount } = setup();
+    config.enabled = false;
+    setAccount({
+        profile: { user_id: 'user-a', status: 'active' },
+        is_admin: true,
+        is_member: true
+    });
+    await api.initialize();
+    await api.login('admin@example.test', 'existing-password');
+    assert.equal(api.getSnapshot().enabled, false);
+    assert.equal(api.getSnapshot().isAdmin, true);
+    assert.ok(
+        events.some(
+            (event) =>
+                event.type === 'digistats:admin-auth-changed' && event.detail.authenticated === true
+        )
+    );
+    await api.logout();
+    assert.equal(
+        events.filter((event) => event.type === 'digistats:admin-auth-changed').at(-1).detail
+            .authenticated,
+        false
+    );
+});
 test('Signup sends no role metadata and recovery returns to the shared shell', async () => {
     const { api, calls, config } = setup();
     await api.initialize();
