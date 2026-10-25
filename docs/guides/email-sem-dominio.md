@@ -1,6 +1,6 @@
 # E-mails de contas sem domínio próprio
 
-Preparação em 25/10/2026. O usuário prefere iniciar sem comprar domínio e informou que salvou a senha de app no campo Password do SMTP do Supabase. **Cadastro da credencial informado pelo usuário; autenticação SMTP e entrega real ainda não testadas. As contas permanecem desativadas.** Os modelos HTML estão preparados para configuração no projeto hospedado.
+Preparação em 25/10/2026. O usuário prefere iniciar sem comprar domínio e informou que salvou a senha de app no campo Password do SMTP do Supabase. Os seis modelos em português, remetente, URLs de produção, confirmação obrigatória, troca segura de e-mail e senha mínima de 12 caracteres foram aplicados e relidos no projeto hospedado (workflow 40176685183). **Entrega real ainda não confirmada. As contas permanecem desativadas.**
 
 Decisão confirmada: usar a conta Gmail dedicada **digimoncwb@gmail.com** como remetente e usuário SMTP. O contato de privacidade permanece `dulopes1997@gmail.com`; a conta pessoal não foi vinculada como remetente. O endereço foi informado pelo usuário; acesso à caixa postal e envio ainda não foram testados.
 
@@ -39,7 +39,7 @@ O repositório aponta para `digimoncwb/digimoncwb.github.io`. Confira a URL efet
 - Endereços locais devem ser específicos de homologação; não use wildcard de qualquer domínio em produção.
 - Exigir confirmação de e-mail, troca segura de e-mail e senha de no mínimo 12 caracteres.
 
-Esses valores são uma proposta, não evidência de que já estejam configurados. Alterar os requisitos de senha afeta também contas administrativas antigas; teste a migração para e-mail real antes de ativar o controle de contas.
+Esses valores foram aplicados e conferidos pela Management API. Alterar os requisitos de senha afeta também contas administrativas antigas; teste a migração para e-mail real antes de ativar o controle de contas.
 
 ## Modelos em português
 
@@ -63,6 +63,8 @@ Em **Authentication → Email Templates**, copie os modelos correspondentes de `
 O script gera também `email-templates.patch.json` com apenas assuntos e conteúdo dos modelos, para aplicação controlada pela Management API quando houver acesso disponível. Ele não contém credenciais, não configura SMTP, não envia mensagens e não ativa notificações ou métodos de login adicionais.
 
 O workflow manual **Auth email configuration** permite inspecionar os dados públicos (`inspect`) ou preparar os modelos e URLs (`prepare`) usando a credencial de Management API já existente no GitHub Actions. O modo `prepare` não copia nem altera `smtp_pass`, preserva URLs de retorno anteriores e verifica que as contas continuam desativadas antes da alteração. A saída contém somente dados públicos selecionados. Essa preparação não testa o login no SMTP nem envia mensagens.
+
+O modo `test_invite` exige também `authorize_test_invite=true` e envia uma única solicitação de convite para `digimoncwb@gmail.com`, criando uma conta Auth sem atribuir administração. O usuário autorizou esse destinatário em 25/10/2026. O modo recusa destinatário já cadastrado e não repete o envio em caso de falha. Credenciais de serviço ficam apenas na memória do runner; não são gravadas nem exibidas. Resposta de sucesso do Auth não confirma recebimento na caixa postal.
 
 Os links usam `{{ .ConfirmationURL }}` para preservar o fluxo de verificação do Supabase e os redirects do SDK. Não substitua pelo endereço inicial do site, não fixe token em código e não ative rastreamento de cliques do provedor. Se um scanner de e-mail consumir o link automaticamente, avalie um fluxo de confirmação intermediária antes da liberação pública.
 

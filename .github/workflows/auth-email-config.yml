@@ -4,11 +4,15 @@ on:
     workflow_dispatch:
         inputs:
             action:
-                description: Inspect public settings or prepare templates and redirects (never sends email)
+                description: Inspect, prepare, or send one explicitly authorized invitation to the community Gmail
                 type: choice
-                options: [inspect, prepare]
+                options: [inspect, prepare, test_invite]
                 default: inspect
                 required: true
+            authorize_test_invite:
+                description: Authorize one real invite to digimoncwb@gmail.com (creates a non-admin Auth user)
+                type: boolean
+                default: false
 
 permissions:
     contents: read
@@ -31,4 +35,5 @@ jobs:
                   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
                   SUPABASE_PROJECT_ID: vllqakohumoinpdwnsqa
                   EMAIL_CONFIG_ACTION: ${{ inputs.action }}
+                  AUTHORIZE_TEST_INVITE: ${{ inputs.authorize_test_invite }}
               run: node scripts/configure-auth-emails.js

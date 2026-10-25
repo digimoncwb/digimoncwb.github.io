@@ -64,11 +64,67 @@ function summarize(config, templates) {
         emails_sent: 0
     };
 }
+async function sendTestInvite({
+    request,
+    config,
+    templates,
+    smtp,
+    project,
+    authorized,
+    fetcher = fetch
+}) {
+    if (!authorized) throw Error('O convite de teste exige autorização explícita.');
+    const patch = makePatch(config, templates, smtp);
+    if (!Object.entries(patch).every(([key, value]) => config[key] === value))
+        throw Error('Prepare os modelos e as URLs antes do convite.');
+    const email = 'digimoncwb@gmail.com';
+    const check = await request('/database/query', {
+        method: 'POST',
+        body: JSON.stringify({
+            query: `select exists(select 1 from auth.users where lower(email) = '${email}') as user_exists`
+        })
+    });
+    if (check?.[0]?.user_exists !== false)
+        throw Error(
+            'Destinatário já cadastrado ou verificação inconclusiva; nenhum convite enviado.'
+        );
+    const keys = await request('/api-keys?reveal=true');
+    const key = Array.isArray(keys) && keys.find((item) => item.name === 'service_role')?.api_key;
+    if (!key) throw Error('Chave de serviço indisponível; nenhum convite enviado.');
+    // Keep the key and Auth response exclusively in runner memory. Never retry this POST.
+    const response = await fetcher(
+        `https://${project}.supabase.co/auth/v1/invite?redirect_to=${encodeURIComponent('https://digimoncwb.github.io/index.html')}`,
+        {
+            method: 'POST',
+            headers: {
+                apikey: key,
+                Authorization: `Bearer ${key}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                data: { display_name: 'Teste de e-mail da comunidade' }
+            }),
+            signal: globalThis.AbortSignal.timeout(30000)
+        }
+    );
+    if (!response.ok) throw Error(`Convite recusado: HTTP ${response.status}. Não reenviado.`);
+    return {
+        action: 'test_invite',
+        recipient: email,
+        invite_accepted: true,
+        receipt_confirmed: false
+    };
+}
 async function main() {
     const token = process.env.SUPABASE_ACCESS_TOKEN;
     const project = process.env.SUPABASE_PROJECT_ID;
     const action = process.env.EMAIL_CONFIG_ACTION || 'inspect';
-    if (!token || !/^[a-z0-9]{20}$/.test(project || '') || !['inspect', 'prepare'].includes(action))
+    if (
+        !token ||
+        !/^[a-z0-9]{20}$/.test(project || '') ||
+        !['inspect', 'prepare', 'test_invite'].includes(action)
+    )
         throw Error('Configuração de execução inválida.');
     const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
     const api = `https://api.supabase.com/v1/projects/${project}`;
@@ -107,6 +163,18 @@ async function main() {
     });
     if (!Array.isArray(rows) || rows[0]?.accounts_enabled !== false)
         throw Error('Mantenha o controle de contas desativado durante esta preparação.');
+    if (action === 'test_invite') {
+        const result = await sendTestInvite({
+            request,
+            config: before,
+            templates,
+            smtp,
+            project,
+            authorized: process.env.AUTHORIZE_TEST_INVITE === 'true'
+        });
+        console.log(JSON.stringify(result));
+        return;
+    }
     const patch = makePatch(before, templates, smtp);
     if ('smtp_pass' in patch) throw Error('Credencial SMTP não pode entrar no patch.');
     await request('/config/auth', { method: 'PATCH', body: JSON.stringify(patch) });
@@ -120,4 +188,4 @@ if (require.main === module)
         console.error(error.message);
         process.exitCode = 1;
     });
-module.exports = { main, makePatch, summarize };
+module.exports = { main, makePatch, summarize, sendTestInvite };
