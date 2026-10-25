@@ -18,6 +18,7 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
     let persistProfile = true;
     let authStorage;
     let clientOptions;
+    let oauthError = null;
     let signupResult = {
         data: { user: { id: 'new-user', identities: [{ id: 'new-identity' }] } },
         error: null
@@ -41,6 +42,13 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
     };
     const client = {
         auth: {
+            async signInWithOAuth(input) {
+                calls.push(input);
+                return {
+                    data: { url: 'https://accounts.google.com/o/oauth2/v2/auth' },
+                    error: oauthError
+                };
+            },
             onAuthStateChange(fn) {
                 callback = fn;
             },
@@ -138,6 +146,9 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
                 if (persistProfile)
                     account = {
                         ...account,
+                        ...(url.endsWith('/save_my_site_profile_legal')
+                            ? { legal_current: true }
+                            : {}),
                         profile: {
                             ...account.profile,
                             username: input.p_username,
@@ -178,7 +189,10 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
         setSignupResult: (value) => {
             signupResult = value;
         },
-        getClientOptions: () => clientOptions
+        getClientOptions: () => clientOptions,
+        setOAuthError: (value) => {
+            oauthError = value;
+        }
     };
 }
 test('Global account login uses user JWT for requests and logout clears identity and private state', async () => {
@@ -501,4 +515,49 @@ test('Provider email callbacks use their matching flow while normal access keeps
     assert.equal(incomplete.getClientOptions().auth.flowType, 'pkce');
     await incomplete.api.initialize();
     assert.equal(incomplete.api.getSnapshot().recoveryRequired, false);
+});
+
+test('Google login keeps the selected session lifetime and requires the verified accounts own legal acceptance', async () => {
+    const persistent = memoryStorage(),
+        temporary = memoryStorage();
+    const start = setup(persistent, temporary);
+    await start.api.initialize();
+    await start.api.loginWithGoogle(false);
+    const request = start.calls.at(-1);
+    assert.equal(request.provider, 'google');
+    assert.equal(request.options.redirectTo, 'https://site.example/index.html#overview');
+    assert.equal(request.options.scopes, 'openid email profile');
+    assert.equal(request.options.queryParams.prompt, 'select_account');
+    assert.equal(start.api.getRememberMe(), false);
+    assert.ok(Number(temporary.getItem('digistats.google-sign-in-started')) > 0);
+    temporary.setItem(
+        'digistats.site-account',
+        JSON.stringify({
+            access_token: 'google-session',
+            user: { id: 'user-a', email: 'user@example.test', email_confirmed_at: '2026-10-25' }
+        })
+    );
+    const returned = setup(persistent, temporary);
+    await returned.api.initialize();
+    assert.equal(returned.api.getSnapshot().profile.user_id, 'user-a');
+    assert.equal(returned.api.getSnapshot().profileRequired, true);
+    assert.equal(returned.api.getSnapshot().isMember, false);
+    await returned.api.saveProfile('user_a', 'User A', {
+        termsAccepted: true,
+        privacyRead: true,
+        adultDeclared: true
+    });
+    assert.equal(returned.api.getSnapshot().profileRequired, false);
+    assert.equal(returned.api.getSnapshot().legalCurrent, true);
+    assert.equal(returned.api.getSnapshot().isMember, true);
+});
+
+test('Google login failures restore storage preference and do not leave a stale return marker', async () => {
+    const temporary = memoryStorage();
+    const instance = setup(memoryStorage(), temporary);
+    await instance.api.initialize();
+    instance.setOAuthError({ code: 'provider_disabled' });
+    await assert.rejects(instance.api.loginWithGoogle(false), /Google ainda não está disponível/);
+    assert.equal(instance.api.getRememberMe(), true);
+    assert.equal(temporary.getItem('digistats.google-sign-in-started'), null);
 });

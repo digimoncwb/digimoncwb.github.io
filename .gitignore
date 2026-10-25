@@ -1,5 +1,6 @@
 node_modules/
 .tmp/
+oauth-google/
 backup/decks/*.json
 backup/tournaments/*.json
 demo-v2/mfe/

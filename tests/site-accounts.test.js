@@ -815,20 +815,41 @@ test('Published signup documents match the public pages, preserve rollout state 
     const db = await setup([legalMigration]);
     try {
         await sqlOwner(db);
+        const currentLegal = JSON.parse(readFileSync('legal/documents.json', 'utf8'));
         await db.exec(
             readFileSync(
                 'database/migrations/20261025180000_register_site_legal_documents.sql',
                 'utf8'
             )
         );
+        const previousDocuments = (
+            await db.query(
+                "select kind,body,sha256 from site_legal_documents where version='2026-10-25.1' order by kind"
+            )
+        ).rows;
+        await db.exec(
+            readFileSync(
+                `database/migrations/${currentLegal.migration || '20261025180000_register_site_legal_documents.sql'}`,
+                'utf8'
+            )
+        );
         const config = (await db.query('select site_account_status() value')).rows[0].value;
         assert.equal(config.legal_ready, true);
         assert.equal(config.enabled, false);
+        assert.deepEqual(
+            (
+                await db.query(
+                    "select kind,body,sha256 from site_legal_documents where version='2026-10-25.1' order by kind"
+                )
+            ).rows,
+            previousDocuments
+        );
         const source = JSON.parse(readFileSync('legal/documents.json', 'utf8'));
         await as(db, null);
         const documents = (
             await db.query(
-                'select kind,version,url,body,sha256 from site_legal_documents order by kind'
+                'select kind,version,url,body,sha256 from site_legal_documents where version=$1 order by kind',
+                [source.version]
             )
         ).rows;
         assert.equal(documents.length, 2);
@@ -954,6 +975,46 @@ test('Legal versions are immutable and membership requires authenticated, explic
     }
 });
 const erasureMigration = '20261025070000_account_erasure_workflow.sql';
+test('Google profile names initialize only a display name and preserve identity and permission boundaries', async () => {
+    const db = await setup([
+        legalMigration,
+        erasureMigration,
+        '20261025200000_google_profile_display_names.sql'
+    ]);
+    try {
+        await sqlOwner(db);
+        const googleUser = '70000000-0000-0000-0000-000000000099';
+        await db.query(
+            "insert into auth.users(id,email,email_confirmed_at,raw_user_meta_data) values($1,'google@example.test',now(),$2)",
+            [
+                googleUser,
+                JSON.stringify({
+                    full_name: 'Google User',
+                    is_admin: true,
+                    player_id: ids.player,
+                    legal_current: true
+                })
+            ]
+        );
+        const profile = (
+            await db.query('select * from user_profiles where user_id=$1', [googleUser])
+        ).rows[0];
+        assert.equal(profile.display_name, 'Google User');
+        assert.equal(profile.auth_user_id, googleUser);
+        assert.equal(profile.player_id, null);
+        assert.equal(profile.legal_acceptance_id, null);
+        assert.equal(
+            (
+                await db.query('select count(*) count from admin_users where user_id=$1', [
+                    googleUser
+                ])
+            ).rows[0].count,
+            0
+        );
+    } finally {
+        await db.close();
+    }
+});
 const exportMigration = '20261025080000_audit_period_exports.sql';
 const monitorMigration = '20261025090000_audit_operation_monitoring.sql';
 test('Audit health recognizes a later scheduled catalog recovery while retaining failures and other alerts', async () => {

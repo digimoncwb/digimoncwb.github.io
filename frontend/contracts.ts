@@ -131,6 +131,7 @@ export interface SiteAuthState {
     error: string;
     recoveryRequired: boolean;
     legalCurrent?: boolean;
+    profileRequired?: boolean;
 }
 export interface SiteAuth {
     getSnapshot(): SiteAuthState;
@@ -142,6 +143,7 @@ export interface SiteAuth {
     initialize(): Promise<void>;
     refresh(): Promise<void>;
     login(email: string, password: string, rememberMe?: boolean): Promise<void>;
+    loginWithGoogle(rememberMe?: boolean): Promise<void>;
     signup(
         email: string,
         password: string,

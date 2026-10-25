@@ -2,8 +2,8 @@
 export const siteLegalDocuments = {
     terms: {
         title: 'Termos de Uso',
-        version: '2026-10-25.1',
-        url: 'https://digimoncwb.github.io/legal/termos-2026-10-25.html',
+        version: '2026-10-25.2',
+        url: 'https://digimoncwb.github.io/legal/termos-2026-10-25-v2.html',
         sections: [
             {
                 title: '1. Sobre o site',
@@ -16,6 +16,7 @@ export const siteLegalDocuments = {
                 title: '2. Cadastro e acesso',
                 paragraphs: [
                     'A consulta pública não exige conta. Para criar uma conta, você deve ter 18 anos ou mais, informar um e-mail sob seu controle, confirmar esse endereço e aceitar estes termos e a ciência do Aviso de Privacidade. Não estão disponíveis contas para menores nesta versão.',
+                    'Você pode acessar com e-mail e senha ou optar pelo login com Google. Nesse segundo caso, a autenticação ocorre no Google e no Supabase; o site não recebe sua senha do Google. A identificação pode ser associada à conta já existente quando os endereços verificados coincidirem, conforme as regras do serviço de autenticação. O acesso pelo Google não dispensa os aceites exigidos para a conta.',
                     'Use informações corretas, mantenha sua senha em sigilo e não compartilhe sua conta. Não utilize o nome ou o cadastro de outra pessoa para se passar por ela. A declaração de idade é feita pelo próprio usuário e não constitui verificação independente de documento.',
                     'O vínculo da conta com um jogador histórico é separado do nome de exibição e pode exigir verificação pela administração. Cadastrar-se ou vincular um jogador não concede acesso administrativo.'
                 ]
@@ -55,8 +56,8 @@ export const siteLegalDocuments = {
     },
     privacy: {
         title: 'Aviso de Privacidade',
-        version: '2026-10-25.1',
-        url: 'https://digimoncwb.github.io/legal/privacidade-2026-10-25.html',
+        version: '2026-10-25.2',
+        url: 'https://digimoncwb.github.io/legal/privacidade-2026-10-25-v2.html',
         sections: [
             {
                 title: '1. Quem trata os dados e como falar conosco',
@@ -69,6 +70,7 @@ export const siteLegalDocuments = {
                 title: '2. Quais dados usamos e para quê',
                 paragraphs: [
                     'Conta: e-mail, nome de exibição, nome de usuário, situação da conta, vínculo com jogador, permissões e registros de aceite. Usamos esses dados para criar e proteger o acesso, identificar o conteúdo da conta e prestar suporte. A autenticação é processada pelo Supabase; sua senha não fica disponível para consulta pela equipe no painel administrativo.',
+                    'No login opcional com Google, solicitamos identidade básica (openid, e-mail e perfil), que pode incluir identificador do provedor, nome, e-mail verificado e metadados como a URL da imagem do perfil no serviço de autenticação. Não solicitamos acesso ao Gmail, ao Google Drive, à agenda ou aos contatos e não recebemos a senha do Google. Você pode escolher o acesso por e-mail e senha em vez do login social.',
                     'Comunidade e torneios: nomes e apelidos de jogadores, identificadores Bandai e DigiLab, participações, classificações, decks e cartas. Usamos esses dados para manter o histórico dos eventos, permitir buscas, montar estatísticas e compartilhar decklists. Eles podem ser cadastrados por organizadores ou importados de fontes externas e podem existir mesmo para quem não criou uma conta.',
                     'Suporte: mensagem de sugestão ou bug, contato opcional, página, versão do site e informações do navegador. Esses dados ajudam a responder e investigar problemas. Dados de conexão e um identificador derivado da conexão também são usados para limitar spam.',
                     'Segurança e auditoria: operações relevantes, responsáveis pelas alterações, datas, resultados de integrações e registros técnicos dos fornecedores. Usamos essas informações para detectar abuso, investigar falhas, controlar permissões e manter evidências de alterações. Não envie dados sensíveis nos campos de texto livre.'
@@ -92,7 +94,7 @@ export const siteLegalDocuments = {
             {
                 title: '5. Fornecedores e compartilhamento',
                 paragraphs: [
-                    'Utilizamos GitHub Pages para hospedar o site, Supabase para banco de dados, autenticação e arquivos, Google Gmail SMTP para e-mails de conta e Resend para encaminhar sugestões e bugs à equipe. DigiLab e outros provedores de imagens e dados apoiam as funções de torneios e cartas. Ao carregar arquivos externos, esses provedores podem receber informações técnicas de conexão.',
+                    'Utilizamos GitHub Pages para hospedar o site, Supabase para banco de dados, autenticação e arquivos, Google para o login opcional e Gmail SMTP para e-mails de conta e Resend para encaminhar sugestões e bugs à equipe. DigiLab e outros provedores de imagens e dados apoiam as funções de torneios e cartas. Ao carregar arquivos externos, esses provedores podem receber informações técnicas de conexão.',
                     'Esses fornecedores podem processar dados em outros países, conforme a infraestrutura contratada e suas condições. O uso deve observar os mecanismos e garantias aplicáveis às transferências internacionais. Não vendemos os dados pessoais cadastrados. Compartilhamentos adicionais podem ocorrer quando necessários ao suporte, à segurança ou ao cumprimento de uma exigência legal válida.'
                 ]
             },

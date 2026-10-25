@@ -83,6 +83,34 @@ dialog.list-dialog:has(.site-account) > header h2 {
     display: grid;
     gap: 7px;
 }
+.site-account .site-google-login {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+}
+.site-google-login svg {
+    display: block;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+}
+.site-login-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--ds-muted);
+    font-size: 13px;
+}
+.site-login-divider::before,
+.site-login-divider::after {
+    content: '';
+    height: 1px;
+    background: var(--ds-line);
+    flex: 1;
+}
 .site-account-password {
     position: relative;
 }

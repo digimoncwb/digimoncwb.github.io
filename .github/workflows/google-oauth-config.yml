@@ -1,0 +1,36 @@
+name: Google OAuth configuration
+
+on:
+    workflow_dispatch:
+        inputs:
+            action:
+                description: Inspect or configure Google login without exposing credentials
+                type: choice
+                options: [inspect, configure]
+                default: inspect
+                required: true
+
+permissions:
+    contents: read
+
+concurrency:
+    group: google-oauth-config
+    cancel-in-progress: false
+
+jobs:
+    configure:
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22.19.0'
+            - name: Configure Google provider
+              env:
+                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+                  SUPABASE_PROJECT_ID: vllqakohumoinpdwnsqa
+                  GOOGLE_OAUTH_ACTION: ${{ inputs.action }}
+                  GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+                  GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+              run: node scripts/configure-google-oauth.js

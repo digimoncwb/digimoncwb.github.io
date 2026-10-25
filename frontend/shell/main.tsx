@@ -80,7 +80,15 @@ function Shell() {
     }, []);
     useEffect(() => {
         if (account.recoveryRequired) setAccountView('password');
-    }, [account.recoveryRequired]);
+        else if (account.profileRequired) setAccountView('profile');
+        else if (account.available && account.error && !account.user) setAccountView('login');
+    }, [
+        account.recoveryRequired,
+        account.profileRequired,
+        account.available,
+        account.error,
+        account.user?.id
+    ]);
     const [route, setRoute] = useState(readRoute),
         [expanded, setExpanded] = useState(''),
         [mobileOpen, setMobileOpen] = useState(false),

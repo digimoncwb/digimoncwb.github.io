@@ -173,6 +173,7 @@ export function AccountPanel({
                     <p role="alert">O serviço de contas ainda não está disponível. {state.error}</p>
                 )}
                 {error && <p role="alert">{error}</p>}
+                {state.available && state.error && <p role="alert">{state.error}</p>}
                 {notice && <p role="status">{notice}</p>}
                 {view === 'password' ? (
                     <form
@@ -504,6 +505,41 @@ export function AccountPanel({
                                 });
                             }}
                         >
+                            {view === 'login' && (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="button secondary site-google-login"
+                                        disabled={busy || !state.available}
+                                        onClick={() =>
+                                            void run(() => auth.loginWithGoogle(rememberMe))
+                                        }
+                                    >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path
+                                                fill="#4285F4"
+                                                d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.4Z"
+                                            />
+                                            <path
+                                                fill="#34A853"
+                                                d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 .9-3.4.9-2.6 0-4.9-1.8-5.7-4.1H3v2.6A10 10 0 0 0 12 22Z"
+                                            />
+                                            <path
+                                                fill="#FBBC05"
+                                                d="M6.3 13.9a6 6 0 0 1 0-3.8V7.5H3a10 10 0 0 0 0 9l3.3-2.6Z"
+                                            />
+                                            <path
+                                                fill="#EA4335"
+                                                d="M12 6c1.5 0 2.8.5 3.8 1.5l2.8-2.8A9.5 9.5 0 0 0 12 2a10 10 0 0 0-9 5.5l3.3 2.6C7.1 7.8 9.4 6 12 6Z"
+                                            />
+                                        </svg>
+                                        Continuar com Google
+                                    </button>
+                                    <div className="site-login-divider">
+                                        <span>ou use seu e-mail</span>
+                                    </div>
+                                </>
+                            )}
                             {view === 'signup' && (
                                 <label>
                                     Nome de exibição

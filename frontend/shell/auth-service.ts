@@ -26,6 +26,8 @@ export function createSiteSessionStorage(persistent: Storage, temporary: Storage
 export function createSiteAuth(): SiteAuth {
     const storage = createSiteSessionStorage(window.localStorage, window.sessionStorage);
     const rememberedEmailKey = 'digistats.remembered-email';
+    const googleReturnKey = 'digistats.google-sign-in-started';
+    let googleSignInPending = false;
     const passwordManager = () =>
         window as unknown as {
             PasswordCredential?: new (data: { id: string; password: string }) => Credential;
@@ -107,6 +109,10 @@ export function createSiteAuth(): SiteAuth {
             return 'O serviço de e-mail não conseguiu enviar a mensagem. Tente novamente mais tarde ou entre em contato com o suporte.';
         if (error.code === 'invalid_credentials') return 'E-mail ou senha incorretos.';
         if (error.code === 'email_not_confirmed') return 'Confirme seu e-mail antes de entrar.';
+        if (error.code === 'provider_disabled')
+            return 'O login com Google ainda não está disponível. Use seu e-mail e senha.';
+        if (error.code === 'access_denied')
+            return 'O login externo foi cancelado ou não foi autorizado. Você pode tentar novamente.';
         if (error.code === 'user_already_exists' || error.code === 'email_exists')
             return 'Já existe uma conta com este e-mail. Faça Login ou recupere sua senha.';
         if (error.code === '23505') return 'Esse nome de usuário ou vínculo já está em uso.';
@@ -134,10 +140,21 @@ export function createSiteAuth(): SiteAuth {
                 isAdmin: false,
                 isMember: false,
                 loading: false,
-                legalCurrent: false
+                legalCurrent: false,
+                profileRequired: false
             });
             return;
         }
+        const googleStartedAt = Number(window.sessionStorage.getItem(googleReturnKey));
+        if (
+            googleStartedAt > 0 &&
+            googleStartedAt <= Date.now() &&
+            Date.now() - googleStartedAt < 30 * 60 * 1000
+        ) {
+            googleSignInPending = true;
+            window.sessionStorage.removeItem(googleReturnKey);
+        } else if (window.sessionStorage.getItem(googleReturnKey))
+            window.sessionStorage.removeItem(googleReturnKey);
         let { data, error } = await client.rpc('my_site_account');
         if (revision !== generation || session?.user.id !== user.id) return;
         if (error) {
@@ -211,11 +228,12 @@ export function createSiteAuth(): SiteAuth {
         if (revision !== generation || session?.user.id !== user.id) return;
         publish({
             profile: data?.profile || null,
-            isAdmin: data?.is_admin === true,
-            isMember: data?.is_member === true,
+            isAdmin: data?.is_admin === true && !(googleSignInPending && !data?.legal_current),
+            isMember: data?.is_member === true && !(googleSignInPending && !data?.legal_current),
             loading: false,
             error: '',
-            legalCurrent: data?.legal_current === true
+            legalCurrent: data?.legal_current === true,
+            profileRequired: googleSignInPending && data?.legal_current !== true
         });
     };
     client.auth.onAuthStateChange((event, next) => {
@@ -289,6 +307,7 @@ export function createSiteAuth(): SiteAuth {
                     if (session && callbackNeedsPassword) publish({ recoveryRequired: true });
                     publish({ initialized: true });
                 } catch (error) {
+                    window.sessionStorage.removeItem(googleReturnKey);
                     publish({ initialized: true, loading: false, error: message(error as Error) });
                 }
             })());
@@ -368,6 +387,26 @@ export function createSiteAuth(): SiteAuth {
                     })
                 );
         },
+        async loginWithGoogle(rememberMe = true) {
+            const previousPreference = storage.remember();
+            storage.setRemember(rememberMe);
+            window.sessionStorage.setItem(googleReturnKey, String(Date.now()));
+            try {
+                const { error } = await client.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: redirect(),
+                        scopes: 'openid email profile',
+                        queryParams: { prompt: 'select_account' }
+                    }
+                });
+                if (error) throw new Error(message(error));
+            } catch (error) {
+                storage.setRemember(previousPreference);
+                window.sessionStorage.removeItem(googleReturnKey);
+                throw error;
+            }
+        },
         async logout() {
             const email = session?.user.email || state.user?.email;
             const { error } = await client.auth.signOut();
@@ -375,6 +414,8 @@ export function createSiteAuth(): SiteAuth {
             if (storage.remember() && email) window.localStorage.setItem(rememberedEmailKey, email);
             else window.localStorage.removeItem(rememberedEmailKey);
             session = null;
+            googleSignInPending = false;
+            window.sessionStorage.removeItem(googleReturnKey);
             generation++;
             publish({
                 user: null,
@@ -384,7 +425,8 @@ export function createSiteAuth(): SiteAuth {
                 loading: false,
                 error: '',
                 recoveryRequired: false,
-                legalCurrent: false
+                legalCurrent: false,
+                profileRequired: false
             });
             // The legacy admin token must not survive the global logout.
             sessionStorage.removeItem('digistats.admin.session');
