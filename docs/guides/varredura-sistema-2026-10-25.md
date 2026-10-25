@@ -48,3 +48,5 @@ A versão publicada foi validada pelo CI com 275 testes passando, incluindo o te
 ## Publicação concluída
 
 A publicação da revisão `978023f` concluiu com sucesso no GitHub Actions, incluindo frontend e integrações. As páginas públicas foram conferidas em HTTPS e a versão `2026-10-25.1` foi registrada no banco. O cadastro foi liberado (`legal_ready=true`), com preservação das contas, dos decks e do modo de operação geral. Uma verificação no site público confirmou os dois documentos acessíveis, três declarações inicialmente desmarcadas, botão de cadastro habilitado e ícone da senha centralizado em celular. Nenhuma conta artificial foi criada nessa verificação.
+
+A publicação seguinte, `8c8575a`, adicionou o login opcional com Google e os documentos `2026-10-25.2`, preservando os textos da primeira versão. A rodada completa dessa publicação passou com 280 testes. O botão público chegou à tela de login do Google com PKCE; o acesso por e-mail continuou disponível. A configuração e os limites dessa verificação estão em [Login com Google](login-google.md).

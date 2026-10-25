@@ -31,3 +31,9 @@ Os testes cobrem início do OAuth, retorno, preferência de sessão, aceites, pr
 Se o aplicativo do Google estiver em modo de teste, o responsável pode precisar adicionar as contas permitidas em **Google Auth Platform → Público-alvo / Audience → Usuários de teste**. Para abrir o acesso à comunidade, confira o estado de publicação e as exigências apresentadas pelo Google. Não adicione escopos extras para corrigir um problema de acesso.
 
 Referências: [login com Google no Supabase](https://supabase.com/docs/guides/auth/social-login/auth-google), [associação de identidades](https://supabase.com/docs/guides/auth/auth-identity-linking) e [configuração do Auth pela Management API](https://supabase.com/docs/reference/api/v1-update-auth-service-config).
+
+## Publicação verificada em 25/10/2026
+
+A versão `2026.10.25.9` foi publicada pela revisão `8c8575a`. O [pipeline](https://github.com/digimoncwb/digimoncwb.github.io/actions/runs/40244355631) passou com 280 testes, TypeScript, lint, build e publicação. O [workflow de configuração](https://github.com/digimoncwb/digimoncwb.github.io/actions/runs/40244359548) confirmou o Google habilitado, e-mail obrigatório e verificação de nonce ativa, com as configurações anteriores de Auth preservadas.
+
+As páginas legais foram conferidas publicamente e a versão `2026-10-25.2` foi registrada no banco. A inicialização do nome de perfil foi atualizada sem alterar contas ou decks existentes. A conferência no navegador público chegou à tela de identificação do Google, com PKCE e sem erro de URI; não foi realizada autenticação em conta pessoal. A pasta local de credenciais permaneceu fora do Git, e uma comparação local confirmou ausência do Client Secret nos arquivos rastreados e no pacote público.
