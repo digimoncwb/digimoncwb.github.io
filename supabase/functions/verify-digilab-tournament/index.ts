@@ -1,3 +1,4 @@
+import { withSiteAudit, siteActorAllowed, siteServiceHeaders } from '../_shared/site-security.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const CORS = {
@@ -27,237 +28,243 @@ class DigilabHttpError extends Error {
 
 class SyncPersistenceError extends Error {}
 
-Deno.serve(async (req) => {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-    if (req.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
+Deno.serve(
+    withSiteAudit(async (req) => {
+        if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+        if (req.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
 
-    const apiKey = Deno.env.get('DIGILAB_API_KEY');
-    const verifyToken = Deno.env.get('DIGILAB_VERIFY_TOKEN');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        const apiKey = Deno.env.get('DIGILAB_API_KEY');
+        const verifyToken = Deno.env.get('DIGILAB_VERIFY_TOKEN');
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!apiKey || !supabaseUrl || !serviceRoleKey) {
-        return json({ error: 'Integração DigiLab não configurada.' }, 500);
-    }
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { persistSession: false, autoRefreshToken: false }
-    });
-    if (!(await authorizeRequest(req, supabase, verifyToken || ''))) {
-        return json({ error: 'Não autorizado.' }, 401);
-    }
-
-    let body: JsonRecord;
-    try {
-        body = await req.json();
-    } catch {
-        return json({ error: 'JSON inválido.' }, 400);
-    }
-
-    const tournamentId = Number(body.tournament_id);
-    if (!Number.isSafeInteger(tournamentId) || tournamentId <= 0) {
-        return json({ error: 'tournament_id deve ser um inteiro positivo.' }, 400);
-    }
-
-    const requestedDigilabId =
-        body.digilab_tournament_id == null ? null : Number(body.digilab_tournament_id);
-    const forceMatch = body.force_match === true;
-    if (
-        requestedDigilabId !== null &&
-        (!Number.isSafeInteger(requestedDigilabId) || requestedDigilabId <= 0)
-    ) {
-        return json({ error: 'digilab_tournament_id deve ser um inteiro positivo.' }, 400);
-    }
-
-    const { data: previousSync, error: syncReadError } = await supabase
-        .from('tournament_digilab_sync')
-        .select(
-            'tournament_id,digilab_tournament_id,digilab_url,status,verified_at,last_checked_at'
-        )
-        .eq('tournament_id', tournamentId)
-        .maybeSingle();
-
-    if (syncReadError) return json({ error: 'Não foi possível ler o estado da integração.' }, 500);
-
-    if (previousSync?.status === 'matched') {
-        return json({ ok: true, reused: true, sync: previousSync });
-    }
-
-    const retryAfterSeconds = forceMatch ? 0 : cooldownRemaining(previousSync?.last_checked_at);
-    if (retryAfterSeconds > 0) {
-        return json(
-            {
-                ok: false,
-                error: 'Aguarde antes de verificar este torneio novamente.',
-                retry_after: retryAfterSeconds,
-                sync: previousSync
-            },
-            429,
-            { 'Retry-After': String(retryAfterSeconds) }
-        );
-    }
-
-    const local = await loadLocalTournament(supabase, tournamentId);
-    if ('error' in local) return json({ error: local.error }, local.status);
-
-    const checkedAt = new Date().toISOString();
-
-    try {
-        const discovery = requestedDigilabId
-            ? { candidates: [{ tournament_id: requestedDigilabId }], requestCount: 0 }
-            : await discoverCandidates(apiKey, local);
-        const candidates = discovery.candidates.slice(0, MAX_CANDIDATES);
-
-        if (discovery.candidates.length > MAX_CANDIDATES) {
-            const summary = {
-                reason: 'candidate_limit_exceeded',
-                candidate_count: discovery.candidates.length,
-                request_count: discovery.requestCount
-            };
-            await saveSync(supabase, tournamentId, 'ambiguous', checkedAt, summary);
-            return json({ ok: true, status: 'ambiguous', ...summary });
+        if (!apiKey || !supabaseUrl || !serviceRoleKey) {
+            return json({ error: 'Integração DigiLab não configurada.' }, 500);
         }
 
-        if (candidates.length === 0) {
-            const summary = {
-                reason: 'no_candidates',
-                request_count: discovery.requestCount
-            };
-            await saveSync(supabase, tournamentId, 'not_found', checkedAt, summary);
-            return json({ ok: true, status: 'not_found', ...summary });
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+            global: { headers: siteServiceHeaders(req) }
+        });
+        if (!(await authorizeRequest(req, supabase, verifyToken || ''))) {
+            return json({ error: 'Não autorizado.' }, 401);
         }
 
-        const comparisons = [];
-        let requestCount = discovery.requestCount;
-
-        for (const candidate of candidates) {
-            const externalId = getExternalId(candidate);
-            if (!externalId) continue;
-
-            const detail = await digilabGet(apiKey, `/api/tournament/${externalId}`);
-            requestCount += 1;
-            comparisons.push(compareTournament(local, externalId, detail));
+        let body: JsonRecord;
+        try {
+            body = await req.json();
+        } catch {
+            return json({ error: 'JSON inválido.' }, 400);
         }
 
-        const matches = comparisons.filter((item) => item.mismatches.length === 0);
-
-        if (matches.length === 1) {
-            const match = matches[0];
-            const digilabUrl = `${DIGILAB_SITE_URL}/tournament/${match.digilab_tournament_id}`;
-            const summary = {
-                request_count: requestCount,
-                compared_candidates: comparisons.length,
-                warnings: match.warnings
-            };
-            await saveSync(supabase, tournamentId, 'matched', checkedAt, summary, {
-                digilabTournamentId: match.digilab_tournament_id,
-                digilabUrl,
-                verifiedAt: checkedAt
-            });
-            return json({
-                ok: true,
-                status: 'matched',
-                digilab_tournament_id: match.digilab_tournament_id,
-                digilab_url: digilabUrl,
-                ...summary
-            });
+        const tournamentId = Number(body.tournament_id);
+        if (!Number.isSafeInteger(tournamentId) || tournamentId <= 0) {
+            return json({ error: 'tournament_id deve ser um inteiro positivo.' }, 400);
         }
 
-        if (matches.length > 1) {
-            const summary = {
-                reason: 'multiple_exact_matches',
-                request_count: requestCount,
-                candidate_ids: matches.map((item) => item.digilab_tournament_id)
-            };
-            await saveSync(supabase, tournamentId, 'ambiguous', checkedAt, summary);
-            return json({ ok: true, status: 'ambiguous', ...summary });
+        const requestedDigilabId =
+            body.digilab_tournament_id == null ? null : Number(body.digilab_tournament_id);
+        const forceMatch = body.force_match === true;
+        if (
+            requestedDigilabId !== null &&
+            (!Number.isSafeInteger(requestedDigilabId) || requestedDigilabId <= 0)
+        ) {
+            return json({ error: 'digilab_tournament_id deve ser um inteiro positivo.' }, 400);
         }
 
-        if (forceMatch && requestedDigilabId && comparisons.length === 1) {
-            const reviewed = comparisons[0];
-            const digilabUrl = `${DIGILAB_SITE_URL}/tournament/${reviewed.digilab_tournament_id}`;
-            const summary = {
-                source: 'admin_manual_override',
-                manual_override: true,
-                request_count: requestCount,
-                compared_candidates: 1,
-                accepted_mismatches: reviewed.mismatches,
-                warnings: reviewed.warnings
-            };
-            await saveSync(supabase, tournamentId, 'matched', checkedAt, summary, {
-                digilabTournamentId: reviewed.digilab_tournament_id,
-                digilabUrl,
-                verifiedAt: checkedAt
-            });
-            return json({
-                ok: true,
-                status: 'matched',
-                manual_override: true,
-                digilab_tournament_id: reviewed.digilab_tournament_id,
-                digilab_url: digilabUrl,
-                ...summary
-            });
+        const { data: previousSync, error: syncReadError } = await supabase
+            .from('tournament_digilab_sync')
+            .select(
+                'tournament_id,digilab_tournament_id,digilab_url,status,verified_at,last_checked_at'
+            )
+            .eq('tournament_id', tournamentId)
+            .maybeSingle();
+
+        if (syncReadError)
+            return json({ error: 'Não foi possível ler o estado da integração.' }, 500);
+
+        if (previousSync?.status === 'matched') {
+            return json({ ok: true, reused: true, sync: previousSync });
         }
 
-        const summary = {
-            reason: 'candidate_mismatch',
-            request_count: requestCount,
-            candidates: comparisons.map((item) => ({
-                digilab_tournament_id: item.digilab_tournament_id,
-                mismatches: item.mismatches,
-                warnings: item.warnings
-            }))
-        };
-        await saveSync(supabase, tournamentId, 'mismatch', checkedAt, summary);
-        return json({ ok: true, status: 'mismatch', ...summary });
-    } catch (error) {
-        if (error instanceof SyncPersistenceError) {
-            return json({ error: 'Não foi possível salvar o estado da integração.' }, 500);
+        const retryAfterSeconds = forceMatch ? 0 : cooldownRemaining(previousSync?.last_checked_at);
+        if (retryAfterSeconds > 0) {
+            return json(
+                {
+                    ok: false,
+                    error: 'Aguarde antes de verificar este torneio novamente.',
+                    retry_after: retryAfterSeconds,
+                    sync: previousSync
+                },
+                429,
+                { 'Retry-After': String(retryAfterSeconds) }
+            );
         }
 
-        const isDigilabError = error instanceof DigilabHttpError;
-        const externalStatus = isDigilabError ? error.status : null;
-        const retryAfter = isDigilabError ? error.retryAfter : null;
-        const errorCode = externalStatus ? `digilab_${externalStatus}` : 'digilab_network_error';
+        const local = await loadLocalTournament(supabase, tournamentId);
+        if ('error' in local) return json({ error: local.error }, local.status);
+
+        const checkedAt = new Date().toISOString();
 
         try {
-            await saveSync(
-                supabase,
-                tournamentId,
-                'api_error',
-                checkedAt,
-                { stage: 'digilab_request', external_status: externalStatus },
-                { errorCode }
-            );
-        } catch {
-            return json({ error: 'Não foi possível salvar o estado da integração.' }, 500);
-        }
+            const discovery = requestedDigilabId
+                ? { candidates: [{ tournament_id: requestedDigilabId }], requestCount: 0 }
+                : await discoverCandidates(apiKey, local);
+            const candidates = discovery.candidates.slice(0, MAX_CANDIDATES);
 
-        if (externalStatus === 429) {
-            const headers = retryAfter ? { 'Retry-After': retryAfter } : undefined;
+            if (discovery.candidates.length > MAX_CANDIDATES) {
+                const summary = {
+                    reason: 'candidate_limit_exceeded',
+                    candidate_count: discovery.candidates.length,
+                    request_count: discovery.requestCount
+                };
+                await saveSync(supabase, tournamentId, 'ambiguous', checkedAt, summary);
+                return json({ ok: true, status: 'ambiguous', ...summary });
+            }
+
+            if (candidates.length === 0) {
+                const summary = {
+                    reason: 'no_candidates',
+                    request_count: discovery.requestCount
+                };
+                await saveSync(supabase, tournamentId, 'not_found', checkedAt, summary);
+                return json({ ok: true, status: 'not_found', ...summary });
+            }
+
+            const comparisons = [];
+            let requestCount = discovery.requestCount;
+
+            for (const candidate of candidates) {
+                const externalId = getExternalId(candidate);
+                if (!externalId) continue;
+
+                const detail = await digilabGet(apiKey, `/api/tournament/${externalId}`);
+                requestCount += 1;
+                comparisons.push(compareTournament(local, externalId, detail));
+            }
+
+            const matches = comparisons.filter((item) => item.mismatches.length === 0);
+
+            if (matches.length === 1) {
+                const match = matches[0];
+                const digilabUrl = `${DIGILAB_SITE_URL}/tournament/${match.digilab_tournament_id}`;
+                const summary = {
+                    request_count: requestCount,
+                    compared_candidates: comparisons.length,
+                    warnings: match.warnings
+                };
+                await saveSync(supabase, tournamentId, 'matched', checkedAt, summary, {
+                    digilabTournamentId: match.digilab_tournament_id,
+                    digilabUrl,
+                    verifiedAt: checkedAt
+                });
+                return json({
+                    ok: true,
+                    status: 'matched',
+                    digilab_tournament_id: match.digilab_tournament_id,
+                    digilab_url: digilabUrl,
+                    ...summary
+                });
+            }
+
+            if (matches.length > 1) {
+                const summary = {
+                    reason: 'multiple_exact_matches',
+                    request_count: requestCount,
+                    candidate_ids: matches.map((item) => item.digilab_tournament_id)
+                };
+                await saveSync(supabase, tournamentId, 'ambiguous', checkedAt, summary);
+                return json({ ok: true, status: 'ambiguous', ...summary });
+            }
+
+            if (forceMatch && requestedDigilabId && comparisons.length === 1) {
+                const reviewed = comparisons[0];
+                const digilabUrl = `${DIGILAB_SITE_URL}/tournament/${reviewed.digilab_tournament_id}`;
+                const summary = {
+                    source: 'admin_manual_override',
+                    manual_override: true,
+                    request_count: requestCount,
+                    compared_candidates: 1,
+                    accepted_mismatches: reviewed.mismatches,
+                    warnings: reviewed.warnings
+                };
+                await saveSync(supabase, tournamentId, 'matched', checkedAt, summary, {
+                    digilabTournamentId: reviewed.digilab_tournament_id,
+                    digilabUrl,
+                    verifiedAt: checkedAt
+                });
+                return json({
+                    ok: true,
+                    status: 'matched',
+                    manual_override: true,
+                    digilab_tournament_id: reviewed.digilab_tournament_id,
+                    digilab_url: digilabUrl,
+                    ...summary
+                });
+            }
+
+            const summary = {
+                reason: 'candidate_mismatch',
+                request_count: requestCount,
+                candidates: comparisons.map((item) => ({
+                    digilab_tournament_id: item.digilab_tournament_id,
+                    mismatches: item.mismatches,
+                    warnings: item.warnings
+                }))
+            };
+            await saveSync(supabase, tournamentId, 'mismatch', checkedAt, summary);
+            return json({ ok: true, status: 'mismatch', ...summary });
+        } catch (error) {
+            if (error instanceof SyncPersistenceError) {
+                return json({ error: 'Não foi possível salvar o estado da integração.' }, 500);
+            }
+
+            const isDigilabError = error instanceof DigilabHttpError;
+            const externalStatus = isDigilabError ? error.status : null;
+            const retryAfter = isDigilabError ? error.retryAfter : null;
+            const errorCode = externalStatus
+                ? `digilab_${externalStatus}`
+                : 'digilab_network_error';
+
+            try {
+                await saveSync(
+                    supabase,
+                    tournamentId,
+                    'api_error',
+                    checkedAt,
+                    { stage: 'digilab_request', external_status: externalStatus },
+                    { errorCode }
+                );
+            } catch {
+                return json({ error: 'Não foi possível salvar o estado da integração.' }, 500);
+            }
+
+            if (externalStatus === 429) {
+                const headers = retryAfter ? { 'Retry-After': retryAfter } : undefined;
+                return json(
+                    {
+                        ok: false,
+                        status: 'api_error',
+                        error: 'Limite do DigiLab atingido.',
+                        retry_after: retryAfter
+                    },
+                    429,
+                    headers
+                );
+            }
+
             return json(
                 {
                     ok: false,
                     status: 'api_error',
-                    error: 'Limite do DigiLab atingido.',
-                    retry_after: retryAfter
+                    error: 'Não foi possível consultar o DigiLab.',
+                    digilab_status: externalStatus
                 },
-                429,
-                headers
+                502
             );
         }
-
-        return json(
-            {
-                ok: false,
-                status: 'api_error',
-                error: 'Não foi possível consultar o DigiLab.',
-                digilab_status: externalStatus
-            },
-            502
-        );
-    }
-});
+    })
+);
 
 async function loadLocalTournament(supabase: any, tournamentId: number) {
     const { data: tournament, error: tournamentError } = await supabase
@@ -520,7 +527,7 @@ async function authorizeRequest(req: Request, supabase: any, verifyToken: string
         .select('user_id')
         .eq('user_id', data.user.id)
         .maybeSingle();
-    return !adminError && Boolean(admin);
+    return !adminError && Boolean(admin) && (await siteActorAllowed(supabase, data.user.id));
 }
 
 async function secretsMatch(provided: string, expected: string) {

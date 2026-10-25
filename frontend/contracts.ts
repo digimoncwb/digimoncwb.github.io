@@ -90,6 +90,75 @@ export interface MicroContext {
     navigate(name: RouteName, params?: Record<string, string>): void;
     href(name: RouteName, params?: Record<string, string>): string;
     loadScript(path: string): Promise<void>;
+    auth?: SiteAuth;
+}
+export interface SiteProfile {
+    user_id: string;
+    username: string;
+    display_name: string;
+    player_id: string | null;
+    status: 'active' | 'blocked' | 'closed';
+    privacy_version: string | null;
+    terms_version?: string | null;
+    adult_declared_at?: string | null;
+}
+export interface SiteAuthConfig {
+    enabled: boolean;
+    technical_contact: string;
+    support_email: string;
+    privacy_url: string | null;
+    privacy_version: string | null;
+    audit_retention_days: number | null;
+    terms_url?: string | null;
+    terms_version?: string | null;
+    legal_ready?: boolean;
+}
+export interface SiteLegalDeclarations {
+    termsAccepted: boolean;
+    privacyRead: boolean;
+    adultDeclared: boolean;
+}
+export interface SiteAuthState {
+    initialized: boolean;
+    available: boolean;
+    loading: boolean;
+    enabled: boolean;
+    user: { id: string; email?: string; confirmed: boolean } | null;
+    profile: SiteProfile | null;
+    isAdmin: boolean;
+    isMember: boolean;
+    config: SiteAuthConfig | null;
+    error: string;
+    recoveryRequired: boolean;
+    legalCurrent?: boolean;
+}
+export interface SiteAuth {
+    getSnapshot(): SiteAuthState;
+    subscribe(listener: () => void): () => void;
+    getAccessToken(): string | null;
+    initialize(): Promise<void>;
+    refresh(): Promise<void>;
+    login(email: string, password: string): Promise<void>;
+    signup(
+        email: string,
+        password: string,
+        displayName: string,
+        declarations: SiteLegalDeclarations
+    ): Promise<void>;
+    logout(): Promise<void>;
+    recover(email: string): Promise<void>;
+    changePassword(password: string): Promise<void>;
+    changeEmail(email: string): Promise<void>;
+    saveProfile(
+        username: string,
+        displayName: string,
+        declarations: SiteLegalDeclarations
+    ): Promise<void>;
+    requireMember(): Promise<void>;
+    requireAdmin(): Promise<void>;
+    open(view?: 'login' | 'profile' | 'admin' | 'password'): void;
+    request(path: string, options?: RequestInit): Promise<Response>;
+    rpc<T = unknown>(name: string, parameters?: Record<string, unknown>): Promise<T>;
 }
 export interface MicroHandle {
     update(context: MicroContext): void;
@@ -106,6 +175,7 @@ export interface Manifest {
 }
 declare global {
     interface Window {
+        digistatsAuth?: SiteAuth;
         digistatsAdminAuthenticated?: boolean;
         cardPortraits: {
             codes(): string[];

@@ -40,6 +40,65 @@ const empty = {
     status: '',
     sort: ''
 };
+
+test('Quick author edits patch only authorship and revision while protecting community decks from stale updates', async () => {
+    const api = model();
+    const deck = { id: 42, updated_at: '2026-10-25T12:00:00.123456+00:00' };
+    for (const creatorId of ['player-id', '']) {
+        const calls = [];
+        api.request = async (path, options = {}) => {
+            calls.push({ path, options });
+            return options.method === 'PATCH'
+                ? [
+                      {
+                          id: 42,
+                          creator_player_id: creatorId || null,
+                          creator: creatorId ? { name: 'Lukas' } : null,
+                          updated_at: '2026-10-25T13:00:00Z'
+                      }
+                  ]
+                : [{ draft_revision: 7, updated_at: deck.updated_at }];
+        };
+        const updated = await api.updateLibraryDeckAuthor(deck, creatorId);
+        assert.equal(updated.creator_player_id, creatorId || null);
+        assert.equal(calls.length, 2);
+        assert.ok(
+            calls.every((call) => call.path.includes('id=eq.42&tournament_result_id=is.null'))
+        );
+        assert.ok(calls[1].path.includes('draft_revision=eq.7'));
+        assert.ok(calls[1].path.includes(`updated_at=eq.${encodeURIComponent(deck.updated_at)}`));
+        assert.equal(calls[1].options.headers.Prefer, 'return=representation');
+        const payload = JSON.parse(calls[1].options.body);
+        assert.equal(payload.creator_player_id, creatorId || null);
+        assert.equal(payload.draft_revision, 8);
+        assert.deepEqual(Object.keys(payload).sort(), [
+            'creator_player_id',
+            'draft_revision',
+            'updated_at'
+        ]);
+    }
+});
+
+test('Quick author editing reports missing decks and concurrent changes instead of overwriting them', async () => {
+    const api = model();
+    const deck = { id: 42, updated_at: '2026-10-25T12:00:00Z' };
+    let calls = 0;
+    api.request = async () => {
+        calls++;
+        return [];
+    };
+    await assert.rejects(api.updateLibraryDeckAuthor(deck, 'player'), /não encontrado/);
+    assert.equal(calls, 1);
+    api.request = async () => [{ draft_revision: 8, updated_at: '2026-10-25T13:00:00Z' }];
+    await assert.rejects(api.updateLibraryDeckAuthor(deck, 'player'), /alterado/);
+    api.request = async (_path, options = {}) =>
+        options.method === 'PATCH' ? [] : [{ draft_revision: 8, updated_at: deck.updated_at }];
+    await assert.rejects(api.updateLibraryDeckAuthor(deck, 'player'), /alterado/);
+    api.request = async () => {
+        throw new Error('Sem permissão');
+    };
+    await assert.rejects(api.updateLibraryDeckAuthor(deck, 'player'), /Sem permissão/);
+});
 test('List point totals count every copy and Digi-Egg, use zero for unlisted cards, and stay absent for unscored formats', () => {
     const api = model();
     const cards = [

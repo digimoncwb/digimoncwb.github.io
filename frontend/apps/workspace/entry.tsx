@@ -113,6 +113,8 @@ function LegacyWorkspace({
                 await window.switchDashboardView(window.DIGISTATS_WORKSPACE_VIEW);
                 if (!current) return;
                 if (command) {
+                    if (window.digistatsAuth?.getSnapshot().enabled)
+                        await window.digistatsAuth.requireAdmin();
                     if (command.kind === 'create')
                         await window.openCreateTournamentModal(command.date);
                     else window.editTournament(command.id!);

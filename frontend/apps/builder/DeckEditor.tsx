@@ -41,6 +41,7 @@ import { DeckImageDialog } from './DeckImageDialog';
 import { loadDecks, type DeckRecord as ArchetypeRecord } from '../workspace/catalog-service';
 import { Portrait } from '../../shared/cards';
 import { SearchSelect } from '../../shared/SearchSelect';
+import { useSiteAuth, canEditCommunityDeck } from '../../shared/site-auth';
 import { Select } from '../../shared/Select';
 import { CatalogViewport } from './CatalogViewport';
 import { createPortal } from 'react-dom';
@@ -475,6 +476,7 @@ function RulesPanel({
 }
 
 export function DeckEditor({ context }: { context: MicroContext }) {
+    const account = useSiteAuth();
     const p = context.route.params;
     const resultId = p.get('resultId') || p.get('result_id');
     const identity = resultId || p.get('decklistId') || 'new';
@@ -482,6 +484,10 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const [error, setError] = useState('');
     const [retry, setRetry] = useState(0);
     const [record, setRecord] = useState<DeckRecord | null>(null);
+    const readOnly =
+        account.enabled &&
+        !!record?.id &&
+        (resultId ? !account.isAdmin : !canEditCommunityDeck(account, record.owner_user_id));
     const [result, setResult] = useState<Record<string, unknown> | null>(null);
     const [name, setName] = useState('MEU DECK DIGIMON');
     const nameField = useRef<HTMLTextAreaElement>(null);
@@ -894,6 +900,10 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     };
     const save = async () => {
         if (saving || !record) return;
+        if (readOnly) {
+            setSaveError('Somente o proprietário ou um administrador pode salvar este deck.');
+            return;
+        }
         if (!resultId && !archetypeId) {
             setSaveError('Selecione um tipo de deck cadastrado.');
             return;
@@ -919,7 +929,14 @@ export function DeckEditor({ context }: { context: MicroContext }) {
             });
             if (!alive.current) return;
             setRecord((old) =>
-                old ? { ...old, id: saved.id, draft_revision: saved.draft_revision } : old
+                old
+                    ? {
+                          ...old,
+                          id: saved.id,
+                          draft_revision: saved.draft_revision,
+                          owner_user_id: saved.owner_user_id ?? old.owner_user_id
+                      }
+                    : old
             );
             setSavedSignature(snapshot);
             setSaveToast(Date.now());
@@ -1013,6 +1030,42 @@ export function DeckEditor({ context }: { context: MicroContext }) {
         );
     return (
         <section className="deck-editor" ref={editorRef} data-mobile-panel={mobileTab}>
+            {readOnly && (
+                <div className="ed-warning" role="status">
+                    Este deck está disponível para consulta. Somente o proprietário ou um
+                    administrador pode salvar alterações.
+                    {!account.user && (
+                        <button
+                            className="ed-button"
+                            onClick={() => window.digistatsAuth?.open('login')}
+                        >
+                            Entrar
+                        </button>
+                    )}
+                    {!resultId && (
+                        <button
+                            className="ed-button"
+                            onClick={async () => {
+                                try {
+                                    await window.digistatsAuth!.requireMember();
+                                    const id = await window.digistatsAuth!.rpc<number>(
+                                        'copy_community_deck',
+                                        { p_source_id: record!.id }
+                                    );
+                                    context.navigate('builder', {
+                                        decklistId: String(id),
+                                        returnView: 'decks'
+                                    });
+                                } catch (error) {
+                                    setSaveError((error as Error).message);
+                                }
+                            }}
+                        >
+                            Criar minha cópia
+                        </button>
+                    )}
+                </div>
+            )}
             <div className="ed-breadcrumb">
                 <button onClick={() => leave(backHref)}>Deckbuilder</button>
                 <span>/</span>
@@ -1135,7 +1188,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                     >
                         <EditorIcon name="upload" /> Importar lista
                     </button>
-                    <button className="ed-button ed-primary" disabled={saving} onClick={save}>
+                    <button
+                        className="ed-button ed-primary"
+                        disabled={saving || readOnly}
+                        onClick={save}
+                    >
                         <EditorIcon name="save" /> {saving ? 'Salvando…' : 'Salvar'}
                     </button>
                     <div className="ed-more">
@@ -1242,7 +1299,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
             {saveError && (
                 <div className="ed-error" role="alert">
                     {saveError}
-                    <button className="ed-button" disabled={saving} onClick={save}>
+                    <button className="ed-button" disabled={saving || readOnly} onClick={save}>
                         Tentar salvar novamente
                     </button>
                 </div>
@@ -1758,7 +1815,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                 <button className="ed-button" onClick={() => setValidationOpen(true)}>
                     ⚠ Validar
                 </button>
-                <button className="ed-button ed-primary" disabled={saving} onClick={save}>
+                <button
+                    className="ed-button ed-primary"
+                    disabled={saving || readOnly}
+                    onClick={save}
+                >
                     <EditorIcon name="save" /> {saving ? 'Salvando…' : 'Salvar'}
                 </button>
             </div>

@@ -181,11 +181,16 @@ export function SiteFooter() {
                 </div>
                 {panel === 'privacy' ? (
                     <div className="privacy-content">
-                        <p className="muted">Atualizada em 5 de outubro de 2026</p>
+                        <p className="muted">Atualizada em 25 de outubro de 2026</p>
                         <p>
                             Esta política explica como o DIGIMON CWB trata dados ao apresentar
                             resultados de torneios, gerenciar cadastros e receber mensagens de
                             suporte.
+                        </p>
+                        <p>
+                            O site é organizado pela Comunidade Digimon CWB. Eduardo Lopes é o
+                            responsável técnico e o contato de contas e privacidade é{' '}
+                            <a href="mailto:dulopes1997@gmail.com">dulopes1997@gmail.com</a>.
                         </p>
                         <h3>Dados e finalidade</h3>
                         <p>
@@ -215,25 +220,26 @@ export function SiteFooter() {
                         </p>
                         <h3>Conservação dos dados</h3>
                         <p>
-                            O sistema mantém o histórico de torneios e as mensagens de suporte, sem
-                            um prazo automático de exclusão. Pedidos de revisão ou exclusão são
-                            avaliados pela equipe responsável.
+                            A auditoria da aplicação tem retenção de 90 dias, com rotina diária de
+                            limpeza. Esse prazo não se aplica automaticamente aos logs dos
+                            fornecedores, aos backups ou ao histórico público de torneios. As
+                            solicitações concluídas e mensagens de suporte resolvidas têm prazo de
+                            180 dias após conclusão, com revisão e limpeza manual pela equipe.
+                            Pedidos de correção, anonimização ou exclusão são avaliados conforme as
+                            condições aplicáveis.
                         </p>
                         <h3>Seus dados e contato</h3>
                         <p>
                             Você pode solicitar informações, acesso, correção ou exclusão dos seus
-                            dados, conforme as condições aplicáveis. Use o formulário abaixo e
-                            informe um e-mail para receber uma resposta.
+                            dados, conforme as condições aplicáveis. Escreva para o contato de
+                            privacidade; não é necessário ter uma conta ou enviar sua senha.
                         </p>
-                        <button
+                        <a
                             className="button secondary"
-                            onClick={() => {
-                                open('suggestion');
-                                setMessage('Solicitação sobre meus dados: ');
-                            }}
+                            href="mailto:dulopes1997@gmail.com?subject=Solicita%C3%A7%C3%A3o%20sobre%20meus%20dados%20-%20DIGIMON%20CWB"
                         >
                             Entrar em contato sobre meus dados
-                        </button>
+                        </a>
                         <p>
                             <a
                                 href="https://www.gov.br/anpd/pt-br/assuntos/titular-de-dados"

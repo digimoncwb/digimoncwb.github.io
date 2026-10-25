@@ -11,7 +11,7 @@
     window.createSupabaseHeaders = function createSupabaseHeaders(extraHeaders) {
         return {
             apikey: config.SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${config.SUPABASE_ANON_KEY}`,
+            Authorization: `Bearer ${window.digistatsAuth?.getAccessToken() || config.SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json',
             ...(extraHeaders || {})
         };

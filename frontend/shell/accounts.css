@@ -1,0 +1,128 @@
+dialog.list-dialog:has(.site-account) {
+    width: min(680px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 40px);
+    box-sizing: border-box;
+    background: var(--ds-panel, #111517);
+    color: var(--ds-text, #f1f4f2);
+    border: 1px solid var(--ds-line, #2c3437);
+    border-radius: 12px;
+    padding: 20px;
+    overflow: auto;
+}
+dialog.list-dialog.is-wide:has(.site-account) {
+    width: min(1100px, calc(100vw - 32px));
+}
+dialog.list-dialog:has(.site-account)::backdrop {
+    background: #000a;
+}
+dialog.list-dialog:has(.site-account) > header {
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+dialog.list-dialog:has(.site-account) > header h2 {
+    margin: 0;
+    font-size: 21px;
+}
+.site-account,
+.site-account form,
+.site-account section {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+.site-account p {
+    margin: 0;
+    line-height: 1.5;
+}
+.site-account form {
+    padding: 16px 0;
+}
+.site-account form + form,
+.site-account section,
+.site-account details {
+    border-top: 1px solid var(--ds-line);
+    padding-top: 16px;
+}
+.site-account label {
+    display: grid;
+    gap: 7px;
+    font-size: 14px;
+}
+.site-account :is(input:not([type='checkbox']), textarea, select) {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px;
+    border: 1px solid var(--ds-line);
+    border-radius: 7px;
+    background: var(--ds-bg);
+    color: var(--ds-text);
+    font: inherit;
+}
+.site-account .site-account-check {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+.site-account input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+}
+.site-account a {
+    color: var(--ds-accent);
+}
+.site-account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+.site-account .button {
+    min-height: 40px;
+    cursor: pointer;
+}
+.site-account .button[aria-pressed='true'] {
+    border-color: var(--ds-accent);
+}
+.site-account [role='alert'] {
+    color: #ff8d93;
+    overflow-wrap: anywhere;
+}
+.site-account [role='status'] {
+    color: #7adfb0;
+}
+.site-account table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.site-account :is(td, th) {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--ds-line);
+    vertical-align: top;
+}
+.site-account .site-account-table {
+    overflow: auto;
+    max-height: 65vh;
+}
+.site-account code,
+.site-account pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+}
+.site-account summary {
+    cursor: pointer;
+}
+.site-account-menu {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 12px;
+    flex-wrap: wrap;
+}

@@ -432,7 +432,29 @@ function switchAdminTab(tab) {
 // ============================================================
 // ADMIN AUTH / DIGILAB
 // ============================================================
+let adminSiteAuthListenerAttached = false;
+function synchronizeSiteAdminSession() {
+    const auth = window.digistatsAuth;
+    if (!auth?.getSnapshot().enabled) return;
+    const account = auth.getSnapshot();
+    if (!account.isAdmin || !account.user || !auth.getAccessToken()) {
+        clearAdminSession();
+        return;
+    }
+    adminAuthSession = { access_token: auth.getAccessToken(), user: { id: account.user.id } };
+    adminAuthProfile = account.profile;
+    setAdminAuthView(true);
+}
 async function initializeAdminAuth() {
+    if (!adminSiteAuthListenerAttached) {
+        window.addEventListener('digistats:auth-changed', synchronizeSiteAdminSession);
+        adminSiteAuthListenerAttached = true;
+    }
+    if (window.digistatsAuth?.getSnapshot().enabled) {
+        await window.digistatsAuth.refresh();
+        synchronizeSiteAdminSession();
+        return;
+    }
     setAdminAuthView(false);
     const stored = sessionStorage.getItem(ADMIN_AUTH_STORAGE_KEY);
     if (!stored) return;
@@ -450,6 +472,10 @@ async function initializeAdminAuth() {
 
 async function loginAdmin(event) {
     event.preventDefault();
+    if (window.digistatsAuth?.getSnapshot().enabled) {
+        window.digistatsAuth.open('login');
+        return;
+    }
     const passwordInput = document.getElementById('adminLoginPassword');
     const button = document.getElementById('adminLoginButton');
     const password = String(passwordInput?.value || '');
@@ -513,6 +539,11 @@ async function deriveAdminCredentialEmail(password) {
 }
 
 async function logoutAdmin() {
+    if (window.digistatsAuth?.getSnapshot().enabled) {
+        await window.digistatsAuth.logout();
+        clearAdminSession();
+        return;
+    }
     try {
         if (adminAuthSession?.access_token) {
             const config = getAdminConfig();
@@ -531,6 +562,10 @@ async function logoutAdmin() {
 }
 
 function openAdminPasswordModal() {
+    if (window.digistatsAuth?.getSnapshot().enabled) {
+        window.digistatsAuth.open('profile');
+        return;
+    }
     const modal = document.getElementById('adminChangePasswordModal');
     if (!modal || !adminAuthSession) return;
     showAdminModal(modal, 'adminCurrentPassword');
@@ -631,6 +666,11 @@ async function loadAdminProfile() {
 }
 
 async function refreshAdminSessionIfNeeded() {
+    if (window.digistatsAuth?.getSnapshot().enabled) {
+        await window.digistatsAuth.requireAdmin();
+        synchronizeSiteAdminSession();
+        return;
+    }
     if (!adminAuthSession?.refresh_token) throw new Error('Sessão inválida.');
     const expiresAt = Number(adminAuthSession.expires_at || 0) * 1000;
     if (expiresAt && expiresAt - Date.now() > 60_000) return;
@@ -705,6 +745,7 @@ function clearAdminSession() {
 }
 
 function persistAdminSession() {
+    if (window.digistatsAuth?.getSnapshot().enabled) return;
     sessionStorage.setItem(ADMIN_AUTH_STORAGE_KEY, JSON.stringify(adminAuthSession));
 }
 
@@ -2539,7 +2580,7 @@ async function uploadFormatBackground(file, code) {
         method: 'POST',
         headers: {
             apikey: window.APP_CONFIG.SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${window.APP_CONFIG.SUPABASE_ANON_KEY}`,
+            Authorization: `Bearer ${window.digistatsAuth?.getAccessToken() || window.APP_CONFIG.SUPABASE_ANON_KEY}`,
             'Content-Type': file.type || 'application/octet-stream',
             'x-upsert': 'true'
         },
@@ -2901,7 +2942,7 @@ async function toggleBucketBrowser() {
                 method: 'POST',
                 headers: {
                     apikey: window.APP_CONFIG.SUPABASE_ANON_KEY,
-                    Authorization: `Bearer ${window.APP_CONFIG.SUPABASE_ANON_KEY}`,
+                    Authorization: `Bearer ${window.digistatsAuth?.getAccessToken() || window.APP_CONFIG.SUPABASE_ANON_KEY}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
@@ -2994,7 +3035,7 @@ async function toggleStoreBucketBrowser() {
     const bucketBase = `${window.APP_CONFIG.SUPABASE_URL}/storage/v1/object/public/store-logos/`;
     const listHeaders = {
         apikey: window.APP_CONFIG.SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${window.APP_CONFIG.SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${window.digistatsAuth?.getAccessToken() || window.APP_CONFIG.SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json'
     };
 

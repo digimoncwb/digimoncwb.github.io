@@ -5,25 +5,40 @@ const vm = require('node:vm');
 const { stripTypeScriptTypes } = require('node:module');
 
 test('bootstrap starts independent scripts together and script URLs remain stable', async () => {
-    const elements = [], listeners = [];
+    const elements = [],
+        listeners = [];
     const sandbox = {
-        __CWB_ASSET_VERSION__: 'release-one', URL, URLSearchParams,
+        createSiteAuth: () => ({ initialize: async () => {} }),
+        __CWB_ASSET_VERSION__: 'release-one',
+        URL,
+        URLSearchParams,
         navigate() {},
         location: { href: 'https://example.test/', pathname: '/', search: '' },
         document: {
             querySelector: () => ({ content: './' }),
             createElement: () => ({}),
-            head: { prepend() {}, append(element) { elements.push(element); } }
+            head: {
+                prepend() {},
+                append(element) {
+                    elements.push(element);
+                }
+            }
         },
         window: { addEventListener: (...args) => listeners.push(args) }
     };
     const source = stripTypeScriptTypes(fs.readFileSync('frontend/shell/services.ts', 'utf8'))
-        .replace(/^import .*from.*;$/gm, '').replace(/export /g, '');
-    vm.runInNewContext(source + '\nthis.start=bootstrap;this.load=loadScript;dataService.refresh=()=>{};', sandbox);
+        .replace(/^import .*from.*;$/gm, '')
+        .replace(/export /g, '');
+    vm.runInNewContext(
+        source + '\nthis.start=bootstrap;this.load=loadScript;dataService.refresh=()=>{};',
+        sandbox
+    );
     const startup = sandbox.start();
     assert.equal(elements.length, 6, 'all bootstrap scripts start before any completes');
-    assert.ok(elements.every(element => new URL(element.src).searchParams.get('v') === 'release-one'));
-    elements.forEach(element => element.onload());
+    assert.ok(
+        elements.every((element) => new URL(element.src).searchParams.get('v') === 'release-one')
+    );
+    elements.forEach((element) => element.onload());
     await startup;
     await sandbox.load('config/supabase.js');
     assert.equal(elements.length, 6, 'a script is only inserted once');

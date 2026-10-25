@@ -144,10 +144,15 @@ test('catalog snapshot preserves links, replaces colors, registers formats and r
 });
 
 function api(fetch) {
-    const sandbox = { fetch, URLSearchParams, Deno: { serve() {} } };
+    const sandbox = {
+        fetch,
+        URLSearchParams,
+        Deno: { serve() {} },
+        withSiteAudit: (handler) => handler
+    };
     const source = stripTypeScriptTypes(
         fs.readFileSync('supabase/functions/digilab-deck-catalog/index.ts', 'utf8')
-    ).replace(/^import.*$/gm, '');
+    ).replace(/^import[\s\S]*?;\s*/gm, '');
     vm.runInNewContext(source + '\nthis.api={syncCatalog,toFormatRow};', sandbox);
     return sandbox.api;
 }

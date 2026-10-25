@@ -108,6 +108,7 @@ jobs:
                   elif git diff --quiet "$BEFORE_SHA" "$GITHUB_SHA" -- \
                     .github/workflows/ci.yml \
                     scripts/deploy-digilab-schema.js \
+                    scripts/check-site-account-schema.js \
                     database/migrations/20260924010000_reliable_digilab_sync.sql \
                     database/migrations/20261005010000_automate_digilab_catalog.sql \
                     database/migrations/20261005020000_schedule_digilab_catalog.sql \
@@ -121,7 +122,12 @@ jobs:
                     supabase/functions/digilab-deck-catalog \
                     supabase/functions/import-digilab-tournament \
                     supabase/functions/preview-digilab-import \
-                    supabase/functions/sync-new-digilab-tournaments; then
+                    supabase/functions/sync-new-digilab-tournaments \
+                    supabase/functions/verify-digilab-tournament \
+                    supabase/functions/digilab-health \
+                    supabase/functions/change-admin-password \
+                    supabase/functions/upload-card-image \
+                    supabase/functions/erase-site-account; then
                     echo "deploy=false" >> "$GITHUB_OUTPUT"
                   else
                     echo "deploy=true" >> "$GITHUB_OUTPUT"
@@ -155,7 +161,13 @@ jobs:
                     echo "::error::Configure the SUPABASE_ACCESS_TOKEN repository secret."
                     exit 1
                   fi
+                  node scripts/check-site-account-schema.js
                   supabase functions deploy import-digilab-tournament --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
                   supabase functions deploy preview-digilab-import --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
                   supabase functions deploy sync-new-digilab-tournaments --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
                   supabase functions deploy digilab-deck-catalog --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+                  supabase functions deploy verify-digilab-tournament --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+                  supabase functions deploy digilab-health --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+                  supabase functions deploy change-admin-password --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+                  supabase functions deploy upload-card-image --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+                  supabase functions deploy erase-site-account --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt

@@ -1,3 +1,4 @@
+import { withSiteAudit, siteActorAllowed, siteServiceHeaders } from '../_shared/site-security.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const CORS = {
@@ -22,71 +23,74 @@ class DigilabHttpError extends Error {
     }
 }
 
-Deno.serve(async (req) => {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-    if (req.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
+Deno.serve(
+    withSiteAudit(async (req) => {
+        if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+        if (req.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
 
-    const apiKey = Deno.env.get('DIGILAB_API_KEY');
-    const verifyToken = Deno.env.get('DIGILAB_VERIFY_TOKEN');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!apiKey || !supabaseUrl || !serviceRoleKey) {
-        return json({ error: 'Integração DigiLab não configurada.' }, 500);
-    }
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { persistSession: false, autoRefreshToken: false }
-    });
-
-    let body: JsonRecord = {};
-    try {
-        const rawBody = await req.text();
-        if (rawBody.trim()) body = JSON.parse(rawBody);
-    } catch {
-        return json({ error: 'JSON inválido.' }, 400);
-    }
-
-    const rawRequestedId = body.digilab_tournament_id;
-    const requestedId =
-        rawRequestedId == null || rawRequestedId === '' || Number(rawRequestedId) === 0
-            ? null
-            : Number(rawRequestedId);
-    if (requestedId !== null && (!Number.isSafeInteger(requestedId) || requestedId <= 0)) {
-        return json({ error: 'digilab_tournament_id deve ser um inteiro positivo.' }, 400);
-    }
-
-    const publicSingleTournamentRequest = Boolean(requestedId);
-    if (
-        !publicSingleTournamentRequest &&
-        !(await authorizeRequest(req, supabase, verifyToken || ''))
-    ) {
-        return json({ error: 'Não autorizado.' }, 401);
-    }
-
-    try {
-        if (requestedId) return await previewTournament(supabase, apiKey, requestedId);
-
-        const page = positiveInteger(body.page, 1, 1, 1000);
-        const perPage = positiveInteger(body.per_page, 100, 1, 100);
-        return await listInventory(supabase, apiKey, page, perPage);
-    } catch (error) {
-        if (error instanceof DigilabHttpError) {
-            const status = error.status === 429 ? 429 : 502;
-            const headers = error.retryAfter ? { 'Retry-After': error.retryAfter } : undefined;
-            return json(
-                {
-                    ok: false,
-                    error: 'Não foi possível consultar o DigiLab.',
-                    digilab_status: error.status || null,
-                    retry_after: error.retryAfter
-                },
-                status,
-                headers
-            );
+        const apiKey = Deno.env.get('DIGILAB_API_KEY');
+        const verifyToken = Deno.env.get('DIGILAB_VERIFY_TOKEN');
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (!apiKey || !supabaseUrl || !serviceRoleKey) {
+            return json({ error: 'Integração DigiLab não configurada.' }, 500);
         }
-        return json({ ok: false, error: 'Não foi possível montar a prévia.' }, 500);
-    }
-});
+
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+            global: { headers: siteServiceHeaders(req) }
+        });
+
+        let body: JsonRecord = {};
+        try {
+            const rawBody = await req.text();
+            if (rawBody.trim()) body = JSON.parse(rawBody);
+        } catch {
+            return json({ error: 'JSON inválido.' }, 400);
+        }
+
+        const rawRequestedId = body.digilab_tournament_id;
+        const requestedId =
+            rawRequestedId == null || rawRequestedId === '' || Number(rawRequestedId) === 0
+                ? null
+                : Number(rawRequestedId);
+        if (requestedId !== null && (!Number.isSafeInteger(requestedId) || requestedId <= 0)) {
+            return json({ error: 'digilab_tournament_id deve ser um inteiro positivo.' }, 400);
+        }
+
+        const publicSingleTournamentRequest = Boolean(requestedId);
+        if (
+            !publicSingleTournamentRequest &&
+            !(await authorizeRequest(req, supabase, verifyToken || ''))
+        ) {
+            return json({ error: 'Não autorizado.' }, 401);
+        }
+
+        try {
+            if (requestedId) return await previewTournament(supabase, apiKey, requestedId);
+
+            const page = positiveInteger(body.page, 1, 1, 1000);
+            const perPage = positiveInteger(body.per_page, 100, 1, 100);
+            return await listInventory(supabase, apiKey, page, perPage);
+        } catch (error) {
+            if (error instanceof DigilabHttpError) {
+                const status = error.status === 429 ? 429 : 502;
+                const headers = error.retryAfter ? { 'Retry-After': error.retryAfter } : undefined;
+                return json(
+                    {
+                        ok: false,
+                        error: 'Não foi possível consultar o DigiLab.',
+                        digilab_status: error.status || null,
+                        retry_after: error.retryAfter
+                    },
+                    status,
+                    headers
+                );
+            }
+            return json({ ok: false, error: 'Não foi possível montar a prévia.' }, 500);
+        }
+    })
+);
 
 async function listInventory(supabase: any, apiKey: string, page: number, perPage: number) {
     const query = new URLSearchParams({
@@ -698,7 +702,7 @@ async function authorizeRequest(req: Request, supabase: any, verifyToken: string
         .select('user_id')
         .eq('user_id', data.user.id)
         .maybeSingle();
-    return !adminError && Boolean(admin);
+    return !adminError && Boolean(admin) && (await siteActorAllowed(supabase, data.user.id));
 }
 
 async function secretsMatch(provided: string, expected: string) {

@@ -9,6 +9,8 @@ import { SiteFooter } from './SiteFooter';
 import { restoreAccent } from './ThemePicker';
 import { useNativeSelects } from '../shared/NativeSelects';
 import { loadStylesheet } from './styles';
+import { useSiteAuth } from '../shared/site-auth';
+import { AccountPanel } from './AccountPanel';
 import '../../shared/theme.css';
 import '../../demo-v2/styles.css';
 import '../../shared/presentation.css';
@@ -75,6 +77,23 @@ const sectionsLabel: Record<RouteName, string> = {
 };
 function Shell() {
     useNativeSelects();
+    const account = useSiteAuth();
+    const [accountView, setAccountView] = useState<
+        'login' | 'profile' | 'admin' | 'password' | null
+    >(null);
+    useEffect(() => {
+        const open = (event: Event) => {
+            const view = (event as CustomEvent).detail?.view;
+            setAccountView(
+                ['login', 'profile', 'admin', 'password'].includes(view) ? view : 'login'
+            );
+        };
+        window.addEventListener('digistats:account-open', open);
+        return () => window.removeEventListener('digistats:account-open', open);
+    }, []);
+    useEffect(() => {
+        if (account.recoveryRequired) setAccountView('password');
+    }, [account.recoveryRequired]);
     const [route, setRoute] = useState(readRoute),
         [expanded, setExpanded] = useState(''),
         [mobileOpen, setMobileOpen] = useState(false),
@@ -84,6 +103,7 @@ function Shell() {
     const outlet = useRef<HTMLDivElement>(null);
     const handles = useRef(new Map<string, { element: HTMLElement; handle: MicroHandle }>());
     const manifest = useRef<Manifest | null>(null);
+    const adminDenied = route.name === 'admin' && account.enabled && !account.isAdmin;
     useEffect(() => subscribeRoute(() => setRoute(readRoute())), []);
     const activeKey =
         (
@@ -100,6 +120,11 @@ function Shell() {
         let cancelled = false;
         setLoading(true);
         setError('');
+        if (adminDenied) {
+            for (const item of handles.current.values()) item.element.hidden = true;
+            setLoading(false);
+            return;
+        }
         const context: MicroContext = {
             route,
             active: true,
@@ -107,7 +132,8 @@ function Shell() {
             asset,
             navigate,
             href,
-            loadScript
+            loadScript,
+            auth: window.digistatsAuth
         };
         (async () => {
             manifest.current ||= await (
@@ -175,7 +201,7 @@ function Shell() {
         return () => {
             cancelled = true;
         };
-    }, [route, retry]);
+    }, [route, retry, adminDenied]);
     useEffect(() => {
         const onClick = (event: MouseEvent) => {
             const anchor = (event.target as Element)?.closest<HTMLAnchorElement>('a[href]');
@@ -248,70 +274,99 @@ function Shell() {
                     className={styles.navigation}
                     hidden={!mobileOpen}
                 >
-                    {sections.map((section) => (
-                        <div
-                            key={section.key}
-                            className={`nav-group${activeKey === section.key ? ' is-active' : ''}`}
-                        >
-                            {section.links.length > 1 ? (
-                                <>
-                                    <button
-                                        className="nav-expand"
-                                        aria-expanded={expanded === section.key}
-                                        aria-controls={`submenu-${section.key}`}
-                                        onClick={() =>
-                                            setExpanded(expanded === section.key ? '' : section.key)
+                    {sections
+                        .filter(
+                            (section) =>
+                                section.key !== 'admin' || !account.enabled || account.isAdmin
+                        )
+                        .map((section) => (
+                            <div
+                                key={section.key}
+                                className={`nav-group${activeKey === section.key ? ' is-active' : ''}`}
+                            >
+                                {section.links.length > 1 ? (
+                                    <>
+                                        <button
+                                            className="nav-expand"
+                                            aria-expanded={expanded === section.key}
+                                            aria-controls={`submenu-${section.key}`}
+                                            onClick={() =>
+                                                setExpanded(
+                                                    expanded === section.key ? '' : section.key
+                                                )
+                                            }
+                                        >
+                                            <span>{section.label}</span>
+                                            <span className="nav-chevron" aria-hidden="true">
+                                                ⌄
+                                            </span>
+                                        </button>
+                                        <div
+                                            id={`submenu-${section.key}`}
+                                            className="nav-submenu"
+                                            hidden={expanded !== section.key}
+                                        >
+                                            {section.links.map(([label, name, params]) => (
+                                                <a
+                                                    key={label}
+                                                    href={href(name, params)}
+                                                    aria-current={
+                                                        route.name === name &&
+                                                        (!params ||
+                                                            Object.entries(params).every(
+                                                                ([key, value]) =>
+                                                                    route.params.get(key) === value
+                                                            ))
+                                                            ? 'page'
+                                                            : undefined
+                                                    }
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        navigate(name, params);
+                                                    }}
+                                                >
+                                                    {label}
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <a
+                                        href={href(section.links[0][1])}
+                                        aria-current={
+                                            activeKey === section.key ? 'page' : undefined
                                         }
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            navigate(section.links[0][1]);
+                                        }}
                                     >
-                                        <span>{section.label}</span>
-                                        <span className="nav-chevron" aria-hidden="true">
-                                            ⌄
-                                        </span>
-                                    </button>
-                                    <div
-                                        id={`submenu-${section.key}`}
-                                        className="nav-submenu"
-                                        hidden={expanded !== section.key}
-                                    >
-                                        {section.links.map(([label, name, params]) => (
-                                            <a
-                                                key={label}
-                                                href={href(name, params)}
-                                                aria-current={
-                                                    route.name === name &&
-                                                    (!params ||
-                                                        Object.entries(params).every(
-                                                            ([key, value]) =>
-                                                                route.params.get(key) === value
-                                                        ))
-                                                        ? 'page'
-                                                        : undefined
-                                                }
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    navigate(name, params);
-                                                }}
-                                            >
-                                                {label}
-                                            </a>
-                                        ))}
-                                    </div>
-                                </>
-                            ) : (
-                                <a
-                                    href={href(section.links[0][1])}
-                                    aria-current={activeKey === section.key ? 'page' : undefined}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        navigate(section.links[0][1]);
-                                    }}
-                                >
-                                    {section.label}
-                                </a>
-                            )}
-                        </div>
-                    ))}
+                                        {section.label}
+                                    </a>
+                                )}
+                            </div>
+                        ))}
                 </nav>
+                {account.available && (
+                    <div className="site-account-menu">
+                        <button
+                            className="button secondary"
+                            onClick={() => setAccountView(account.user ? 'profile' : 'login')}
+                        >
+                            {account.user
+                                ? account.profile?.display_name || 'Minha conta'
+                                : 'Entrar'}
+                        </button>
+                        {account.isAdmin && (
+                            <button
+                                className="button secondary"
+                                onClick={() => setAccountView('admin')}
+                            >
+                                Contas e auditoria
+                            </button>
+                        )}
+                    </div>
+                )}
                 <div id="sidebar-support" className="sidebar-support" hidden={!mobileOpen} />
             </aside>
             <main className={styles.main}>
@@ -323,6 +378,17 @@ function Shell() {
                     </header>
                 )}
                 {loading && <Loader />}
+                {adminDenied && (
+                    <div className={styles.failure} role="alert">
+                        <p>Esta área exige uma conta administrativa ativa.</p>
+                        <button
+                            className="button secondary"
+                            onClick={() => setAccountView(account.user ? 'profile' : 'login')}
+                        >
+                            Acessar minha conta
+                        </button>
+                    </div>
+                )}
                 {error && (
                     <div className={styles.failure} role="alert">
                         <p>{error}</p>
@@ -334,6 +400,13 @@ function Shell() {
                 <div ref={outlet} className={styles.content} />
                 <SiteFooter />
             </main>
+            {accountView && window.digistatsAuth && (
+                <AccountPanel
+                    auth={window.digistatsAuth}
+                    view={accountView}
+                    onClose={() => setAccountView(null)}
+                />
+            )}
         </div>
     );
 }

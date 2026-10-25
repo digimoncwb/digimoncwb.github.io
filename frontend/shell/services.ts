@@ -1,5 +1,6 @@
 import type { DataService, Snapshot } from '../contracts';
 import { navigate } from './routes';
+import { createSiteAuth } from './auth-service';
 export const projectRoot = new URL(
     document.querySelector<HTMLMetaElement>('meta[name="digistats-root"]')?.content || '../',
     location.href
@@ -117,5 +118,7 @@ export async function bootstrap() {
         ].map(loadScript)
     );
     window.addEventListener('digistats:tournaments-changed', () => void dataService.refresh());
+    window.digistatsAuth ||= createSiteAuth();
+    void window.digistatsAuth.initialize();
     void dataService.refresh();
 }

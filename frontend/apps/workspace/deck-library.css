@@ -1,6 +1,10 @@
 .deck-library {
     --library-border: var(--ds-line, #293139);
 }
+.deck-library .deck-delete-button {
+    color: #ff747b;
+    border-color: #ff747b66;
+}
 .deck-free-identity {
     display: flex;
     align-items: center;

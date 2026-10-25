@@ -1,4 +1,5 @@
 import { tryCardImageFallback } from '../../shared/card-image-fallback';
+import { useSiteAuth } from '../../shared/site-auth';
 import { useEffect, useState } from 'react';
 import { playerStatistics } from './player-statistics';
 import { orderListCards } from '../builder/editor-service';
@@ -92,6 +93,8 @@ function Colors({ colors }: { colors?: string }) {
     return <DeckColors colors={colors || ''} />;
 }
 export function PlayersPage({ context }: { context: MicroContext }) {
+    const account = useSiteAuth();
+    const canManage = !account.enabled || account.isAdmin;
     const records = useRecords(loadPlayers, context.active, 'players');
     const [query, setQuery] = useState(''),
         [inactive, setInactive] = useState(false),
@@ -116,9 +119,9 @@ export function PlayersPage({ context }: { context: MicroContext }) {
             setSelected(records.items.find((player) => String(player.id) === selectedId) || null);
     }, [context.active, context.route, records.items]);
     useEffect(() => {
-        if (context.active && context.route.params.get('action') === 'create-player')
+        if (canManage && context.active && context.route.params.get('action') === 'create-player')
             setEditing({});
-    }, [context.active, context.route]);
+    }, [context.active, context.route, canManage]);
     const filtered = records.items.filter(
         (player) =>
             (inactive || player.is_active !== false) &&
@@ -136,9 +139,11 @@ export function PlayersPage({ context }: { context: MicroContext }) {
                     title="Jogadores"
                     description="Encontre jogadores e acompanhe seus resultados."
                 />
-                <button className="button primary" onClick={() => setEditing({})}>
-                    + Adicionar jogador
-                </button>
+                {canManage && (
+                    <button className="button primary" onClick={() => setEditing({})}>
+                        + Adicionar jogador
+                    </button>
+                )}
             </div>
             <ListToolbar
                 query={query}
@@ -200,14 +205,18 @@ export function PlayersPage({ context }: { context: MicroContext }) {
                                 </button>
                                 <ActionMenu label={player.name}>
                                     <button onClick={() => setSelected(player)}>Ver perfil</button>
-                                    <button onClick={() => setEditing(player)}>
-                                        Editar cadastro
-                                    </button>
-                                    <button onClick={() => setConfirming(player)}>
-                                        {player.is_active === false
-                                            ? 'Reativar jogador'
-                                            : 'Inativar jogador'}
-                                    </button>
+                                    {canManage && (
+                                        <button onClick={() => setEditing(player)}>
+                                            Editar cadastro
+                                        </button>
+                                    )}
+                                    {canManage && (
+                                        <button onClick={() => setConfirming(player)}>
+                                            {player.is_active === false
+                                                ? 'Reativar jogador'
+                                                : 'Inativar jogador'}
+                                        </button>
+                                    )}
                                 </ActionMenu>
                             </article>
                         ))}
@@ -234,12 +243,16 @@ export function PlayersPage({ context }: { context: MicroContext }) {
                     record={selectedPlayer}
                     onClose={() => setSelected(null)}
                     onEdit={() => {
+                        if (!canManage) {
+                            window.digistatsAuth?.open(account.user ? 'profile' : 'login');
+                            return;
+                        }
                         setSelected(null);
                         setEditing(selectedPlayer);
                     }}
                 />
             )}
-            {editing && (
+            {editing && canManage && (
                 <PlayerForm
                     player={editing}
                     onClose={() => setEditing(null)}
@@ -250,7 +263,7 @@ export function PlayersPage({ context }: { context: MicroContext }) {
                     }}
                 />
             )}
-            {confirming && (
+            {confirming && canManage && (
                 <ActivityDialog
                     kind="players"
                     record={confirming}

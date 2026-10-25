@@ -126,6 +126,13 @@ export function paginate<T>(items: T[], page: number, size: number) {
     };
 }
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const auth = window.digistatsAuth;
+    if (
+        auth?.getSnapshot().enabled &&
+        options.method &&
+        !['GET', 'HEAD'].includes(options.method.toUpperCase())
+    )
+        await auth.requireMember();
     const response = await fetch(window.APP_CONFIG.SUPABASE_URL + path, {
         ...options,
         headers: window.createSupabaseHeaders({

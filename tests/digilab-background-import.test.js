@@ -4,7 +4,10 @@ const { readFileSync } = require('node:fs');
 const { stripTypeScriptTypes } = require('node:module');
 const { webcrypto } = require('node:crypto');
 const vm = require('node:vm');
-const source = readFileSync('supabase/functions/sync-new-digilab-tournaments/index.ts', 'utf8');
+const source = readFileSync(
+    'supabase/functions/sync-new-digilab-tournaments/index.ts',
+    'utf8'
+).replace(/^import[\s\S]*?;\s*/gm, '');
 
 async function runWorker(options = {}) {
     let handler;
@@ -13,6 +16,9 @@ async function runWorker(options = {}) {
     const finishes = [];
     const updates = [];
     const context = vm.createContext({
+        withSiteAudit: (handler) => handler,
+        siteServiceHeaders: () => ({}),
+        siteActorAllowed: async () => true,
         Deno: {
             env: { get: () => 'test-value' },
             serve: (callback) => {

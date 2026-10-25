@@ -9,6 +9,7 @@ export interface LibraryDeck {
     updated_at: string;
     archetype_id?: string | null;
     creator_player_id?: string | null;
+    owner_user_id?: string | null;
     archetype?: { name: string; colors?: string; deck_images?: { image_url: string }[] } | null;
     creator?: { name: string } | null;
 }
@@ -107,7 +108,9 @@ export function filterParticipations(rows: Participation[], filters: LibraryFilt
 }
 export function loadLibraryDecks(signal?: AbortSignal) {
     return readRows<LibraryDeck>(
-        '/rest/v1/decklists?tournament_result_id=is.null&select=id,name,deck_format_id,updated_at,archetype_id,creator_player_id,archetype:decks(name,colors,deck_images(image_url)),creator:players(name)&order=updated_at.desc,id.desc',
+        '/rest/v1/decklists?tournament_result_id=is.null&select=id,name,deck_format_id,updated_at,archetype_id,creator_player_id,archetype:decks(name,colors,deck_images(image_url)),creator:players(name)' +
+            (window.digistatsAuth?.getSnapshot().available ? ',owner_user_id' : '') +
+            '&order=updated_at.desc,id.desc',
         signal
     );
 }
@@ -159,6 +162,34 @@ export async function createLibraryDeck(name: string, formatId: string) {
     });
     if (!rows?.[0]) throw new Error('Não foi possível criar o deck.');
     return rows[0];
+}
+export async function updateLibraryDeckAuthor(deck: LibraryDeck, creatorId: string) {
+    const path = `/rest/v1/decklists?id=eq.${encodeURIComponent(deck.id)}&tournament_result_id=is.null`;
+    const [current] = await request<{ draft_revision: number; updated_at: string }[]>(
+        `${path}&select=draft_revision,updated_at`
+    );
+    if (!current) throw new Error('Deck da comunidade não encontrado ou sem permissão.');
+    if (current.updated_at !== deck.updated_at)
+        throw new Error('Este deck foi alterado. Atualize a lista e tente novamente.');
+    const [updated] = await request<
+        Pick<LibraryDeck, 'id' | 'creator_player_id' | 'creator' | 'updated_at'>[]
+    >(
+        `${path}&draft_revision=eq.${current.draft_revision}&updated_at=eq.${encodeURIComponent(current.updated_at)}&select=id,creator_player_id,updated_at,creator:players(name)`,
+        {
+            method: 'PATCH',
+            headers: { Prefer: 'return=representation' },
+            body: JSON.stringify({
+                creator_player_id: creatorId || null,
+                draft_revision: current.draft_revision + 1,
+                updated_at: new Date().toISOString()
+            })
+        }
+    );
+    if (!updated)
+        throw new Error(
+            'Este deck foi alterado ou não pode ser editado. Atualize a lista e tente novamente.'
+        );
+    return updated;
 }
 export async function loadListCards(id: string | number, signal?: AbortSignal) {
     const rows = await request<{ draft_cards: { code: string; qty: number }[] | null }[]>(

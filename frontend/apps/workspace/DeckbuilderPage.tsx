@@ -26,6 +26,7 @@ import {
     participationRows,
     filterParticipations,
     loadLibraryDecks,
+    updateLibraryDeckAuthor,
     loadListCards,
     loadLibraryCardLists,
     listPoints,
@@ -36,6 +37,8 @@ import {
     type Participation
 } from './deck-library';
 import './deck-library.css';
+import { deleteCommunityDeck } from './delete-community-deck';
+import { useSiteAuth, canEditCommunityDeck } from '../../shared/site-auth';
 
 const tabs = [
     ['free', 'Decks da Comunidade'],
@@ -70,6 +73,7 @@ function ListViewIcon() {
 }
 
 export function DecksPage({ context }: { context: MicroContext }) {
+    const account = useSiteAuth();
     const { data, loading: dataLoading, error: dataError } = useData(context.data);
     const params = context.route.params;
     const tab = tabs.some(([key]) => key === params.get('tab'))
@@ -93,13 +97,34 @@ export function DecksPage({ context }: { context: MicroContext }) {
     const [freeError, setFreeError] = useState('');
     const [revision, setRevision] = useState(0);
     const [more, setMore] = useState(false);
-    const [create, setCreate] = useState<null | { importing: boolean; format: string }>(null);
+    const [create, setCreate] = useState<null | {
+        importing: boolean;
+        format: string;
+        creator?: string;
+    }>(null);
     const [preview, setPreview] = useState<Preview | null>(null);
     const [associate, setAssociate] = useState<Participation | null>(null);
     const [source, setSource] = useState('');
     const [busy, setBusy] = useState(false);
     const [actionError, setActionError] = useState('');
     const [replace, setReplace] = useState(false);
+    const [adminAuthenticated, setAdminAuthenticated] = useState(
+        () => window.digistatsAdminAuthenticated === true
+    );
+    const [pendingDelete, setPendingDelete] = useState<LibraryDeck | null>(null);
+    const [deleteBusy, setDeleteBusy] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
+    const [libraryNotice, setLibraryNotice] = useState('');
+    const [authorDeck, setAuthorDeck] = useState<LibraryDeck | null>(null);
+    const [authorId, setAuthorId] = useState('');
+    const [authorBusy, setAuthorBusy] = useState(false);
+    const [authorError, setAuthorError] = useState('');
+    useEffect(() => {
+        const update = () => setAdminAuthenticated(window.digistatsAdminAuthenticated === true);
+        window.addEventListener('digistats:admin-auth-changed', update);
+        update();
+        return () => window.removeEventListener('digistats:admin-auth-changed', update);
+    }, []);
     const activeFormats = (data.deckFormats || []).filter((f) => f.is_active !== false);
     const formatLabel = (code: string) =>
         (data.deckFormats || []).find((f) => f.code === code)?.name || code;
@@ -138,7 +163,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
             setLoading(false);
         });
         return () => controller.abort();
-    }, [context.active, revision]);
+    }, [context.active, revision, account.available, account.user?.id]);
     const filters = {
         query: get('query'),
         store: get('store'),
@@ -153,7 +178,8 @@ export function DecksPage({ context }: { context: MicroContext }) {
     const filteredFree = freeDecks.filter(
         (deck) =>
             normalizeSearch(deck.name).includes(normalizeSearch(get('freeQuery'))) &&
-            (!get('freeFormat') || String(deck.deck_format_id) === get('freeFormat'))
+            (!get('freeFormat') || String(deck.deck_format_id) === get('freeFormat')) &&
+            (!get('mine') || (!!account.user && deck.owner_user_id === account.user.id))
     );
     const page = Math.max(1, Number(get('page')) || 1);
     const size = [5, 10, 20, 40, 80].includes(Number(get('size')))
@@ -219,10 +245,19 @@ export function DecksPage({ context }: { context: MicroContext }) {
         returnView: 'decks',
         libraryState
     });
-    const beginCreate = (importing = false, format = '') => {
+    const beginCreate = async (importing = false, format = '') => {
         setActionError('');
+        if (account.enabled) {
+            try {
+                await window.digistatsAuth?.requireMember();
+            } catch (error) {
+                setLibraryNotice((error as Error).message);
+                return;
+            }
+        }
         setCreate({
             importing,
+            creator: account.profile?.player_id || '',
             format:
                 format ||
                 String(activeFormats.find((f) => f.is_default)?.id || activeFormats[0]?.id || '')
@@ -622,6 +657,23 @@ export function DecksPage({ context }: { context: MicroContext }) {
                             (tab === 'free' ? (
                                 <>
                                     <p role="status">{filteredFree.length} decks da comunidade</p>
+                                    {account.enabled && (
+                                        <label className="format-inline-check">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!get('mine')}
+                                                onChange={() => {
+                                                    if (!account.user) {
+                                                        window.digistatsAuth?.open('login');
+                                                        return;
+                                                    }
+                                                    update({ mine: get('mine') ? '' : '1' });
+                                                }}
+                                            />
+                                            Meus decks
+                                        </label>
+                                    )}
+                                    {libraryNotice && <p role="status">{libraryNotice}</p>}
                                     {summaries.error && (
                                         <p role="alert">
                                             {summaries.error}{' '}
@@ -638,6 +690,10 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                     )}
                                     <div className="deck-free-grid">
                                         {freePaging.items.map((deck) => {
+                                            const mayEdit = canEditCommunityDeck(
+                                                account,
+                                                deck.owner_user_id
+                                            );
                                             const format = data.deckFormats?.find(
                                                 (format) =>
                                                     String(format.id) ===
@@ -734,8 +790,111 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                                                 )
                                                             }
                                                         >
-                                                            Editar deck
+                                                            {mayEdit ? 'Editar deck' : 'Abrir deck'}
                                                         </button>
+                                                        {mayEdit && (
+                                                            <button
+                                                                type="button"
+                                                                className="button secondary"
+                                                                aria-label={`Editar autor de ${deck.name}`}
+                                                                onClick={() => {
+                                                                    setAuthorDeck(deck);
+                                                                    setAuthorId(
+                                                                        deck.creator_player_id || ''
+                                                                    );
+                                                                    setAuthorError('');
+                                                                    setLibraryNotice('');
+                                                                }}
+                                                            >
+                                                                Editar autor
+                                                            </button>
+                                                        )}
+                                                        {account.available && (
+                                                            <button
+                                                                type="button"
+                                                                className="button secondary"
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        await window.digistatsAuth!.requireMember();
+                                                                        const id =
+                                                                            await window.digistatsAuth!.rpc<number>(
+                                                                                'copy_community_deck',
+                                                                                {
+                                                                                    p_source_id:
+                                                                                        deck.id
+                                                                                }
+                                                                            );
+                                                                        context.navigate(
+                                                                            'builder',
+                                                                            {
+                                                                                ...freeParams(deck),
+                                                                                decklistId:
+                                                                                    String(id)
+                                                                            }
+                                                                        );
+                                                                    } catch (error) {
+                                                                        setLibraryNotice(
+                                                                            (error as Error).message
+                                                                        );
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Criar cópia
+                                                            </button>
+                                                        )}
+                                                        {account.enabled &&
+                                                            !deck.owner_user_id &&
+                                                            !account.isAdmin && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="button secondary"
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await window.digistatsAuth!.requireMember();
+                                                                            if (
+                                                                                !window.confirm(
+                                                                                    `Solicitar propriedade de ${deck.name}? A administração validará a associação.`
+                                                                                )
+                                                                            )
+                                                                                return;
+                                                                            await window.digistatsAuth!.rpc(
+                                                                                'submit_account_request',
+                                                                                {
+                                                                                    p_type: 'deck_claim',
+                                                                                    p_decklist_id:
+                                                                                        deck.id
+                                                                                }
+                                                                            );
+                                                                            setLibraryNotice(
+                                                                                'Solicitação de propriedade enviada para análise.'
+                                                                            );
+                                                                        } catch (error) {
+                                                                            setLibraryNotice(
+                                                                                (error as Error)
+                                                                                    .message
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    Solicitar propriedade
+                                                                </button>
+                                                            )}
+                                                        {(account.enabled
+                                                            ? mayEdit
+                                                            : adminAuthenticated) && (
+                                                            <button
+                                                                type="button"
+                                                                className="button secondary deck-delete-button"
+                                                                aria-label={`Excluir deck ${deck.name}`}
+                                                                onClick={() => {
+                                                                    setPendingDelete(deck);
+                                                                    setDeleteError('');
+                                                                    setLibraryNotice('');
+                                                                }}
+                                                            >
+                                                                Excluir deck
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </article>
                                             );
@@ -884,6 +1043,152 @@ export function DecksPage({ context }: { context: MicroContext }) {
                     </>
                 )}
             </div>
+            {authorDeck && (
+                <Dialog
+                    title={`Editar autor — ${authorDeck.name}`}
+                    busy={authorBusy}
+                    onClose={() => {
+                        if (!authorBusy) setAuthorDeck(null);
+                    }}
+                >
+                    <form
+                        className="deck-library-form"
+                        onSubmit={async (event) => {
+                            event.preventDefault();
+                            if (authorBusy) return;
+                            if (
+                                authorId &&
+                                !players.some((player) => String(player.id) === authorId)
+                            ) {
+                                setAuthorError('Selecione um jogador cadastrado nas sugestões.');
+                                return;
+                            }
+                            setAuthorBusy(true);
+                            setAuthorError('');
+                            try {
+                                const updated = await updateLibraryDeckAuthor(authorDeck, authorId);
+                                setFreeDecks((old) =>
+                                    old.map((deck) =>
+                                        String(deck.id) === String(authorDeck.id)
+                                            ? { ...deck, ...updated }
+                                            : deck
+                                    )
+                                );
+                                setAuthorDeck(null);
+                                setLibraryNotice(`Autor de ${authorDeck.name} atualizado.`);
+                            } catch (error) {
+                                setAuthorError((error as Error).message);
+                            } finally {
+                                setAuthorBusy(false);
+                            }
+                        }}
+                    >
+                        <SearchSelect
+                            label="Autor do deck"
+                            value={authorId}
+                            onChange={setAuthorId}
+                            commitOnly
+                            placeholder="Digite o nome do jogador"
+                            emptyMessage="Nenhum jogador encontrado."
+                            options={[
+                                { value: '', label: 'Sem autor' },
+                                ...(authorDeck.creator_player_id &&
+                                !players.some(
+                                    (player) => String(player.id) === authorDeck.creator_player_id
+                                )
+                                    ? [
+                                          {
+                                              value: authorDeck.creator_player_id,
+                                              label: authorDeck.creator?.name || 'Autor atual'
+                                          }
+                                      ]
+                                    : []),
+                                ...players.map((player) => ({
+                                    value: String(player.id),
+                                    label: player.name
+                                }))
+                            ]}
+                        />
+                        {authorError && <p role="alert">{authorError}</p>}
+                        <div className="deck-library-actions">
+                            <button
+                                type="button"
+                                className="button secondary"
+                                disabled={authorBusy}
+                                onClick={() => setAuthorDeck(null)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="submit"
+                                className="button primary"
+                                disabled={
+                                    authorBusy || authorId === (authorDeck.creator_player_id || '')
+                                }
+                            >
+                                {authorBusy ? 'Salvando…' : 'Salvar autor'}
+                            </button>
+                        </div>
+                    </form>
+                </Dialog>
+            )}
+            {pendingDelete && (
+                <Dialog
+                    title="Excluir deck da comunidade?"
+                    busy={deleteBusy}
+                    onClose={() => {
+                        if (!deleteBusy) setPendingDelete(null);
+                    }}
+                >
+                    <div className="deck-library-form">
+                        <p>
+                            Excluir <strong>{pendingDelete.name}</strong> e sua lista de cartas?
+                            Esta ação não pode ser desfeita.
+                        </p>
+                        {deleteError && <p role="alert">{deleteError}</p>}
+                        <div className="deck-library-actions">
+                            <button
+                                type="button"
+                                className="button secondary"
+                                disabled={deleteBusy}
+                                onClick={() => setPendingDelete(null)}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                className="button secondary deck-delete-button"
+                                disabled={deleteBusy}
+                                onClick={async () => {
+                                    if (deleteBusy) return;
+                                    setDeleteBusy(true);
+                                    setDeleteError('');
+                                    try {
+                                        await deleteCommunityDeck(
+                                            pendingDelete.id,
+                                            pendingDelete.updated_at
+                                        );
+                                        setFreeDecks((old) =>
+                                            old.filter(
+                                                (deck) =>
+                                                    String(deck.id) !== String(pendingDelete.id)
+                                            )
+                                        );
+                                        setPendingDelete(null);
+                                        setLibraryNotice(`Deck ${pendingDelete.name} excluído.`);
+                                    } catch (error) {
+                                        setDeleteError((error as Error).message);
+                                    } finally {
+                                        setDeleteBusy(false);
+                                    }
+                                }}
+                            >
+                                {deleteBusy ? 'Excluindo…' : 'Excluir deck'}
+                            </button>
+                        </div>
+                    </div>
+                </Dialog>
+            )}
             {create && (
                 <Dialog
                     title={create.importing ? 'Importar lista' : 'Criar deck'}
@@ -987,6 +1292,10 @@ export function DecksPage({ context }: { context: MicroContext }) {
                         <SearchSelect
                             label="Jogador (opcional)"
                             name="creator"
+                            value={create.creator || ''}
+                            onChange={(creator) =>
+                                setCreate((old) => (old ? { ...old, creator } : old))
+                            }
                             placeholder="Digite o nome do jogador"
                             emptyMessage="Nenhum jogador encontrado."
                             options={players.map((player) => ({

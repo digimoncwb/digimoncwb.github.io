@@ -11,6 +11,7 @@ import {
     type TournamentResultRecord
 } from './catalog-service';
 import { paginateTournamentWeeks } from './tournament-weeks';
+import { useSiteAuth } from '../../shared/site-auth';
 
 export interface TournamentCommand {
     kind: 'create' | 'edit';
@@ -25,6 +26,7 @@ export function TournamentsPage({
     context: MicroContext;
     onEditor(command: TournamentCommand): void;
 }) {
+    const account = useSiteAuth();
     const snapshot = useData(context.data);
     const [query, setQuery] = useState(''),
         [period, setPeriod] = useState(''),
@@ -42,6 +44,10 @@ export function TournamentsPage({
         .sort()
         .reverse();
     const openEditor = (kind: 'create' | 'edit', id?: string, date?: string) => {
+        if (account.enabled && !account.isAdmin) {
+            window.digistatsAuth?.open(account.user ? 'profile' : 'login');
+            return;
+        }
         setSelected(null);
         onEditor({ kind, id, date, token: Date.now() });
     };

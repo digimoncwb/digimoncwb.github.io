@@ -6,6 +6,11 @@ const adminSession = {
     profile: null,
     async restore() {
         try {
+            if (window.digistatsAuth?.getSnapshot().enabled) {
+                await window.digistatsAuth.refresh();
+                await this.verify();
+                return true;
+            }
             this.session = JSON.parse(sessionStorage.getItem('digistats.admin.session') || 'null');
             if (!this.session) return false;
             await this.refresh();
@@ -25,6 +30,8 @@ const adminSession = {
         sessionStorage.setItem('digistats.admin.session', JSON.stringify(this.session));
     },
     async request(path, options = {}) {
+        if (window.digistatsAuth?.getSnapshot().enabled)
+            return window.digistatsAuth.request(path, options);
         return fetch(`${window.APP_CONFIG.SUPABASE_URL}${path}`, {
             ...options,
             headers: window.createSupabaseHeaders({
@@ -34,6 +41,12 @@ const adminSession = {
         });
     },
     async verify() {
+        if (window.digistatsAuth?.getSnapshot().enabled) {
+            const account = window.digistatsAuth.getSnapshot();
+            if (!account.isAdmin) throw new Error('Acesso administrativo não autorizado.');
+            this.profile = account.profile;
+            return;
+        }
         if (!this.session?.user?.id || !this.session.access_token)
             throw new Error('Sessão inválida.');
         const query = new URLSearchParams({
@@ -54,6 +67,11 @@ const adminSession = {
         this.profile = rows[0];
     },
     async refresh() {
+        if (window.digistatsAuth?.getSnapshot().enabled) {
+            await window.digistatsAuth.refresh();
+            await this.verify();
+            return;
+        }
         if (!this.session?.refresh_token) throw new Error('Entre para continuar.');
         if (Number(this.session.expires_at) * 1000 - Date.now() > 60000) return;
         const response = await this.request('/auth/v1/token?grant_type=refresh_token', {
@@ -69,6 +87,10 @@ const adminSession = {
         this.persist();
     },
     async login(password) {
+        if (window.digistatsAuth?.getSnapshot().enabled) {
+            window.digistatsAuth.open('login');
+            throw new Error('Entre com o e-mail e a senha da sua conta no site.');
+        }
         const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
         const hash = [...new Uint8Array(digest)]
             .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -98,6 +120,11 @@ const adminSession = {
         }
     },
     async logout() {
+        if (window.digistatsAuth?.getSnapshot().enabled) {
+            await window.digistatsAuth.logout();
+            this.clear();
+            return;
+        }
         try {
             if (this.session) await this.request('/auth/v1/logout', { method: 'POST' });
         } catch {

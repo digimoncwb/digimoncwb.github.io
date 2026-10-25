@@ -51,6 +51,7 @@ export interface DeckRecord {
     tournament_result_id?: string | null;
     archetype_id?: string | null;
     creator_player_id?: string | null;
+    owner_user_id?: string | null;
     creator?: { name: string } | null;
 }
 let assetBoot: Promise<void> | null = null;
@@ -108,6 +109,7 @@ export async function loadDeck(
     context: MicroContext,
     signal: AbortSignal
 ): Promise<{ deck: DeckRecord; entries: Entry[]; result: Record<string, unknown> | null }> {
+    if (window.digistatsAuth) await window.digistatsAuth.initialize();
     const p = context.route.params;
     const resultId = p.get('resultId') || p.get('result_id');
     const id = p.get('decklistId');
@@ -136,7 +138,7 @@ export async function loadDeck(
     const rows =
         resultId || id
             ? await request<DeckRecord[]>(
-                  `/rest/v1/decklists?${resultId ? `tournament_result_id=eq.${encodeURIComponent(resultId)}` : `id=eq.${encodeURIComponent(id!)}&tournament_result_id=is.null`}&select=id,name,deck_format_id,draft_cards,draft_revision,tournament_result_id,archetype_id,creator_player_id,creator:players(name)`,
+                  `/rest/v1/decklists?${resultId ? `tournament_result_id=eq.${encodeURIComponent(resultId)}` : `id=eq.${encodeURIComponent(id!)}&tournament_result_id=is.null`}&select=id,name,deck_format_id,draft_cards,draft_revision,tournament_result_id,archetype_id,creator_player_id,creator:players(name)${window.digistatsAuth?.getSnapshot().available ? ',owner_user_id' : ''}`,
                   { signal }
               )
             : [];
@@ -180,6 +182,7 @@ export async function saveDraft(input: {
     archetypeId?: string | null;
     creatorPlayerId?: string | null;
 }) {
+    if (window.digistatsAuth?.getSnapshot().enabled) await window.digistatsAuth.requireMember();
     const response = await fetch(window.APP_CONFIG.SUPABASE_URL + '/rest/v1/rpc/save_deck_draft', {
         method: 'POST',
         headers: window.createSupabaseHeaders(),
@@ -208,6 +211,7 @@ export async function saveDraft(input: {
         id: number;
         draft_revision: number;
         rules_revision: number;
+        owner_user_id?: string | null;
     }>;
 }
 export async function resolveDetails(context: MicroContext, code: string): Promise<Card> {

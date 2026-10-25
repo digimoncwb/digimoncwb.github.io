@@ -21,6 +21,12 @@
         }
 
         const requestOptions = options || {};
+        if (window.digistatsAuth?.getSnapshot().enabled) {
+            if (!['GET', 'HEAD'].includes((requestOptions.method || 'GET').toUpperCase())) {
+                await window.digistatsAuth.requireMember();
+            }
+            return window.digistatsAuth.request(path, requestOptions);
+        }
         const headers = getDefaultHeaders(requestOptions.headers);
         const response = await fetch(`${baseUrl}${path}`, {
             ...requestOptions,

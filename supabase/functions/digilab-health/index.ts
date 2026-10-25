@@ -1,3 +1,4 @@
+import { withSiteAudit, siteActorAllowed, siteServiceHeaders } from '../_shared/site-security.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const CORS = {
@@ -8,70 +9,73 @@ const CORS = {
 
 const DIGILAB_HEALTH_URL = 'https://api.digilab.cards/api/tournaments?per_page=1';
 
-Deno.serve(async (req) => {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-    if (req.method !== 'GET' && req.method !== 'POST') {
-        return json({ ok: false, error: 'Método não permitido.' }, 405);
-    }
+Deno.serve(
+    withSiteAudit(async (req) => {
+        if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+        if (req.method !== 'GET' && req.method !== 'POST') {
+            return json({ ok: false, error: 'Método não permitido.' }, 405);
+        }
 
-    const apiKey = Deno.env.get('DIGILAB_API_KEY');
-    const verifyToken = Deno.env.get('DIGILAB_VERIFY_TOKEN') || '';
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!apiKey || !supabaseUrl || !serviceRoleKey) {
-        return json(
-            { ok: false, configured: false, error: 'Integração DigiLab não configurada.' },
-            500
-        );
-    }
+        const apiKey = Deno.env.get('DIGILAB_API_KEY');
+        const verifyToken = Deno.env.get('DIGILAB_VERIFY_TOKEN') || '';
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (!apiKey || !supabaseUrl || !serviceRoleKey) {
+            return json(
+                { ok: false, configured: false, error: 'Integração DigiLab não configurada.' },
+                500
+            );
+        }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { persistSession: false, autoRefreshToken: false }
-    });
-    if (!(await authorizeRequest(req, supabase, verifyToken))) {
-        return json({ ok: false, error: 'Não autorizado.' }, 401);
-    }
-
-    try {
-        const response = await fetch(DIGILAB_HEALTH_URL, {
-            headers: { 'X-API-Key': apiKey }
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+            global: { headers: siteServiceHeaders(req) }
         });
-        const body = await response.json().catch(() => null);
+        if (!(await authorizeRequest(req, supabase, verifyToken))) {
+            return json({ ok: false, error: 'Não autorizado.' }, 401);
+        }
 
-        if (!response.ok) {
+        try {
+            const response = await fetch(DIGILAB_HEALTH_URL, {
+                headers: { 'X-API-Key': apiKey }
+            });
+            const body = await response.json().catch(() => null);
+
+            if (!response.ok) {
+                return json(
+                    {
+                        ok: false,
+                        configured: true,
+                        digilab_status: response.status,
+                        retry_after: response.headers.get('retry-after'),
+                        error:
+                            typeof body?.error === 'string'
+                                ? body.error
+                                : 'Erro retornado pelo DigiLab.'
+                    },
+                    502
+                );
+            }
+
+            return json({
+                ok: true,
+                configured: true,
+                digilab_status: response.status,
+                returned_items: Array.isArray(body?.data) ? body.data.length : null,
+                pagination_received: Boolean(body?.pagination)
+            });
+        } catch {
             return json(
                 {
                     ok: false,
                     configured: true,
-                    digilab_status: response.status,
-                    retry_after: response.headers.get('retry-after'),
-                    error:
-                        typeof body?.error === 'string'
-                            ? body.error
-                            : 'Erro retornado pelo DigiLab.'
+                    error: 'Não foi possível conectar ao DigiLab.'
                 },
                 502
             );
         }
-
-        return json({
-            ok: true,
-            configured: true,
-            digilab_status: response.status,
-            returned_items: Array.isArray(body?.data) ? body.data.length : null,
-            pagination_received: Boolean(body?.pagination)
-        });
-    } catch {
-        return json(
-            {
-                ok: false,
-                configured: true,
-                error: 'Não foi possível conectar ao DigiLab.'
-            },
-            502
-        );
-    }
-});
+    })
+);
 
 async function authorizeRequest(req: Request, supabase: any, verifyToken: string) {
     const operatorToken = req.headers.get('x-digilab-verify-token') || '';
@@ -88,7 +92,7 @@ async function authorizeRequest(req: Request, supabase: any, verifyToken: string
         .select('user_id')
         .eq('user_id', data.user.id)
         .maybeSingle();
-    return !adminError && Boolean(admin);
+    return !adminError && Boolean(admin) && (await siteActorAllowed(supabase, data.user.id));
 }
 
 async function secretsMatch(provided: string, expected: string) {

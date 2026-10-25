@@ -28,8 +28,9 @@ function setup({
     };
     const source = stripTypeScriptTypes(
         fs.readFileSync('supabase/functions/digilab-deck-catalog/index.ts', 'utf8')
-    ).replace(/^import.*$/gm, '');
+    ).replace(/^import[\s\S]*?;\s*/gm, '');
     const sandbox = {
+        withSiteAudit: (handler) => handler,
         Deno: { serve() {} },
         AbortSignal: globalThis.AbortSignal,
         fetch: async (url) => {

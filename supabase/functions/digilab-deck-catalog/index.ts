@@ -1,3 +1,4 @@
+import { withSiteAudit, siteActorAllowed, siteServiceHeaders } from '../_shared/site-security.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const CORS = {
@@ -21,116 +22,122 @@ class DigilabHttpError extends Error {
     }
 }
 
-Deno.serve(async (req) => {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-    if (req.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
+Deno.serve(
+    withSiteAudit(async (req) => {
+        if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+        if (req.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
 
-    const apiKey = Deno.env.get('DIGILAB_API_KEY');
-    const verifyToken = Deno.env.get('DIGILAB_VERIFY_TOKEN') || '';
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!apiKey || !supabaseUrl || !serviceRoleKey) {
-        return json({ error: 'Integração DigiLab não configurada.' }, 500);
-    }
+        const apiKey = Deno.env.get('DIGILAB_API_KEY');
+        const verifyToken = Deno.env.get('DIGILAB_VERIFY_TOKEN') || '';
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        if (!apiKey || !supabaseUrl || !serviceRoleKey) {
+            return json({ error: 'Integração DigiLab não configurada.' }, 500);
+        }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-        auth: { persistSession: false, autoRefreshToken: false }
-    });
-    const backgroundToken = Deno.env.get('DIGILAB_BACKGROUND_SYNC_TOKEN') || '';
-    const backgroundAuthorized = Boolean(
-        backgroundToken &&
-        (await secretsMatch(req.headers.get('x-digilab-background-token') || '', backgroundToken))
-    );
-    if (!backgroundAuthorized && !(await authorizeRequest(req, supabase, verifyToken))) {
-        return json({ error: 'Não autorizado.' }, 401);
-    }
+        const supabase = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+            global: { headers: siteServiceHeaders(req) }
+        });
+        const backgroundToken = Deno.env.get('DIGILAB_BACKGROUND_SYNC_TOKEN') || '';
+        const backgroundAuthorized = Boolean(
+            backgroundToken &&
+            (await secretsMatch(
+                req.headers.get('x-digilab-background-token') || '',
+                backgroundToken
+            ))
+        );
+        if (!backgroundAuthorized && !(await authorizeRequest(req, supabase, verifyToken))) {
+            return json({ error: 'Não autorizado.' }, 401);
+        }
 
-    let input: JsonRecord = {};
-    try {
-        input = await req.json();
-    } catch {
-        return json({ error: 'JSON inválido.' }, 400);
-    }
+        let input: JsonRecord = {};
+        try {
+            input = await req.json();
+        } catch {
+            return json({ error: 'JSON inválido.' }, 400);
+        }
 
-    const action = String(input.action || 'list');
-    if (backgroundAuthorized && !['sync', 'audit_tournaments'].includes(action))
-        return json({ error: 'Ação não autorizada para sincronização.' }, 403);
-    try {
-        if (action === 'audit_tournaments') {
-            if (input.digilab_tournament_id) {
-                const id = Number(input.digilab_tournament_id);
-                if (!Number.isSafeInteger(id) || id <= 0)
-                    return json({ error: 'ID inválido.' }, 400);
-                const detail = await digilabGet(apiKey, `/api/tournament/${id}`);
-                if (detail.tournament?.scene?.slug !== 'curitiba')
-                    return json({ error: 'Scene inválida.' }, 422);
+        const action = String(input.action || 'list');
+        if (backgroundAuthorized && !['sync', 'audit_tournaments'].includes(action))
+            return json({ error: 'Ação não autorizada para sincronização.' }, 403);
+        try {
+            if (action === 'audit_tournaments') {
+                if (input.digilab_tournament_id) {
+                    const id = Number(input.digilab_tournament_id);
+                    if (!Number.isSafeInteger(id) || id <= 0)
+                        return json({ error: 'ID inválido.' }, 400);
+                    const detail = await digilabGet(apiKey, `/api/tournament/${id}`);
+                    if (detail.tournament?.scene?.slug !== 'curitiba')
+                        return json({ error: 'Scene inválida.' }, 422);
+                    return json({
+                        ok: true,
+                        tournament: detail.tournament,
+                        standings: detail.standings?.map((row: JsonRecord) => ({
+                            placement: row.placement,
+                            player: row.player,
+                            deck: row.deck
+                        })),
+                        dnfs: detail.dnfs
+                    });
+                }
+                const page = positiveInteger(input.page, 1, 1, MAX_PAGES);
+                const listing = await digilabGet(
+                    apiKey,
+                    `/api/tournaments?scene=curitiba&per_page=100&page=${page}`
+                );
+                const meta =
+                    page === 1
+                        ? await digilabGet(
+                              apiKey,
+                              '/api/meta?scene=curitiba&format=EX12&group_by=archetype&per_page=100'
+                          )
+                        : null;
                 return json({
                     ok: true,
-                    tournament: detail.tournament,
-                    standings: detail.standings?.map((row: JsonRecord) => ({
-                        placement: row.placement,
-                        player: row.player,
-                        deck: row.deck
+                    data: listing.data?.map((row: JsonRecord) => ({
+                        tournament_id: row.tournament_id,
+                        event_date: row.event_date,
+                        format: row.format,
+                        store_name: row.store_name,
+                        player_count: row.player_count
                     })),
-                    dnfs: detail.dnfs
+                    pagination: listing.pagination,
+                    formats: listing.formats,
+                    meta
                 });
             }
-            const page = positiveInteger(input.page, 1, 1, MAX_PAGES);
-            const listing = await digilabGet(
-                apiKey,
-                `/api/tournaments?scene=curitiba&per_page=100&page=${page}`
-            );
-            const meta =
-                page === 1
-                    ? await digilabGet(
-                          apiKey,
-                          '/api/meta?scene=curitiba&format=EX12&group_by=archetype&per_page=100'
-                      )
-                    : null;
-            return json({
-                ok: true,
-                data: listing.data?.map((row: JsonRecord) => ({
-                    tournament_id: row.tournament_id,
-                    event_date: row.event_date,
-                    format: row.format,
-                    store_name: row.store_name,
-                    player_count: row.player_count
-                })),
-                pagination: listing.pagination,
-                formats: listing.formats,
-                meta
-            });
-        }
-        if (action === 'sync') {
-            const synced = await syncCatalog(supabase, apiKey);
-            const catalog = await loadCatalog(supabase);
-            return json({ ok: true, ...synced, ...catalog });
-        }
-        if (action === 'list') {
-            return json({ ok: true, ...(await loadCatalog(supabase)) });
-        }
-        return json(
-            { error: 'O cadastro de decks é gerenciado automaticamente pelo DigiLab.' },
-            403
-        );
-    } catch (error) {
-        if (error instanceof DigilabHttpError) {
+            if (action === 'sync') {
+                const synced = await syncCatalog(supabase, apiKey);
+                const catalog = await loadCatalog(supabase);
+                return json({ ok: true, ...synced, ...catalog });
+            }
+            if (action === 'list') {
+                return json({ ok: true, ...(await loadCatalog(supabase)) });
+            }
             return json(
-                {
-                    error: error.status === 429 ? 'Limite do DigiLab atingido.' : error.message,
-                    digilab_status: error.status,
-                    retry_after: error.retryAfter
-                },
-                error.status === 429 ? 429 : 502,
-                error.retryAfter ? { 'Retry-After': error.retryAfter } : undefined
+                { error: 'O cadastro de decks é gerenciado automaticamente pelo DigiLab.' },
+                403
+            );
+        } catch (error) {
+            if (error instanceof DigilabHttpError) {
+                return json(
+                    {
+                        error: error.status === 429 ? 'Limite do DigiLab atingido.' : error.message,
+                        digilab_status: error.status,
+                        retry_after: error.retryAfter
+                    },
+                    error.status === 429 ? 429 : 502,
+                    error.retryAfter ? { 'Retry-After': error.retryAfter } : undefined
+                );
+            }
+            return json(
+                { error: error instanceof Error ? error.message : 'Falha no catálogo de decks.' },
+                500
             );
         }
-        return json(
-            { error: error instanceof Error ? error.message : 'Falha no catálogo de decks.' },
-            500
-        );
-    }
-});
+    })
+);
 
 async function syncCatalog(supabase: any, apiKey: string) {
     const { data: run, error: runError } = await supabase
@@ -463,7 +470,7 @@ async function authorizeRequest(req: Request, supabase: any, verifyToken: string
         .select('user_id')
         .eq('user_id', data.user.id)
         .maybeSingle();
-    return !adminError && Boolean(admin);
+    return !adminError && Boolean(admin) && (await siteActorAllowed(supabase, data.user.id));
 }
 
 async function secretsMatch(provided: string, expected: string) {
