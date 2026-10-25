@@ -1,0 +1,7 @@
+{
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": "587",
+    "smtp_user": "digimoncwb@gmail.com",
+    "smtp_admin_email": "digimoncwb@gmail.com",
+    "smtp_sender_name": "DIGIMON CWB"
+}
