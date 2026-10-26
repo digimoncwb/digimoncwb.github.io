@@ -11,7 +11,7 @@ test('Live account tests cannot create users or send requests without explicit d
             requests++;
             throw Error('Unexpected network call');
         };
-        const { runLiveAccountJourney } = await import('../scripts/test-live-account-journey.mjs');
+        const { runLiveAccountJourney } = await import('../scripts/verify-account-journey.mjs');
         await assert.rejects(runLiveAccountJourney(), /Explicit authorization required/);
         assert.equal(requests, 0);
     } finally {

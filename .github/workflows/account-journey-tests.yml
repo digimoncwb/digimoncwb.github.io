@@ -39,4 +39,4 @@ jobs:
                   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
                   SUPABASE_PROJECT_ID: vllqakohumoinpdwnsqa
                   ACCOUNT_JOURNEY_AUTHORIZED: ${{ inputs.authorize_disposable_account }}
-              run: node scripts/test-live-account-journey.mjs
+              run: node scripts/verify-account-journey.mjs

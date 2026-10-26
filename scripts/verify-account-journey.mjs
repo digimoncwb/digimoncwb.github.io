@@ -1,4 +1,4 @@
-// Explicitly authorized, isolated live Auth tests. No email-sending endpoint is
+// Explicitly authorized, isolated live Auth verification. No email-sending endpoint is
 // called. Tokens, generated links, passwords and service keys stay in memory.
 import { randomUUID, randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
