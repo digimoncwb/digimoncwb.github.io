@@ -1,0 +1,22 @@
+name: Auth email delivery diagnostics
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    diagnose:
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22.19.0'
+            - name: Inspect email delivery logs without sending messages
+              env:
+                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+                  SUPABASE_PROJECT_ID: vllqakohumoinpdwnsqa
+              run: node scripts/diagnose-auth-email.js
