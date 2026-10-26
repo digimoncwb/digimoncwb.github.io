@@ -7,7 +7,11 @@ const runId = randomUUID().replaceAll('-', '');
 const steps = [];
 let currentStep = 'preflight';
 const ensure = (condition, label) => {
-    if (!condition) throw Error(label);
+    if (!condition) {
+        const error = Error(label);
+        error.safeLabel = label;
+        throw error;
+    }
 };
 async function step(name, execute) {
     currentStep = name;
@@ -321,7 +325,44 @@ export async function runLiveAccountJourney() {
             );
         });
     } catch (error) {
-        failure = { step: currentStep, error_type: error.name || 'Error' };
+        failure = {
+            step: currentStep,
+            error_type: error.name || 'Error',
+            ...(error.safeLabel ? { reason: error.safeLabel } : {})
+        };
+        if (page && !page.isClosed()) {
+            try {
+                failure.browser = await page.evaluate((id) => {
+                    const state = window.digistatsAuth?.getSnapshot();
+                    const pending = localStorage.getItem(
+                        `digistats.pending-signup-declarations.${id}`
+                    );
+                    const error = state?.error || '';
+                    return {
+                        hostname: location.hostname,
+                        pathname: location.pathname,
+                        initialized: !!state?.initialized,
+                        available: !!state?.available,
+                        loading: !!state?.loading,
+                        has_user: !!state?.user,
+                        confirmed: !!state?.user?.confirmed,
+                        has_profile: !!state?.profile,
+                        legal_current: !!state?.legalCurrent,
+                        pending_declarations_present: !!pending,
+                        error_present: !!error,
+                        pkce_error: /pkce/i.test(error),
+                        legal_error: /termos|privacidade|aceit|perfil/i.test(error),
+                        callback_error: /invalid|expired|expir|token|callback/i.test(error)
+                    };
+                }, userId || '');
+            } catch {
+                /* The browser can be on an unavailable external page. */
+            }
+        }
+        if (userId && admin) {
+            const inspected = await admin.auth.admin.getUserById(userId);
+            failure.server_identity_confirmed = !!inspected.data?.user?.email_confirmed_at;
+        }
     } finally {
         currentStep = 'cleanup';
         try {
