@@ -216,6 +216,9 @@ export function AccountPanel({
                     </form>
                 ) : loggedView ? (
                     <>
+                        {state.profileRequired && (
+                            <p>Conclua os aceites abaixo para liberar os recursos da sua conta.</p>
+                        )}
                         <div className="site-account-identity">
                             <strong>{state.profile?.display_name || 'Minha conta'}</strong>
                             <span className="muted">{state.user?.email}</span>

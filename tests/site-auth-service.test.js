@@ -156,7 +156,7 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
                     account = {
                         ...account,
                         ...(url.endsWith('/save_my_site_profile_legal')
-                            ? { legal_current: true }
+                            ? { legal_current: true, is_member: true }
                             : {}),
                         profile: {
                             ...account.profile,
@@ -598,4 +598,32 @@ test('Legacy route-prefixed email callbacks are repaired before SDK initializati
     await instance.api.initialize();
     await instance.api.recover('user@example.test');
     assert.equal(instance.calls.at(-1).options.redirectTo, 'https://site.example/index.html');
+});
+
+test('Enforced accounts without current declarations open the profile and regain access after authenticated acceptance', async () => {
+    const instance = setup();
+    instance.setAccount({
+        profile: {
+            user_id: 'user-a',
+            username: 'user_a',
+            display_name: 'User A',
+            status: 'active'
+        },
+        is_admin: false,
+        is_member: false,
+        legal_current: false
+    });
+    await instance.api.initialize();
+    await instance.api.login('user@example.test', 'a-long-password');
+    assert.equal(instance.api.getSnapshot().profileRequired, true);
+    assert.equal(instance.api.getSnapshot().isMember, false);
+    await assert.rejects(instance.api.requireMember(), /aceites em Minha conta/);
+    await instance.api.saveProfile('user_a', 'User A', {
+        termsAccepted: true,
+        privacyRead: true,
+        adultDeclared: true
+    });
+    assert.equal(instance.api.getSnapshot().profileRequired, false);
+    assert.equal(instance.api.getSnapshot().isMember, true);
+    assert.equal(instance.api.getSnapshot().legalCurrent, true);
 });

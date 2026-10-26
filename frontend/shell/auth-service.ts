@@ -256,7 +256,16 @@ export function createSiteAuth(): SiteAuth {
             loading: false,
             error: '',
             legalCurrent: data?.legal_current === true,
-            profileRequired: googleSignInPending && data?.legal_current !== true
+            profileRequired:
+                (googleSignInPending && data?.legal_current !== true) ||
+                !!(
+                    state.enabled &&
+                    user.email_confirmed_at &&
+                    data?.profile?.status === 'active' &&
+                    state.config?.legal_ready &&
+                    data?.legal_current !== true &&
+                    data?.is_member !== true
+                )
         });
     };
     client.auth.onAuthStateChange((event, next) => {
@@ -531,6 +540,8 @@ export function createSiteAuth(): SiteAuth {
             }
             if (!state.isMember) {
                 api.open('profile');
+                if (state.profileRequired)
+                    throw new Error('Conclua os aceites em Minha conta para continuar.');
                 throw new Error('Confirme seu e-mail, verifique seu perfil e use uma conta ativa.');
             }
         },
