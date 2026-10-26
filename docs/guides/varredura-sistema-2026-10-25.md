@@ -50,3 +50,11 @@ A versão publicada foi validada pelo CI com 275 testes passando, incluindo o te
 A publicação da revisão `978023f` concluiu com sucesso no GitHub Actions, incluindo frontend e integrações. As páginas públicas foram conferidas em HTTPS e a versão `2026-10-25.1` foi registrada no banco. O cadastro foi liberado (`legal_ready=true`), com preservação das contas, dos decks e do modo de operação geral. Uma verificação no site público confirmou os dois documentos acessíveis, três declarações inicialmente desmarcadas, botão de cadastro habilitado e ícone da senha centralizado em celular. Nenhuma conta artificial foi criada nessa verificação.
 
 A publicação seguinte, `8c8575a`, adicionou o login opcional com Google e os documentos `2026-10-25.2`, preservando os textos da primeira versão. A rodada completa dessa publicação passou com 280 testes. O botão público chegou à tela de login do Google com PKCE; o acesso por e-mail continuou disponível. A configuração e os limites dessa verificação estão em [Login com Google](login-google.md).
+
+## Entrega de e-mail não confirmada
+
+O responsável informou que os e-mails de recuperação solicitados não chegaram. Portanto, o envio transacional por e-mail continua **sem aprovação de entrega**, apesar dos testes de aplicação e das respostas HTTP 200. A varredura não deve ser interpretada como comprovação de funcionamento de todas as dependências externas.
+
+O banco confirmou os dois destinatários existentes e o processamento das recuperações às 19:56 de 25/10/2026, horário de Brasília. Uma consulta posterior aos logs externos do Auth encontrou os dois eventos de recuperação concluídos, sem erro SMTP identificado nos registros disponíveis. O SMTP customizado está configurado, o envio por e-mail habilitado e não há hook de e-mail substituindo esse fluxo. Não foram enviados novos e-mails nessa investigação.
+
+Esses registros não mostram confirmação de entrega na caixa postal nem uma rejeição pelo Gmail. A próxima verificação é localizar as mensagens na pasta **Enviados** da conta remetente e conferir o recebimento e eventual aviso de falha no provedor. Até essa verificação, a causa da não chegada permanece indeterminada. O workflow **Auth email delivery diagnostics** permite repetir a consulta de leitura com resumos sem endereços, tokens ou credenciais; ele não envia mensagens nem altera o SMTP.
