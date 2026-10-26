@@ -7,6 +7,7 @@ export interface PlayerRecord {
     bandai_nick?: string | null;
     digilab_name?: string | null;
     is_active?: boolean;
+    avatar_url?: string | null;
 }
 export interface DeckRecord {
     id: string | number;

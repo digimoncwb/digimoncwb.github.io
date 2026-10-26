@@ -59,6 +59,9 @@
     }
 
     window.initPlayersPage = initPlayersPage;
+    window.addEventListener('digistats:players-changed', () => {
+        if (playersPageInitialized && document.getElementById('playersList')) void loadPlayers();
+    });
     window.resetPlayersPage = function resetPlayersPage() {
         playersPageInitialized = false;
         playerSearchTerm = '';
@@ -389,7 +392,7 @@
                         .join('');
                     return `<article class="player-profile${inactive ? ' is-inactive' : ''}">
                 <div class="player-profile-header">
-                    <span class="player-initials" aria-hidden="true">${escapeHtml(initials)}</span>
+                    <span class="player-initials" aria-hidden="true">${/^https:\/\//.test(player.avatar_url || '') ? `<img src="${escapeHtml(player.avatar_url)}" alt="" referrerpolicy="no-referrer" data-player-avatar data-initials="${escapeHtml(initials)}">` : escapeHtml(initials)}</span>
                     <div class="player-profile-identity"><h2>${escapeHtml(player.name)}</h2>${inactive ? '<span class="player-status-badge">Inativo</span>' : ''}<div class="player-aliases">${aliases || '<span class="muted">Apelidos ainda não cadastrados</span>'}</div></div>
                     ${legacyRows[index].querySelector('.player-actions').outerHTML}
                 </div>
@@ -400,6 +403,13 @@
                 .join('');
         }
 
+        list.querySelectorAll('img[data-player-avatar]').forEach((image) => {
+            image.addEventListener(
+                'error',
+                () => image.replaceWith(document.createTextNode(image.dataset.initials || '')),
+                { once: true }
+            );
+        });
         bindDecklistImageFallbacks(list);
         renderPagination(totalPages);
     }

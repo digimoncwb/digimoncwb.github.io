@@ -32,6 +32,12 @@ function useRecords<T>(load: (signal: AbortSignal) => Promise<T[]>, active: bool
         [error, setError] = useState(''),
         [revision, setRevision] = useState(0);
     useEffect(() => {
+        if (key !== 'players') return;
+        const refresh = () => setRevision((value) => value + 1);
+        window.addEventListener('digistats:players-changed', refresh);
+        return () => window.removeEventListener('digistats:players-changed', refresh);
+    }, [key]);
+    useEffect(() => {
         if (!active) return;
         const controller = new AbortController();
         setLoading(true);
@@ -91,6 +97,29 @@ function LoadError({ error, retry }: { error: string; retry(): void }) {
 }
 function Colors({ colors }: { colors?: string }) {
     return <DeckColors colors={colors || ''} />;
+}
+function PlayerAvatar({ player }: { player: PlayerRecord }) {
+    const [failedImage, setFailedImage] = useState('');
+    const image = player.avatar_url;
+    return (
+        <span className="catalog-avatar" aria-hidden="true">
+            {image && /^https:\/\//.test(image) && image !== failedImage ? (
+                <img
+                    src={image}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    onError={() => setFailedImage(image)}
+                />
+            ) : (
+                player.name
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0])
+                    .join('')
+            )}
+        </span>
+    );
 }
 export function PlayersPage({ context }: { context: MicroContext }) {
     const account = useSiteAuth();
@@ -175,13 +204,7 @@ export function PlayersPage({ context }: { context: MicroContext }) {
                                     className="catalog-item"
                                     onClick={() => setSelected(player)}
                                 >
-                                    <span className="catalog-avatar" aria-hidden="true">
-                                        {player.name
-                                            .split(/\s+/)
-                                            .slice(0, 2)
-                                            .map((word) => word[0])
-                                            .join('')}
-                                    </span>
+                                    <PlayerAvatar player={player} />
                                     <span className="catalog-identity">
                                         <strong>{player.name}</strong>
                                         <span>
@@ -480,7 +503,12 @@ function RecordDetails({
                             ))}
                         </nav>
                     </div>
-                ) : undefined
+                ) : (
+                    <div className="catalog-player-header">
+                        <PlayerAvatar player={player} />
+                        <h2>{player.name}</h2>
+                    </div>
+                )
             }
         >
             {tab === 'info' && (

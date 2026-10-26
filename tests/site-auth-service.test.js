@@ -244,6 +244,89 @@ test('Remember me restores the account after reopening and logout removes persis
     assert.equal(afterLogout.getSnapshot().user, null);
 });
 
+test('Restored Google profile exposes its avatar and switching accounts clears it', async () => {
+    const persistent = memoryStorage();
+    const avatarUrl = 'https://lh3.googleusercontent.com/example-avatar';
+    persistent.setItem(
+        'digistats.site-account',
+        JSON.stringify({
+            access_token: 'jwt-google',
+            user: {
+                id: 'user-a',
+                email: 'google@example.test',
+                email_confirmed_at: '2026-01-01',
+                user_metadata: { avatar_url: 'https://example.test/old-avatar' },
+                identities: [{ provider: 'google', identity_data: { picture: avatarUrl } }]
+            }
+        })
+    );
+    const { api } = setup(persistent);
+    await api.initialize();
+    assert.equal(api.getSnapshot().user.avatarUrl, avatarUrl);
+    await api.logout();
+    assert.equal(api.getSnapshot().user, null);
+    await api.login('email@example.test', 'password');
+    assert.equal(api.getSnapshot().user.avatarUrl, undefined);
+});
+
+test('Google photo in user metadata is available without linked identity data', async () => {
+    const persistent = memoryStorage();
+    const avatarUrl = 'https://lh3.googleusercontent.com/metadata-avatar';
+    persistent.setItem(
+        'digistats.site-account',
+        JSON.stringify({
+            access_token: 'jwt-google',
+            user: {
+                id: 'user-a',
+                email_confirmed_at: '2026-01-01',
+                user_metadata: { avatar_url: 'invalid-url', picture: avatarUrl }
+            }
+        })
+    );
+    const { api } = setup(persistent);
+    await api.initialize();
+    assert.equal(api.getSnapshot().user.avatarUrl, avatarUrl);
+});
+
+test('First confirmed login requires the Bandai link and completing it refreshes membership', async () => {
+    const instance = setup();
+    instance.setAccount({
+        profile: {
+            user_id: 'user-a',
+            username: 'user_a',
+            display_name: 'User A',
+            status: 'active',
+            player_id: null
+        },
+        legal_current: true,
+        is_member: false,
+        is_admin: false,
+        player_link_required: true
+    });
+    await instance.api.initialize();
+    await instance.api.login('user@example.test', 'password');
+    assert.equal(instance.api.getSnapshot().playerLinkRequired, true);
+    await assert.rejects(instance.api.requireMember(), /Bandai/);
+    instance.setAccount({
+        profile: {
+            user_id: 'user-a',
+            username: 'user_a',
+            display_name: 'User A',
+            status: 'active',
+            player_id: 'player-a'
+        },
+        legal_current: true,
+        is_member: true,
+        is_admin: false,
+        player_link_required: false
+    });
+    await instance.api.refresh();
+    assert.equal(instance.api.getSnapshot().playerLinkRequired, false);
+    await instance.api.requireMember();
+    await instance.api.logout();
+    assert.equal(instance.api.getSnapshot().playerLinkRequired, false);
+});
+
 test('Unchecked remember me survives page reload only within the current tab', async () => {
     const persistent = memoryStorage();
     const temporary = memoryStorage();
@@ -560,6 +643,41 @@ test('Google login keeps the selected session lifetime and requires the verified
     assert.equal(returned.api.getSnapshot().profileRequired, false);
     assert.equal(returned.api.getSnapshot().legalCurrent, true);
     assert.equal(returned.api.getSnapshot().isMember, true);
+});
+
+test('Remembered Google session survives reopening the site and explicit logout clears it', async () => {
+    const persistent = memoryStorage(),
+        temporary = memoryStorage();
+    const start = setup(persistent, temporary);
+    await start.api.initialize();
+    await start.api.loginWithGoogle(true);
+    assert.equal(start.api.getRememberMe(), true);
+    // Simulate the SDK storing the completed OAuth callback in persistent storage.
+    persistent.setItem(
+        'digistats.site-account',
+        JSON.stringify({
+            access_token: 'google-session',
+            user: {
+                id: 'user-a',
+                email: 'google@example.test',
+                email_confirmed_at: '2026-10-25',
+                user_metadata: { avatar_url: 'https://lh3.googleusercontent.com/profile' }
+            }
+        })
+    );
+    const reopened = setup(persistent, memoryStorage());
+    await reopened.api.initialize();
+    assert.equal(reopened.api.getSnapshot().user.email, 'google@example.test');
+    assert.equal(
+        reopened.api.getSnapshot().user.avatarUrl,
+        'https://lh3.googleusercontent.com/profile'
+    );
+    assert.equal(reopened.api.getRememberMe(), true);
+    await reopened.api.logout();
+    assert.equal(persistent.getItem('digistats.site-account'), null);
+    const afterLogout = setup(persistent, memoryStorage());
+    await afterLogout.api.initialize();
+    assert.equal(afterLogout.api.getSnapshot().user, null);
 });
 
 test('Google login failures restore storage preference and do not leave a stale return marker', async () => {

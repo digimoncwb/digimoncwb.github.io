@@ -80,6 +80,7 @@ export function createSiteAuth(): SiteAuth {
     );
     let session: Session | null = null;
     let generation = 0;
+    let lastAvatarSync = '';
     let initialization: Promise<void> | null = null;
     let applyingSignupDeclarations: Promise<void> | null = null;
     const pendingLegalKey = (id: string) => `digistats.pending-signup-declarations.${id}`;
@@ -148,13 +149,41 @@ export function createSiteAuth(): SiteAuth {
     const loadAccount = async () => {
         const revision = ++generation;
         const user = session?.user;
+        const googleProfile = user?.identities?.find(
+            (identity) => identity.provider === 'google'
+        )?.identity_data;
+        const avatarCandidates = [
+            googleProfile?.avatar_url,
+            googleProfile?.picture,
+            user?.user_metadata?.avatar_url,
+            user?.user_metadata?.picture
+        ];
+        const avatarUrl = avatarCandidates.find((value): value is string => {
+            if (typeof value !== 'string') return false;
+            try {
+                return new URL(value).protocol === 'https:';
+            } catch {
+                return false;
+            }
+        });
         publish({
             loading: true,
             user: user
-                ? { id: user.id, email: user.email, confirmed: !!user.email_confirmed_at }
+                ? {
+                      id: user.id,
+                      email: user.email,
+                      confirmed: !!user.email_confirmed_at,
+                      avatarUrl
+                  }
                 : null,
             ...(user?.id !== state.user?.id
-                ? { profile: null, isAdmin: false, isMember: false, legalCurrent: false }
+                ? {
+                      profile: null,
+                      isAdmin: false,
+                      isMember: false,
+                      legalCurrent: false,
+                      playerLinkRequired: false
+                  }
                 : {})
         });
         if (!user) {
@@ -164,7 +193,8 @@ export function createSiteAuth(): SiteAuth {
                 isMember: false,
                 loading: false,
                 legalCurrent: false,
-                profileRequired: false
+                profileRequired: false,
+                playerLinkRequired: false
             });
             return;
         }
@@ -249,6 +279,20 @@ export function createSiteAuth(): SiteAuth {
             } else if (pending) window.localStorage.removeItem(pendingLegalKey(user.id));
         }
         if (revision !== generation || session?.user.id !== user.id) return;
+        const avatarSync = `${user.id}:${data?.profile?.player_id}:${avatarUrl}`;
+        if (
+            avatarUrl &&
+            data?.profile?.player_id &&
+            typeof data.player_link_required === 'boolean' &&
+            lastAvatarSync !== avatarSync
+        ) {
+            const sync = await client.rpc('sync_my_player_google_avatar');
+            if (!sync.error) {
+                lastAvatarSync = avatarSync;
+                window.dispatchEvent(new Event('digistats:players-changed'));
+            }
+            if (revision !== generation || session?.user.id !== user.id) return;
+        }
         publish({
             profile: data?.profile || null,
             isAdmin: data?.is_admin === true && !(googleSignInPending && !data?.legal_current),
@@ -256,6 +300,7 @@ export function createSiteAuth(): SiteAuth {
             loading: false,
             error: '',
             legalCurrent: data?.legal_current === true,
+            playerLinkRequired: data?.player_link_required === true,
             profileRequired:
                 (googleSignInPending && data?.legal_current !== true) ||
                 !!(
@@ -458,7 +503,8 @@ export function createSiteAuth(): SiteAuth {
                 error: '',
                 recoveryRequired: false,
                 legalCurrent: false,
-                profileRequired: false
+                profileRequired: false,
+                playerLinkRequired: false
             });
             // The legacy admin token must not survive the global logout.
             sessionStorage.removeItem('digistats.admin.session');
@@ -537,6 +583,10 @@ export function createSiteAuth(): SiteAuth {
             if (!state.user) {
                 api.open('login');
                 throw new Error('Entre para continuar. Sua lista em edição foi preservada.');
+            }
+            if (state.playerLinkRequired) {
+                api.open('profile');
+                throw new Error('Vincule seu jogador da Bandai para continuar.');
             }
             if (!state.isMember) {
                 api.open('profile');

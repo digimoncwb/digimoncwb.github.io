@@ -83,6 +83,30 @@ dialog.list-dialog:has(.site-account) > header h2 {
     display: grid;
     gap: 7px;
 }
+.site-account-password-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.site-account .site-account-link {
+    min-height: 44px;
+    padding: 8px 0;
+    border: 0;
+    background: transparent;
+    color: var(--ds-accent);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+.site-account .site-account-link:hover:not(:disabled) {
+    text-decoration: underline;
+}
+.site-account .site-account-back {
+    justify-self: start;
+}
 .site-account .site-google-login {
     display: flex;
     justify-content: center;
@@ -354,6 +378,31 @@ dialog.list-dialog:has(.site-account) > header h2 {
     width: 21px;
     height: 21px;
 }
+.site-account-avatar img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
+}
+.site-account-avatar.is-signed-in {
+    position: relative;
+    background: var(--ds-red-soft);
+    outline: 1px solid var(--ds-accent);
+    font-size: 14px;
+    font-weight: 700;
+}
+.site-account-avatar.is-signed-in::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 9px;
+    height: 9px;
+    border: 2px solid var(--ds-bg);
+    border-radius: 50%;
+    background: var(--ds-green);
+}
 .site-account-label {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -489,4 +538,36 @@ dialog.list-dialog:has(.site-account) > header h2 {
     .site-account-actions > .button {
         flex: 1 1 150px;
     }
+}
+.site-bandai-results {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--ds-line);
+    border-radius: 10px;
+}
+.site-account .site-bandai-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px;
+    border-radius: 7px;
+    background: var(--ds-bg);
+}
+.site-account .site-bandai-option input[type='radio'] {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    min-height: 0;
+    margin: 0;
+}
+.site-bandai-option span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.site-bandai-option small {
+    display: block;
+    color: var(--ds-muted);
 }

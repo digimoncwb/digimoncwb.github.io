@@ -11,6 +11,7 @@ import { useNativeSelects } from '../shared/NativeSelects';
 import { loadStylesheet } from './styles';
 import { useSiteAuth } from '../shared/site-auth';
 import { AccountPanel } from './AccountPanel';
+import { BandaiOnboarding } from './BandaiOnboarding';
 import { AccountsAdmin } from './AccountsAdmin';
 import '../../shared/theme.css';
 import '../../demo-v2/styles.css';
@@ -97,6 +98,9 @@ function Shell() {
         [retry, setRetry] = useState(0);
     const [logoutBusy, setLogoutBusy] = useState(false);
     const [logoutError, setLogoutError] = useState('');
+    const [failedAvatar, setFailedAvatar] = useState('');
+    const accountName = account.profile?.display_name || account.user?.email || 'Minha conta';
+    const avatarUrl = account.user?.avatarUrl;
     const [accountsBusy, setAccountsBusy] = useState(false);
     const outlet = useRef<HTMLDivElement>(null);
     const handles = useRef(new Map<string, { element: HTMLElement; handle: MicroHandle }>());
@@ -266,15 +270,130 @@ function Shell() {
                     }}
                 >
                     <span className="hazard brand-mark" />
-                    <span>DIGIMON CWB</span>
+                    <span>
+                        DIGIMON <span className={styles.brandCity}>CWB</span>
+                    </span>
                 </a>
+                {account.available && (
+                    <div className={`site-account-menu${account.user ? ' is-signed-in' : ''}`}>
+                        <button
+                            className={`button secondary site-account-trigger site-account-profile ${account.user ? 'is-signed-in' : 'site-account-login'}`}
+                            aria-label={
+                                account.user
+                                    ? `Conectado como ${accountName}. Minha conta`
+                                    : 'Login'
+                            }
+                            title={account.user ? `Conectado como ${accountName}` : 'Login'}
+                            onClick={() => setAccountView(account.user ? 'profile' : 'login')}
+                        >
+                            <span
+                                className={`site-account-avatar${account.user ? ' is-signed-in' : ''}`}
+                                aria-hidden="true"
+                            >
+                                {account.user ? (
+                                    avatarUrl && failedAvatar !== avatarUrl ? (
+                                        <img
+                                            src={avatarUrl}
+                                            alt=""
+                                            referrerPolicy="no-referrer"
+                                            onError={() => setFailedAvatar(avatarUrl)}
+                                        />
+                                    ) : (
+                                        accountName.trim().charAt(0).toLocaleUpperCase('pt-BR')
+                                    )
+                                ) : (
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <circle cx="12" cy="8" r="3.5" />
+                                        <path d="M5 20v-1.5a7 7 0 0 1 14 0V20" />
+                                    </svg>
+                                )}
+                            </span>
+                            <span className="site-account-label">
+                                {account.user ? (
+                                    <>
+                                        <span>
+                                            {account.profile?.display_name || 'Minha conta'}
+                                        </span>
+                                        <small className="site-account-session-status">
+                                            Conectado
+                                        </small>
+                                    </>
+                                ) : (
+                                    'Login'
+                                )}
+                            </span>
+                        </button>
+                        {!account.user && (
+                            <button
+                                type="button"
+                                className="button secondary site-account-signup"
+                                onClick={() => setAccountView('signup')}
+                            >
+                                Criar conta
+                            </button>
+                        )}
+                        {account.user && (
+                            <button
+                                type="button"
+                                className="button secondary site-account-trigger site-account-logout"
+                                disabled={logoutBusy}
+                                onClick={async () => {
+                                    setLogoutBusy(true);
+                                    setLogoutError('');
+                                    try {
+                                        await window.digistatsAuth!.logout();
+                                    } catch (error) {
+                                        setLogoutError((error as Error).message);
+                                    } finally {
+                                        setLogoutBusy(false);
+                                    }
+                                }}
+                            >
+                                <span className="site-account-avatar" aria-hidden="true">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <path d="M9 5H5v14h4M9 12h12m-4-4 4 4-4 4" />
+                                    </svg>
+                                </span>
+                                <span className="site-account-label">
+                                    {logoutBusy ? 'Saindo…' : 'Sair'}
+                                </span>
+                            </button>
+                        )}
+                        {logoutError && <p role="alert">{logoutError}</p>}
+                    </div>
+                )}
                 <button
                     className={styles.mobileToggle}
+                    aria-label={mobileOpen ? 'Fechar menu' : 'Abrir menu'}
                     aria-expanded={mobileOpen}
                     aria-controls="app-navigation"
                     onClick={() => setMobileOpen(!mobileOpen)}
                 >
-                    Menu {mobileOpen ? '−' : '+'}
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        aria-hidden="true"
+                    >
+                        <path d={mobileOpen ? 'M6 6l12 12M6 18 18 6' : 'M4 6h16M4 12h16M4 18h16'} />
+                    </svg>
+                    <span>Menu</span>
                 </button>
                 <nav
                     id="app-navigation"
@@ -355,77 +474,6 @@ function Shell() {
                             </div>
                         ))}
                 </nav>
-                {account.available && (
-                    <div className="site-account-menu">
-                        <button
-                            className="button secondary site-account-trigger"
-                            onClick={() => setAccountView(account.user ? 'profile' : 'login')}
-                        >
-                            <span className="site-account-avatar" aria-hidden="true">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                >
-                                    <circle cx="12" cy="8" r="3.5" />
-                                    <path d="M5 20v-1.5a7 7 0 0 1 14 0V20" />
-                                </svg>
-                            </span>
-                            <span className="site-account-label">
-                                {account.user
-                                    ? account.profile?.display_name || 'Minha conta'
-                                    : 'Login'}
-                            </span>
-                        </button>
-                        {!account.user && (
-                            <button
-                                type="button"
-                                className="button secondary site-account-signup"
-                                onClick={() => setAccountView('signup')}
-                            >
-                                Criar conta
-                            </button>
-                        )}
-                        {account.user && (
-                            <button
-                                type="button"
-                                className="button secondary site-account-trigger"
-                                disabled={logoutBusy}
-                                onClick={async () => {
-                                    setLogoutBusy(true);
-                                    setLogoutError('');
-                                    try {
-                                        await window.digistatsAuth!.logout();
-                                    } catch (error) {
-                                        setLogoutError((error as Error).message);
-                                    } finally {
-                                        setLogoutBusy(false);
-                                    }
-                                }}
-                            >
-                                <span className="site-account-avatar" aria-hidden="true">
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="1.8"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M9 5H5v14h4M9 12h12m-4-4 4 4-4 4" />
-                                    </svg>
-                                </span>
-                                <span className="site-account-label">
-                                    {logoutBusy ? 'Saindo…' : 'Sair da conta'}
-                                </span>
-                            </button>
-                        )}
-                        {logoutError && <p role="alert">{logoutError}</p>}
-                    </div>
-                )}
                 <div id="sidebar-support" className="sidebar-support" hidden={!mobileOpen} />
             </aside>
             <main className={styles.main}>
@@ -488,13 +536,18 @@ function Shell() {
                 )}
                 <SiteFooter />
             </main>
-            {accountView && window.digistatsAuth && (
+            {account.playerLinkRequired && !account.recoveryRequired && window.digistatsAuth ? (
+                <BandaiOnboarding
+                    auth={window.digistatsAuth}
+                    onComplete={() => setAccountView(null)}
+                />
+            ) : accountView && window.digistatsAuth ? (
                 <AccountPanel
                     auth={window.digistatsAuth}
                     view={accountView}
                     onClose={() => setAccountView(null)}
                 />
-            )}
+            ) : null}
         </div>
     );
 }

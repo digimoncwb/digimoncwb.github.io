@@ -811,6 +811,181 @@ async function prepareLegal(db) {
     );
 }
 const legalMigration = '20261025060000_versioned_terms_and_adult_declarations.sql';
+const bandaiMigration = '20261026010000_self_service_bandai_player_link.sql';
+
+test('Bandai self-service links existing players or creates new players without approval and protects existing links', async () => {
+    const db = await setup([legalMigration, bandaiMigration]);
+    try {
+        await prepareLegal(db);
+        await as(db, 'a');
+        let account = (await db.query('select my_site_account() value')).rows[0].value;
+        assert.equal(account.player_link_required, true);
+        assert.equal(account.is_member, false);
+        const matches = (await db.query("select search_bandai_players('Registered') value")).rows[0]
+            .value;
+        assert.equal(matches[0].id, ids.player);
+        assert.equal(matches[0].available, true);
+        await db.query("select complete_my_player_link('Registered player',$1)", [ids.player]);
+        account = (await db.query('select my_site_account() value')).rows[0].value;
+        assert.equal(account.player_link_required, false);
+        assert.equal(account.is_member, true);
+        assert.equal(account.profile.player_id, ids.player);
+        assert.equal((await db.query('select count(*)::int n from account_requests')).rows[0].n, 0);
+        await as(db, 'b');
+        await assert.rejects(
+            db.query("select complete_my_player_link('Registered player',$1)", [ids.player]),
+            /outra conta/
+        );
+        assert.equal(
+            (await db.query("select search_bandai_players('Registered') value")).rows[0].value[0]
+                .available,
+            false
+        );
+        const created = (await db.query("select complete_my_player_link('  New   Bandai  ') value"))
+            .rows[0].value;
+        const player = (await db.query('select * from players where id=$1', [created.player_id]))
+            .rows[0];
+        assert.equal(player.name, 'New Bandai');
+        assert.equal(player.bandai_nick, 'New Bandai');
+        await db.query("select complete_my_player_link('New Bandai')");
+        assert.equal(
+            (await db.query("select count(*)::int n from players where bandai_nick='New Bandai'"))
+                .rows[0].n,
+            1
+        );
+        await assert.rejects(
+            db.query("select complete_my_player_link('Registered player',$1)", [ids.player]),
+            /já tem/
+        );
+    } finally {
+        await db.close();
+    }
+});
+
+test('Bandai first-login copies and refreshes the Google photo only for the account linked player', async () => {
+    const db = await setup([legalMigration, bandaiMigration]);
+    try {
+        await prepareLegal(db);
+        await sqlOwner(db);
+        await db.query('update auth.users set raw_user_meta_data=$1 where id=$2', [
+            { avatar_url: 'https://lh3.googleusercontent.com/first-photo' },
+            ids.a
+        ]);
+        await as(db, 'a');
+        await db.query("select complete_my_player_link('Registered player',$1)", [ids.player]);
+        assert.equal(
+            (await db.query('select avatar_url from players where id=$1', [ids.player])).rows[0]
+                .avatar_url,
+            'https://lh3.googleusercontent.com/first-photo'
+        );
+        await sqlOwner(db);
+        await db.query('update auth.users set raw_user_meta_data=$1 where id=$2', [
+            { picture: 'https://lh3.googleusercontent.com/updated-photo' },
+            ids.a
+        ]);
+        await as(db, 'a');
+        await db.query('select sync_my_player_google_avatar()');
+        assert.equal(
+            (await db.query('select avatar_url from players where id=$1', [ids.player])).rows[0]
+                .avatar_url,
+            'https://lh3.googleusercontent.com/updated-photo'
+        );
+        await as(db, 'b');
+        assert.equal(
+            (
+                await db.query(
+                    "update players set avatar_url='https://example.test/other' where id=$1 returning id",
+                    [ids.player]
+                )
+            ).rows.length,
+            0
+        );
+        await db.query('select sync_my_player_google_avatar()');
+        assert.equal(
+            (await db.query('select avatar_url from players where id=$1', [ids.player])).rows[0]
+                .avatar_url,
+            'https://lh3.googleusercontent.com/updated-photo'
+        );
+        await sqlOwner(db);
+        await db.query('update auth.users set raw_user_meta_data=$1 where id=$2', [
+            { avatar_url: 'https://example.test/unrelated-photo' },
+            ids.a
+        ]);
+        await as(db, 'a');
+        await db.query('select sync_my_player_google_avatar()');
+        assert.equal(
+            (await db.query('select avatar_url from players where id=$1', [ids.player])).rows[0]
+                .avatar_url,
+            'https://lh3.googleusercontent.com/updated-photo'
+        );
+        await as(db, 'admin');
+        await db.query(
+            "update players set name='Jogador anonimizado',bandai_nick=null,bandai_id=null,is_active=false where id=$1",
+            [ids.player]
+        );
+        assert.equal(
+            (await db.query('select avatar_url from players where id=$1', [ids.player])).rows[0]
+                .avatar_url,
+            null
+        );
+    } finally {
+        await db.close();
+    }
+});
+
+test('Bandai onboarding rejects unconfirmed, blocked and ambiguous claims and preserves legal declarations', async () => {
+    const db = await setup([legalMigration, bandaiMigration]);
+    try {
+        await prepareLegal(db);
+        await as(db, null);
+        await assert.rejects(
+            db.query("select complete_my_player_link('Anonymous')"),
+            /permission denied/
+        );
+        await as(db, 'pending');
+        await assert.rejects(
+            db.query("select complete_my_player_link('Unconfirmed')"),
+            /confirmado/
+        );
+        await sqlOwner(db);
+        await db.query("update user_profiles set status='blocked' where user_id=$1", [ids.b]);
+        await db.query(
+            "insert into players(id,name,bandai_nick) values(gen_random_uuid(),'Duplicate A','Same Nick'),(gen_random_uuid(),'Duplicate B','Same Nick')"
+        );
+        await as(db, 'b');
+        await assert.rejects(db.query("select complete_my_player_link('Blocked')"), /ativa/);
+        await as(db, 'a');
+        await assert.rejects(db.query("select complete_my_player_link('Same Nick')"), /mais de um/);
+        await assert.rejects(
+            db.query("select complete_my_player_link('Wrong Name',$1)", [ids.player]),
+            /Selecione novamente/
+        );
+        const matches = (await db.query("select search_bandai_players('Same Nick') value")).rows[0]
+            .value;
+        await sqlOwner(db);
+        await db.query('update user_profiles set legal_acceptance_id=null where user_id=$1', [
+            ids.a
+        ]);
+        await as(db, 'a');
+        await assert.rejects(
+            db.query("select complete_my_player_link('Same Nick',$1)", [matches[0].id]),
+            /aceites/
+        );
+        await sqlOwner(db);
+        await db.query(
+            'update user_profiles set legal_acceptance_id=(select id from site_legal_acceptances where user_id=$1 order by accepted_at desc limit 1) where user_id=$1',
+            [ids.a]
+        );
+        await as(db, 'a');
+        await db.query("select complete_my_player_link('Same Nick',$1)", [matches[0].id]);
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.legal_current,
+            true
+        );
+    } finally {
+        await db.close();
+    }
+});
 test('Published signup documents match the public pages, preserve rollout state and require separate declarations', async () => {
     const db = await setup([legalMigration]);
     try {

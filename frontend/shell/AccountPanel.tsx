@@ -2,18 +2,10 @@ import { LegalChecks, uncheckedDeclarations } from './LegalChecks';
 import { useEffect, useRef, useState } from 'react';
 import type { SiteAuth } from '../contracts';
 import { Dialog } from '../shared/ListPage';
-import { SearchSelect } from '../shared/SearchSelect';
 import { useSiteAuth } from '../shared/site-auth';
 import './accounts.css';
 
 type View = 'login' | 'signup' | 'recover' | 'profile' | 'password';
-type RequestRow = {
-    id: string;
-    request_type: string;
-    status: string;
-    created_at: string;
-    review_note?: string;
-};
 export function AccountPanel({
     auth,
     view: initialView,
@@ -38,12 +30,7 @@ export function AccountPanel({
     const [notice, setNotice] = useState('');
     const [players, setPlayers] = useState<{ id: string; name: string }[]>([]);
     const [playersError, setPlayersError] = useState('');
-    const [requests, setRequests] = useState<RequestRow[]>([]);
-    const [requestsOwner, setRequestsOwner] = useState<string | null>(null);
-    const [playerId, setPlayerId] = useState('');
-    const [note, setNote] = useState('');
     const [newEmail, setNewEmail] = useState('');
-    const [reload, setReload] = useState(0);
     const loginEdited = useRef(false);
     const profileEdited = useRef(false);
     useEffect(() => {
@@ -89,7 +76,6 @@ export function AccountPanel({
         if (!state.user || view !== 'profile') return;
         const controller = new AbortController();
         setPlayers([]);
-        setRequests([]);
         setPlayersError('');
         (async () => {
             const result: { id: string; name: string }[] = [];
@@ -117,23 +103,8 @@ export function AccountPanel({
         })().catch((error) => {
             if (!controller.signal.aborted) setPlayersError(error.message);
         });
-        auth.request(
-            `/rest/v1/account_requests?user_id=eq.${state.user.id}&select=id,request_type,status,created_at,review_note&order=created_at.desc&limit=50`,
-            { signal: controller.signal }
-        )
-            .then(async (response) => {
-                if (!response.ok) throw new Error('Não foi possível carregar suas solicitações.');
-                const rows = await response.json();
-                if (!controller.signal.aborted) {
-                    setRequests(rows);
-                    setRequestsOwner(state.user?.id || null);
-                }
-            })
-            .catch((error) => {
-                if (!controller.signal.aborted) setError(error.message);
-            });
         return () => controller.abort();
-    }, [state.user?.id, state.profile?.player_id, view, reload, auth]);
+    }, [state.user?.id, state.profile?.player_id, view, auth]);
     async function run(task: () => Promise<void>, success = '') {
         if (busy) return;
         setBusy(true);
@@ -152,10 +123,6 @@ export function AccountPanel({
     }
     const contact = state.config?.support_email || 'dulopes1997@gmail.com';
     const loggedView = state.user && view !== 'password';
-    const ownRequests = requestsOwner === state.user?.id ? requests : [];
-    const pendingClaim = ownRequests.some(
-        (request) => request.request_type === 'player_link' && request.status === 'pending'
-    );
     const title =
         view === 'password'
             ? 'Definir nova senha'
@@ -350,58 +317,6 @@ export function AccountPanel({
                                 </button>
                             </div>
                         </form>
-                        {!state.profile?.player_id && (
-                            <details className="site-account-disclosure">
-                                <summary>Vincular meu jogador</summary>
-                                {pendingClaim ? (
-                                    <p role="status">Seu vínculo está em análise.</p>
-                                ) : (
-                                    <form
-                                        onSubmit={(event) => {
-                                            event.preventDefault();
-                                            void run(async () => {
-                                                await auth.rpc('submit_account_request', {
-                                                    p_type: 'player_link',
-                                                    p_player_id: playerId,
-                                                    p_note: note
-                                                });
-                                                setNote('');
-                                                setReload((value) => value + 1);
-                                            }, 'Vínculo enviado para análise.');
-                                        }}
-                                    >
-                                        <SearchSelect
-                                            label="Qual jogador é você?"
-                                            value={playerId}
-                                            onChange={setPlayerId}
-                                            required
-                                            emptyMessage="Nenhum jogador encontrado."
-                                            options={players.map((player) => ({
-                                                value: player.id,
-                                                label: player.name
-                                            }))}
-                                        />
-                                        {playersError && <p role="alert">{playersError}</p>}
-                                        <label>
-                                            Observação (opcional)
-                                            <textarea
-                                                maxLength={1000}
-                                                value={note}
-                                                onChange={(event) => setNote(event.target.value)}
-                                            />
-                                        </label>
-                                        <div className="site-account-actions">
-                                            <button
-                                                className="button secondary"
-                                                disabled={busy || !playerId}
-                                            >
-                                                Solicitar vínculo
-                                            </button>
-                                        </div>
-                                    </form>
-                                )}
-                            </details>
-                        )}
                         <details className="site-account-disclosure">
                             <summary>Segurança e acesso</summary>
                             <div className="site-account-actions">
@@ -464,23 +379,20 @@ export function AccountPanel({
                     </>
                 ) : (
                     <>
-                        <div className="site-account-actions">
-                            {(['login', 'recover'] as const).map((tab) => (
-                                <button
-                                    className="button secondary"
-                                    aria-pressed={view === tab}
-                                    key={tab}
-                                    disabled={busy}
-                                    onClick={() => {
-                                        setView(tab);
-                                        setError('');
-                                        setNotice('');
-                                    }}
-                                >
-                                    {tab === 'login' ? 'Login' : 'Esqueci a senha'}
-                                </button>
-                            ))}
-                        </div>
+                        {view !== 'login' && (
+                            <button
+                                type="button"
+                                className="site-account-link site-account-back"
+                                disabled={busy}
+                                onClick={() => {
+                                    setView('login');
+                                    setError('');
+                                    setNotice('');
+                                }}
+                            >
+                                ← Voltar para login
+                            </button>
+                        )}
                         <form
                             id="site-login-form"
                             autoComplete="on"
@@ -571,7 +483,23 @@ export function AccountPanel({
                             </label>
                             {view !== 'recover' && (
                                 <div className="site-account-password-field">
-                                    <label htmlFor="site-account-password">Senha</label>
+                                    <div className="site-account-password-heading">
+                                        <label htmlFor="site-account-password">Senha</label>
+                                        {view === 'login' && (
+                                            <button
+                                                type="button"
+                                                className="site-account-link"
+                                                disabled={busy}
+                                                onClick={() => {
+                                                    setView('recover');
+                                                    setError('');
+                                                    setNotice('');
+                                                }}
+                                            >
+                                                Esqueci a senha
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="site-account-password">
                                         <input
                                             id="site-account-password"
@@ -640,8 +568,8 @@ export function AccountPanel({
                                         Lembrar de mim
                                     </label>
                                     <small id="remember-account-help" className="muted">
-                                        Lembrar meu e-mail e manter a sessão. A senha é preenchida
-                                        pelo navegador.
+                                        Manter a sessão neste dispositivo, inclusive com Google. A
+                                        senha pode ser preenchida pelo navegador.
                                     </small>
                                 </div>
                             )}
@@ -669,21 +597,6 @@ export function AccountPanel({
                                         : 'Login'}
                             </button>
                         </form>
-                        {view === 'login' && (
-                            <button
-                                type="button"
-                                className="button secondary"
-                                disabled={busy || !email.trim()}
-                                onClick={() =>
-                                    void run(
-                                        () => auth.resendConfirmation(email),
-                                        'Se houver um cadastro pendente, confira o e-mail de confirmação e a pasta de spam.'
-                                    )
-                                }
-                            >
-                                Reenviar confirmação de e-mail
-                            </button>
-                        )}
                     </>
                 )}
             </div>

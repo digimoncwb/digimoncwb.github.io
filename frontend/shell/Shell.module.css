@@ -23,27 +23,58 @@
 @media (max-width: 780px) {
     .root :global(.sidebar) {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0 12px;
-        padding: 14px max(16px, env(safe-area-inset-right)) 14px
-            max(16px, env(safe-area-inset-left));
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0 8px;
+        align-items: center;
+        padding: 12px max(12px, env(safe-area-inset-right)) 12px
+            max(12px, env(safe-area-inset-left));
     }
     .root :global(.sidebar .brand) {
         margin: 0;
-        font-size: 17px;
+        grid-column: 1;
+        grid-row: 1;
+        gap: 8px;
+        font-size: clamp(14px, 3.8vw, 16px);
+        letter-spacing: -0.3px;
         min-height: 44px;
     }
-    .mobileToggle {
+    .root :global(.sidebar .brand-mark) {
+        width: 28px;
+        height: 28px;
+    }
+    .brandCity {
         display: block;
+    }
+    .mobileToggle {
+        grid-column: 3;
+        grid-row: 1;
+        align-self: stretch;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 12px;
         min-height: 44px;
-        padding: 10px 16px;
+        padding: 10px 8px;
         background: var(--panel);
         color: var(--text);
         margin: 0;
         width: auto;
-        font-size: 13px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .mobileToggle svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+    .mobileToggle:hover,
+    .mobileToggle[aria-expanded='true'] {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: var(--ds-red-soft);
     }
     .navigation[hidden] {
         display: none !important;
@@ -54,6 +85,8 @@
         flex-direction: column;
         gap: 4px;
         margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
     }
     .root .navigation :global(.nav-group) {
         display: block;
@@ -97,6 +130,87 @@
         grid-column: 1 / -1;
         padding-top: 16px;
     }
+    .root :global(.site-account-menu) {
+        grid-column: 2;
+        grid-row: 1;
+        display: grid;
+        grid-template-columns: auto auto;
+        gap: 6px;
+        align-items: stretch;
+        padding: 0;
+        position: relative;
+    }
+    .root :global(.site-account-menu .button) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        margin: 0;
+        padding: 8px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+        text-align: center;
+        white-space: nowrap;
+    }
+    .root :global(.site-account-menu .site-account-profile.is-signed-in) {
+        width: 44px;
+        padding: 5px;
+    }
+    .root :global(.site-account-profile.is-signed-in .site-account-label),
+    .root :global(.site-account-login .site-account-avatar) {
+        display: none;
+    }
+    .root :global(.site-account-menu .site-account-signup),
+    .root :global(.site-account-menu .site-account-login) {
+        color: var(--accent);
+        border-color: var(--accent);
+        background: var(--ds-red-soft);
+    }
+    .root :global(.site-account-menu .site-account-avatar) {
+        flex-basis: 24px;
+        width: 24px;
+        height: 24px;
+        background: transparent;
+    }
+    .root :global(.site-account-profile .site-account-avatar.is-signed-in) {
+        flex-basis: 32px;
+        width: 32px;
+        height: 32px;
+        background: var(--ds-red-soft);
+    }
+    .root :global(.site-account-menu .button:hover:not(:disabled)) {
+        color: var(--text);
+        border-color: var(--line);
+        background: var(--panel);
+    }
+    .root :global(.site-account-menu > [role='alert']) {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        z-index: 1;
+        width: min(280px, calc(100vw - 24px));
+        margin: 0;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        white-space: normal;
+    }
+    .root :global(.site-account-menu.is-signed-in) {
+        gap: 2px;
+        padding: 2px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+    }
     .root :global(.sidebar-support nav) {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         margin: 0;
@@ -110,8 +224,13 @@
         min-height: 44px;
     }
     .main {
+        padding-top: 20px;
         padding-right: max(16px, env(safe-area-inset-right));
         padding-left: max(16px, env(safe-area-inset-left));
+    }
+    .root :global(.page-heading h1) {
+        font-size: clamp(26px, 7vw, 30px);
+        line-height: 1.2;
     }
     .root :global(.topbar) {
         min-height: 54px;
@@ -122,8 +241,130 @@
         font-size: 16px;
     }
 }
+@media (max-width: 359px) {
+    .root :global(.sidebar) {
+        column-gap: 4px;
+    }
+    .root :global(.sidebar .brand) {
+        gap: 5px;
+    }
+    .mobileToggle {
+        gap: 4px;
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+    .mobileToggle span {
+        display: none;
+    }
+    .mobileToggle {
+        min-width: 44px;
+    }
+}
 @media (min-width: 781px) {
+    .navigation {
+        margin-top: 24px;
+    }
     .navigation[hidden] {
         display: grid !important;
+    }
+    .root :global(.site-account-menu) {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+        gap: 8px;
+        padding: 20px 0 0;
+        flex-shrink: 0;
+    }
+    .root :global(.site-account-menu .button) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        margin: 0;
+        padding: 8px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: center;
+    }
+    .root :global(.site-account-menu .site-account-login),
+    .root :global(.site-account-menu .site-account-signup) {
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        background: var(--ds-red-soft);
+    }
+    .root :global(.site-account-menu .site-account-avatar) {
+        flex-basis: 24px;
+        width: 24px;
+        height: 24px;
+        background: transparent;
+    }
+    .root :global(.site-account-profile.is-signed-in) {
+        justify-content: flex-start;
+        gap: 12px;
+        min-height: 64px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        text-align: left;
+    }
+    .root :global(.site-account-profile.is-signed-in .site-account-avatar) {
+        flex-basis: 32px;
+        width: 32px;
+        height: 32px;
+        background: var(--ds-red-soft);
+    }
+    .root :global(.site-account-profile.is-signed-in .site-account-label) {
+        display: grid;
+        gap: 3px;
+        text-align: left;
+        line-height: 1.3;
+    }
+    .root :global(.site-account-session-status) {
+        color: var(--ds-green);
+        font-size: 11px;
+        font-weight: 400;
+    }
+    .root :global(.site-account-menu .site-account-logout) {
+        justify-self: end;
+        width: auto;
+        padding: 6px 10px;
+        color: var(--muted);
+        border-color: transparent;
+        background: transparent;
+    }
+    .root :global(.site-account-menu > [role='alert']) {
+        grid-column: 1 / -1;
+        margin: 0;
+    }
+    .root :global(.site-account-menu.is-signed-in) {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 4px;
+        margin-top: 20px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--panel);
+    }
+    .root :global(.site-account-menu.is-signed-in .site-account-profile) {
+        min-height: 48px;
+        gap: 8px;
+        padding: 4px;
+        border: 0;
+        background: transparent;
+    }
+    .root :global(.site-account-menu.is-signed-in .site-account-logout) {
+        gap: 2px;
+        padding: 6px 4px;
+        font-size: 12px;
+    }
+    .root :global(.site-account-logout .site-account-avatar) {
+        flex-basis: 20px;
+        width: 20px;
+        height: 20px;
     }
 }

@@ -118,7 +118,8 @@ export function Dialog({
     headerContent,
     closeLabel = 'Cancelar',
     busy = false,
-    wide = false
+    wide = false,
+    dismissible = true
 }: {
     title: string;
     onClose(): void;
@@ -127,6 +128,7 @@ export function Dialog({
     closeLabel?: string;
     busy?: boolean;
     wide?: boolean;
+    dismissible?: boolean;
 }) {
     const dialog = useRef<HTMLDialogElement>(null);
     const close = useRef(onClose);
@@ -148,10 +150,10 @@ export function Dialog({
             aria-busy={busy}
             onCancel={(event) => {
                 event.preventDefault();
-                if (!busy) close.current();
+                if (!busy && dismissible) close.current();
             }}
             onClick={(event) => {
-                if (!busy && event.target === event.currentTarget) {
+                if (!busy && dismissible && event.target === event.currentTarget) {
                     const rect = event.currentTarget.getBoundingClientRect();
                     if (
                         event.clientX < rect.left ||
@@ -165,15 +167,17 @@ export function Dialog({
         >
             <header>
                 {headerContent || <h2>{title}</h2>}
-                <button
-                    type="button"
-                    className="button secondary cancel-close"
-                    disabled={busy}
-                    onClick={onClose}
-                    aria-label={closeLabel}
-                >
-                    {closeLabel}
-                </button>
+                {dismissible && (
+                    <button
+                        type="button"
+                        className="button secondary cancel-close"
+                        disabled={busy}
+                        onClick={onClose}
+                        aria-label={closeLabel}
+                    >
+                        {closeLabel}
+                    </button>
+                )}
             </header>
             <div className="list-dialog-body">{children}</div>
         </dialog>

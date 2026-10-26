@@ -123,7 +123,7 @@ export interface SiteAuthState {
     available: boolean;
     loading: boolean;
     enabled: boolean;
-    user: { id: string; email?: string; confirmed: boolean } | null;
+    user: { id: string; email?: string; confirmed: boolean; avatarUrl?: string } | null;
     profile: SiteProfile | null;
     isAdmin: boolean;
     isMember: boolean;
@@ -132,6 +132,7 @@ export interface SiteAuthState {
     recoveryRequired: boolean;
     legalCurrent?: boolean;
     profileRequired?: boolean;
+    playerLinkRequired?: boolean;
 }
 export interface SiteAuth {
     getSnapshot(): SiteAuthState;
