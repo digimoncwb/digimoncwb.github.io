@@ -43,6 +43,8 @@ export async function runLiveAccountJourney() {
     let admin, ordinary, browser, page, signup, userId, emailLinks;
     let cleanupVerified = false;
     let failure = null;
+    let callbackShape = null;
+    const userEndpointStatuses = [];
     async function management(path, body) {
         const response = await fetch(`https://api.supabase.com/v1/projects/${project}${path}`, {
             method: body ? 'POST' : 'GET',
@@ -107,6 +109,30 @@ export async function runLiveAccountJourney() {
                 serviceWorkers: 'block'
             });
             page.setDefaultTimeout(30000);
+            page.on('response', (response) => {
+                const source = new URL(response.url());
+                if (source.origin === base && source.pathname === '/auth/v1/user')
+                    userEndpointStatuses.push(response.status());
+                if (source.origin !== base || source.pathname !== '/auth/v1/verify') return;
+                const destination = response.headers().location;
+                if (!destination) return;
+                const target = new URL(destination);
+                const params = new URLSearchParams(target.hash.slice(1));
+                const kind = params.get('type');
+                callbackShape = {
+                    correct_origin: target.origin === new URL(site).origin,
+                    access_token_present: params.has('access_token'),
+                    refresh_token_present: params.has('refresh_token'),
+                    code_present: target.searchParams.has('code'),
+                    type: ['signup', 'recovery', 'invite', 'email_change', 'magiclink'].includes(
+                        kind
+                    )
+                        ? kind
+                        : 'other_or_missing',
+                    route_prefix_in_hash: target.hash.startsWith('#overview'),
+                    error_present: params.has('error') || target.searchParams.has('error')
+                };
+            });
             // Route only the email-sending parts through generateLink. Auth
             // validation, confirmation, sessions, RPCs and password writes use
             // the real hosted service and published frontend.
@@ -330,6 +356,8 @@ export async function runLiveAccountJourney() {
             error_type: error.name || 'Error',
             ...(error.safeLabel ? { reason: error.safeLabel } : {})
         };
+        failure.callback_shape = callbackShape;
+        failure.user_endpoint_statuses = userEndpointStatuses;
         if (page && !page.isClosed()) {
             try {
                 failure.browser = await page.evaluate((id) => {
