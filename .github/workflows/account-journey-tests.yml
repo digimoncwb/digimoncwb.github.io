@@ -27,7 +27,13 @@ jobs:
                   node-version: '22.19.0'
             - run: npm ci --no-audit --no-fund
             - run: npm install --no-save --package-lock=false playwright@1.64.1
-            - run: npx playwright install --with-deps chromium
+            - name: Use available Chrome or install Chromium
+              run: |
+                  if command -v google-chrome >/dev/null 2>&1; then
+                    echo "QA_CHROME_EXECUTABLE=$(command -v google-chrome)" >> "$GITHUB_ENV"
+                  else
+                    npx playwright install --with-deps chromium
+                  fi
             - name: Test one disposable account and remove it
               env:
                   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

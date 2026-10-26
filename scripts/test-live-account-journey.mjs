@@ -43,6 +43,7 @@ export async function runLiveAccountJourney() {
     let admin, ordinary, browser, page, signup, userId, emailLinks;
     let cleanupVerified = false;
     let failure = null;
+    let fixtureFailure = null;
     let callbackShape = null;
     const userEndpointStatuses = [];
     async function management(path, body) {
@@ -103,7 +104,12 @@ export async function runLiveAccountJourney() {
                 !status.error && status.data?.legal_ready,
                 'Published legal documents unavailable'
             );
-            browser = await chromium.launch({ headless: true });
+            browser = await chromium.launch({
+                headless: true,
+                ...(process.env.QA_CHROME_EXECUTABLE
+                    ? { executablePath: process.env.QA_CHROME_EXECUTABLE }
+                    : {})
+            });
             page = await browser.newPage({
                 viewport: { width: 1280, height: 900 },
                 serviceWorkers: 'block'
@@ -137,56 +143,78 @@ export async function runLiveAccountJourney() {
             // validation, confirmation, sessions, RPCs and password writes use
             // the real hosted service and published frontend.
             await page.route(`${base}/auth/v1/signup**`, async (route) => {
-                const input = route.request().postDataJSON();
-                ensure(
-                    input.email === email && input.password === password,
-                    'Unexpected signup identity'
-                );
-                signup = await generatedLink({
-                    type: 'signup',
-                    email,
-                    password,
-                    options: { data: input.data }
-                });
-                userId = signup.user.id;
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify(signup.user)
-                });
+                try {
+                    const input = route.request().postDataJSON();
+                    ensure(
+                        input.email === email && input.password === password,
+                        'Unexpected signup identity'
+                    );
+                    signup = await generatedLink({
+                        type: 'signup',
+                        email,
+                        password,
+                        options: { data: input.data }
+                    });
+                    userId = signup.user.id;
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify(signup.user)
+                    });
+                } catch (error) {
+                    fixtureFailure = error.safeLabel || 'Signup fixture failed';
+                    await route
+                        .fulfill({
+                            status: 500,
+                            contentType: 'application/json',
+                            body: '{"code":"qa_fixture_error"}'
+                        })
+                        .catch(() => {});
+                }
             });
             await page.route(`${base}/auth/v1/user**`, async (route) => {
                 if (route.request().method() !== 'PUT') return route.continue();
                 const input = route.request().postDataJSON();
                 if (!Object.hasOwn(input, 'email')) return route.continue();
-                ensure(input.email === newEmail, 'Unexpected email-change destination');
-                const jwt = route
-                    .request()
-                    .headers()
-                    .authorization?.replace(/^Bearer /i, '');
-                const authenticated = await ordinary.auth.getUser(jwt);
-                ensure(
-                    !authenticated.error && authenticated.data.user.id === userId,
-                    'Email change must use the ordinary user JWT'
-                );
-                const current = await generatedLink({
-                    type: 'email_change_current',
-                    email,
-                    newEmail
-                });
-                const replacement = await generatedLink({
-                    type: 'email_change_new',
-                    email,
-                    newEmail
-                });
-                emailLinks = { current, replacement };
-                const result = await admin.auth.admin.getUserById(userId);
-                ensure(!result.error, 'Cannot inspect test email change');
-                await route.fulfill({
-                    status: 200,
-                    contentType: 'application/json',
-                    body: JSON.stringify(result.data.user)
-                });
+                try {
+                    ensure(input.email === newEmail, 'Unexpected email-change destination');
+                    const jwt = route
+                        .request()
+                        .headers()
+                        .authorization?.replace(/^Bearer /i, '');
+                    const authenticated = await ordinary.auth.getUser(jwt);
+                    ensure(
+                        !authenticated.error && authenticated.data.user.id === userId,
+                        'Email change must use the ordinary user JWT'
+                    );
+                    const current = await generatedLink({
+                        type: 'email_change_current',
+                        email,
+                        newEmail
+                    });
+                    const replacement = await generatedLink({
+                        type: 'email_change_new',
+                        email,
+                        newEmail
+                    });
+                    emailLinks = { current, replacement };
+                    const result = await admin.auth.admin.getUserById(userId);
+                    ensure(!result.error, 'Cannot inspect test email change');
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify(result.data.user)
+                    });
+                } catch (error) {
+                    fixtureFailure = error.safeLabel || 'Email-change fixture failed';
+                    await route
+                        .fulfill({
+                            status: 500,
+                            contentType: 'application/json',
+                            body: '{"code":"qa_fixture_error"}'
+                        })
+                        .catch(() => {});
+                }
             });
         });
         await step('signup_ui_separate_declarations', async () => {
@@ -357,6 +385,7 @@ export async function runLiveAccountJourney() {
             ...(error.safeLabel ? { reason: error.safeLabel } : {})
         };
         failure.callback_shape = callbackShape;
+        failure.fixture_failure = fixtureFailure;
         failure.user_endpoint_statuses = userEndpointStatuses;
         if (page && !page.isClosed()) {
             try {
