@@ -2,7 +2,7 @@
 
 O botão **Continuar com Google** fica na janela **Login**, acima do acesso por e-mail. O cliente usa `signInWithOAuth` do Supabase com PKCE e solicita apenas `openid email profile`, sem acesso ao Gmail, Drive, agenda ou contatos. A preferência **Lembrar de mim** também determina onde a sessão e o verificador do OAuth são guardados.
 
-O login retorna para `https://digimoncwb.github.io/index.html#overview`. A autenticação do Google volta primeiro para o Supabase, por isso a URI autorizada no cliente OAuth do Google Cloud precisa ser:
+O login retorna para `https://digimoncwb.github.io/index.html`, sem fragmento de rota. O roteador abre a visão geral por padrão; o fragmento fica reservado à autenticação. A autenticação do Google volta primeiro para o Supabase, por isso a URI autorizada no cliente OAuth do Google Cloud precisa ser:
 
 ```
 https://vllqakohumoinpdwnsqa.supabase.co/auth/v1/callback

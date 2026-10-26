@@ -1,6 +1,23 @@
 import { createClient, type Session } from '@supabase/supabase-js';
 import type { SiteAuth, SiteAuthState, SiteAuthConfig, SiteProfile } from '../contracts';
 
+export function normalizeSiteAuthCallbackUrl(href: string) {
+    const target = new URL(href);
+    const separator = target.hash.indexOf('#', 1);
+    if (
+        separator < 0 ||
+        !/^#(?:overview|tournaments|meta|decks|players|admin|manage|statistics|posts|builder)$/.test(
+            target.hash.slice(0, separator)
+        )
+    )
+        return target.href;
+    const callback = target.hash.slice(separator);
+    const hasTokens =
+        /(?:^#|&)access_token=[^&]+/.test(callback) && /(?:^#|&)refresh_token=[^&]+/.test(callback);
+    if (hasTokens || /(?:^#|&)error=[^&]+/.test(callback)) target.hash = callback;
+    return target.href;
+}
+
 export function createSiteSessionStorage(persistent: Storage, temporary: Storage) {
     const preferenceKey = 'digistats.remember-account';
     const remember = () => persistent.getItem(preferenceKey) !== 'false';
@@ -33,7 +50,12 @@ export function createSiteAuth(): SiteAuth {
             PasswordCredential?: new (data: { id: string; password: string }) => Credential;
             navigator?: Navigator;
         };
-    const callbackHash = new URL(location.href).hash;
+    // Older provider links appended their token fragment after our route hash.
+    // Repair that shape before the SDK reads it; only the SDK validates tokens.
+    const callbackUrl = normalizeSiteAuthCallbackUrl(location.href);
+    if (callbackUrl !== location.href)
+        window.history.replaceState(window.history.state, '', callbackUrl);
+    const callbackHash = new URL(callbackUrl).hash;
     const implicitEmailCallback =
         /(?:^#|&)access_token=[^&]+/.test(callbackHash) &&
         /(?:^#|&)refresh_token=[^&]+/.test(callbackHash) &&
@@ -96,7 +118,8 @@ export function createSiteAuth(): SiteAuth {
         );
         url.pathname = url.pathname.replace(/\/?$/, '/') + 'index.html';
         url.search = '';
-        url.hash = '#overview';
+        // Auth owns the callback fragment. The router defaults to overview.
+        url.hash = '';
         return url.href;
     };
     const message = (error: { message?: string; code?: string }) => {

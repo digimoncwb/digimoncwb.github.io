@@ -18,6 +18,9 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
     let persistProfile = true;
     let authStorage;
     let clientOptions;
+    const browserLocation = {
+        href: browser.callbackUrl || 'https://site.example/index.html#decks'
+    };
     let oauthError = null;
     let signupResult = {
         data: { user: { id: 'new-user', identities: [{ id: 'new-identity' }] } },
@@ -110,10 +113,16 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
                 SUPABASE_URL: 'https://project.example',
                 SUPABASE_ANON_KEY: 'public-key'
             },
-            dispatchEvent: (e) => events.push(e)
+            dispatchEvent: (e) => events.push(e),
+            history: {
+                state: null,
+                replaceState: (_state, _title, href) => {
+                    browserLocation.href = String(href);
+                }
+            }
         },
         document: { querySelector: () => null },
-        location: { href: browser.callbackUrl || 'https://site.example/index.html#decks' },
+        location: browserLocation,
         sessionStorage: {
             removeItem: (key) => {
                 storage.push(key);
@@ -190,6 +199,7 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
             signupResult = value;
         },
         getClientOptions: () => clientOptions,
+        getLocation: () => browserLocation.href,
         setOAuthError: (value) => {
             oauthError = value;
         }
@@ -333,7 +343,7 @@ test('Profile changes persist across account reload and confirmation resend uses
     const resend = calls.at(-1);
     assert.equal(resend.type, 'signup');
     assert.equal(resend.email, 'user@example.test');
-    assert.equal(resend.options.emailRedirectTo, 'https://site.example/index.html#overview');
+    assert.equal(resend.options.emailRedirectTo, 'https://site.example/index.html');
 });
 
 test('Profile save rejects an unchanged result and errors reading the saved account', async () => {
@@ -405,7 +415,7 @@ test('Signup sends no role metadata and recovery returns to the shared shell', a
     const input = calls.at(-1);
     assert.equal(input.email, 'test@example.test');
     assert.equal(Object.keys(input.options.data).join(','), 'display_name');
-    assert.equal(input.options.emailRedirectTo, 'https://site.example/index.html#overview');
+    assert.equal(input.options.emailRedirectTo, 'https://site.example/index.html');
     config.privacy_url = null;
     await api.refresh();
     await assert.rejects(
@@ -525,7 +535,7 @@ test('Google login keeps the selected session lifetime and requires the verified
     await start.api.loginWithGoogle(false);
     const request = start.calls.at(-1);
     assert.equal(request.provider, 'google');
-    assert.equal(request.options.redirectTo, 'https://site.example/index.html#overview');
+    assert.equal(request.options.redirectTo, 'https://site.example/index.html');
     assert.equal(request.options.scopes, 'openid email profile');
     assert.equal(request.options.queryParams.prompt, 'select_account');
     assert.equal(start.api.getRememberMe(), false);
@@ -560,4 +570,32 @@ test('Google login failures restore storage preference and do not leave a stale 
     await assert.rejects(instance.api.loginWithGoogle(false), /Google ainda não está disponível/);
     assert.equal(instance.api.getRememberMe(), true);
     assert.equal(temporary.getItem('digistats.google-sign-in-started'), null);
+});
+
+test('Legacy route-prefixed email callbacks are repaired before SDK initialization without changing ordinary routes', async () => {
+    for (const type of ['signup', 'recovery', 'invite', 'email_change']) {
+        const instance = setup(memoryStorage(), memoryStorage(), {
+            callbackUrl: `https://site.example/index.html#overview#access_token=test-token&refresh_token=test-refresh&type=${type}`
+        });
+        assert.equal(instance.getClientOptions().auth.flowType, 'implicit');
+        assert.equal(
+            new URL(instance.getLocation()).hash,
+            `#access_token=test-token&refresh_token=test-refresh&type=${type}`
+        );
+    }
+    for (const hash of [
+        '#decks',
+        '#overview#section',
+        '#overview#access_token=incomplete&type=recovery'
+    ]) {
+        const instance = setup(memoryStorage(), memoryStorage(), {
+            callbackUrl: `https://site.example/index.html${hash}`
+        });
+        assert.equal(instance.getClientOptions().auth.flowType, 'pkce');
+        assert.equal(new URL(instance.getLocation()).hash, hash);
+    }
+    const instance = setup();
+    await instance.api.initialize();
+    await instance.api.recover('user@example.test');
+    assert.equal(instance.calls.at(-1).options.redirectTo, 'https://site.example/index.html');
 });
