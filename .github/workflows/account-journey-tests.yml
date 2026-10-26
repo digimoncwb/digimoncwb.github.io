@@ -1,0 +1,36 @@
+name: Live account journey tests
+
+on:
+    workflow_dispatch:
+        inputs:
+            authorize_disposable_account:
+                description: Authorize one temporary test account; no emails are sent and cleanup runs afterwards
+                type: boolean
+                default: false
+                required: true
+
+permissions:
+    contents: read
+
+concurrency:
+    group: account-journey-tests
+    cancel-in-progress: false
+
+jobs:
+    journey:
+        runs-on: ubuntu-latest
+        timeout-minutes: 12
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22.19.0'
+            - run: npm ci --no-audit --no-fund
+            - run: npm install --no-save --package-lock=false playwright@1.64.1
+            - run: npx playwright install --with-deps chromium
+            - name: Test one disposable account and remove it
+              env:
+                  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+                  SUPABASE_PROJECT_ID: vllqakohumoinpdwnsqa
+                  ACCOUNT_JOURNEY_AUTHORIZED: ${{ inputs.authorize_disposable_account }}
+              run: node scripts/test-live-account-journey.mjs
