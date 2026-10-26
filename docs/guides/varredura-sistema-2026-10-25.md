@@ -51,10 +51,12 @@ A publicação da revisão `978023f` concluiu com sucesso no GitHub Actions, inc
 
 A publicação seguinte, `8c8575a`, adicionou o login opcional com Google e os documentos `2026-10-25.2`, preservando os textos da primeira versão. A rodada completa dessa publicação passou com 280 testes. O botão público chegou à tela de login do Google com PKCE; o acesso por e-mail continuou disponível. A configuração e os limites dessa verificação estão em [Login com Google](login-google.md).
 
-## Entrega de e-mail não confirmada
+## Investigação de entrega de e-mail
 
-O responsável informou que os e-mails de recuperação solicitados não chegaram. Portanto, o envio transacional por e-mail continua **sem aprovação de entrega**, apesar dos testes de aplicação e das respostas HTTP 200. A varredura não deve ser interpretada como comprovação de funcionamento de todas as dependências externas.
+O responsável inicialmente informou que os e-mails de recuperação não chegaram. Naquele momento, a entrega não estava comprovada, apesar dos testes de aplicação e das respostas HTTP 200. A varredura não deve ser interpretada como comprovação de funcionamento de todas as dependências externas.
 
 O banco confirmou os dois destinatários existentes e o processamento das recuperações às 19:56 de 25/10/2026, horário de Brasília. Uma consulta posterior aos logs externos do Auth encontrou os dois eventos de recuperação concluídos, sem erro SMTP identificado nos registros disponíveis. O SMTP customizado está configurado, o envio por e-mail habilitado e não há hook de e-mail substituindo esse fluxo. Não foram enviados novos e-mails nessa investigação.
 
-Esses registros não mostram confirmação de entrega na caixa postal nem uma rejeição pelo Gmail. A próxima verificação é localizar as mensagens na pasta **Enviados** da conta remetente e conferir o recebimento e eventual aviso de falha no provedor. Até essa verificação, a causa da não chegada permanece indeterminada. O workflow **Auth email delivery diagnostics** permite repetir a consulta de leitura com resumos sem endereços, tokens ou credenciais; ele não envia mensagens nem altera o SMTP.
+Os registros do Auth não comprovavam a entrega na caixa postal. Posteriormente, o responsável confirmou que a conta da comunidade recebeu a mensagem e que a mensagem destinada a Eduardo foi encontrada no **Spam**. Assim, os dois testes tiveram recebimento confirmado pelo destinatário; o problema observado no segundo foi a classificação pelo Gmail. Isso não garante que próximos envios ficarão na caixa de entrada.
+
+A pedido explícito do responsável, foi solicitado mais um único e-mail de recuperação para a conta de Eduardo. O serviço retornou HTTP 200; o recebimento desse novo teste ainda precisa ser conferido. Nenhuma senha foi alterada. O workflow **Auth email delivery diagnostics** permanece somente de leitura e não envia mensagens nem altera o SMTP.
