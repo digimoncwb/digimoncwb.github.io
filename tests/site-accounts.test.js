@@ -21,6 +21,7 @@ async function setup(extraMigrations = []) {
         create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
         grant usage on schema auth to anon,authenticated,service_role;
         create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb default '{}',encrypted_password text);
+        create table auth.identities(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),provider text not null);
         insert into auth.users(id,email,email_confirmed_at) values
             ('${ids.admin}','admin@example.test',now()),('${ids.a}','a@example.test',now()),('${ids.b}','b@example.test',now()),
             ('${ids.pending}','pending@example.test',null),('${ids.legacy}','old@admin.digistats.local',now());
@@ -812,6 +813,230 @@ async function prepareLegal(db) {
 }
 const legalMigration = '20261025060000_versioned_terms_and_adult_declarations.sql';
 const bandaiMigration = '20261026010000_self_service_bandai_player_link.sql';
+const playerAdminMigration = '20261026020000_admin_privileges_on_bandai_players.sql';
+const automaticAdminListMigration = '20261026030000_limit_automatic_player_admins.sql';
+const legacyAdminPlayer = '20000000-0000-0000-0000-000000000099';
+
+async function preparePlayerAdmins(db) {
+    await prepareLegal(db);
+    await sqlOwner(db);
+    await db.query("insert into auth.identities(user_id,provider) values($1,'google')", [
+        ids.admin
+    ]);
+    await db.query('update user_profiles set player_id=$1 where user_id=$2', [
+        ids.player,
+        ids.admin
+    ]);
+    await db.query(
+        "insert into players(id,name,bandai_nick) values($1,'Legacy Bandai','Legacy Bandai')",
+        [legacyAdminPlayer]
+    );
+    await db.query('update user_profiles set player_id=$1 where user_id=$2', [
+        legacyAdminPlayer,
+        ids.legacy
+    ]);
+}
+
+test('Player admin automatic claims are limited to the six specified players and preserve the current owner', async () => {
+    const db = await setup([legalMigration, bandaiMigration, playerAdminMigration]);
+    try {
+        await preparePlayerAdmins(db);
+        await db.query('select reserve_legacy_player_admins($1)', [ids.admin]);
+        await db.query("update user_profiles set username='edu_lopes' where user_id=$1", [
+            ids.admin
+        ]);
+        await db.query("update players set name='Eduardo Lopes' where id=$1", [ids.player]);
+        await db.query("update players set name='Marcio Braga' where id=$1", [legacyAdminPlayer]);
+        for (const name of [
+            'Lukas Fujisawa',
+            'Matheus Fonseca',
+            'Carlos Fortes',
+            'Philippe Oliveira',
+            'Matheus Souza'
+        ]) {
+            await db.query(
+                'insert into players(id,name,bandai_nick) values(gen_random_uuid(),$1,$1)',
+                [name]
+            );
+        }
+        await db.exec(readFileSync(`database/migrations/${automaticAdminListMigration}`, 'utf8'));
+        const names = (
+            await db.query(
+                'select p.name from player_admin_grants g join players p on p.id=g.player_id order by p.name'
+            )
+        ).rows.map((row) => row.name);
+        assert.deepEqual(names, [
+            'Carlos Fortes',
+            'Lukas Fujisawa',
+            'Marcio Braga',
+            'Matheus Fonseca',
+            'Matheus Souza',
+            'Philippe Oliveira'
+        ]);
+        assert.equal(
+            (
+                await db.query('select admin_player_id from admin_users where user_id=$1', [
+                    ids.admin
+                ])
+            ).rows[0].admin_player_id,
+            null
+        );
+        await db.query(
+            "insert into auth.identities(user_id,provider) values($1,'google'),($2,'google')",
+            [ids.a, ids.b]
+        );
+        await as(db, 'a');
+        await db.query("select complete_my_player_link('Matheus Souza')");
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            true
+        );
+        await as(db, 'b');
+        await db.query("select complete_my_player_link('Ordinary Player')");
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            false
+        );
+        await as(db, 'admin');
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            true
+        );
+        await db.query('select admin_update_site_account($1,null,true)', [ids.b]);
+        assert.equal(
+            (await db.query('select admin_list_player_admins() value')).rows[0].value.length,
+            6
+        );
+        await as(db, 'b');
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            true
+        );
+    } finally {
+        await db.close();
+    }
+});
+
+test('Player admin reservations release legacy accounts without changing emails and a Google claim gains admin automatically', async () => {
+    const db = await setup([legalMigration, bandaiMigration, playerAdminMigration]);
+    try {
+        await preparePlayerAdmins(db);
+        const before = (await db.query('select email from auth.users where id=$1', [ids.legacy]))
+            .rows[0].email;
+        assert.equal(
+            (await db.query('select reserve_legacy_player_admins($1) count', [ids.admin])).rows[0]
+                .count,
+            1
+        );
+        assert.equal((await db.query('select count(*)::int n from admin_users')).rows[0].n, 1);
+        assert.equal(
+            (await db.query('select player_id from user_profiles where user_id=$1', [ids.legacy]))
+                .rows[0].player_id,
+            null
+        );
+        assert.equal(
+            (await db.query('select email from auth.users where id=$1', [ids.legacy])).rows[0]
+                .email,
+            before
+        );
+        await as(db, 'a');
+        await assert.rejects(
+            db.query("select complete_my_player_link('Legacy Bandai',$1)", [legacyAdminPlayer]),
+            /Google/
+        );
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.profile.player_id,
+            null
+        );
+        await sqlOwner(db);
+        await db.query("insert into auth.identities(user_id,provider) values($1,'google')", [
+            ids.a
+        ]);
+        await as(db, 'a');
+        await db.query("select complete_my_player_link('Legacy Bandai',$1)", [legacyAdminPlayer]);
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            true
+        );
+        assert.equal(
+            (await db.query('select admin_player_id from admin_users where user_id=$1', [ids.a]))
+                .rows[0].admin_player_id,
+            legacyAdminPlayer
+        );
+        await as(db, 'admin');
+        const roles = (await db.query('select admin_list_player_admins() value')).rows[0].value;
+        assert.equal(roles.filter((role) => role.claimed).length, 2);
+        await sqlOwner(db);
+        assert.equal(
+            (await db.query('select reserve_legacy_player_admins($1) count', [ids.admin])).rows[0]
+                .count,
+            0
+        );
+        await as(db, 'b');
+        await db.query("select complete_my_player_link('Regular player')");
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            false
+        );
+    } finally {
+        await db.close();
+    }
+});
+
+test('Player admin reservations protect the retained administrator, revoke roles and block direct privilege writes', async () => {
+    const db = await setup([legalMigration, bandaiMigration, playerAdminMigration]);
+    try {
+        await preparePlayerAdmins(db);
+        await assert.rejects(
+            db.query('select reserve_legacy_player_admins($1)', [ids.b]),
+            /preservada/
+        );
+        await db.query('select reserve_legacy_player_admins($1)', [ids.admin]);
+        await db.query("insert into auth.identities(user_id,provider) values($1,'google')", [
+            ids.a
+        ]);
+        await as(db, 'a');
+        await assert.rejects(
+            db.query('select reserve_legacy_player_admins($1)', [ids.admin]),
+            /permission denied/
+        );
+        await assert.rejects(
+            db.query('select sync_player_admin_user($1)', [ids.a]),
+            /permission denied/
+        );
+        await assert.rejects(
+            db.query("select complete_my_player_link_without_admin('Legacy Bandai',$1)", [
+                legacyAdminPlayer
+            ]),
+            /permission denied/
+        );
+        await assert.rejects(db.query('select * from player_admin_grants'), /permission denied/);
+        await db.query("select complete_my_player_link('Legacy Bandai',$1)", [legacyAdminPlayer]);
+        await as(db, 'admin');
+        await db.query('select admin_update_site_account($1,null,false)', [ids.a]);
+        await as(db, 'a');
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            false
+        );
+        await db.query("select complete_my_player_link('Legacy Bandai',$1)", [legacyAdminPlayer]);
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            false
+        );
+        await as(db, 'admin');
+        await assert.rejects(
+            db.query('select admin_update_site_account($1,null,false)', [ids.admin]),
+            /última conta/
+        );
+        assert.equal(
+            (await db.query('select my_site_account() value')).rows[0].value.is_admin,
+            true
+        );
+    } finally {
+        await db.close();
+    }
+});
 
 test('Bandai self-service links existing players or creates new players without approval and protects existing links', async () => {
     const db = await setup([legalMigration, bandaiMigration]);

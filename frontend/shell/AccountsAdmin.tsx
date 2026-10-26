@@ -43,6 +43,14 @@ type AuditEvent = {
     operation_id: string;
 };
 type LegacyDeck = { id: number; name: string; updated_at: string };
+type PlayerAdmin = {
+    player_id: string;
+    player_name: string;
+    bandai_nick: string | null;
+    username: string;
+    enabled: boolean;
+    claimed: boolean;
+};
 const tabs = [
     { value: 'accounts', label: 'Contas' },
     { value: 'requests', label: 'Solicitações' },
@@ -65,6 +73,7 @@ export function AccountsAdmin({
     const [search, setSearch] = useState('');
     const [term, setTerm] = useState('');
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [playerAdmins, setPlayerAdmins] = useState<PlayerAdmin[]>([]);
     const [requests, setRequests] = useState<Request[]>([]);
     const [events, setEvents] = useState<AuditEvent[]>([]);
     const [unownedOnly, setUnownedOnly] = useState(true);
@@ -101,6 +110,7 @@ export function AccountsAdmin({
     useEffect(() => {
         const generation = ++requestGeneration.current;
         setAccounts([]);
+        setPlayerAdmins([]);
         setRequests([]);
         setEvents([]);
         setLegacy([]);
@@ -109,11 +119,19 @@ export function AccountsAdmin({
         setError('');
         (async () => {
             if (tab === 'accounts' || tab === 'legacy') {
-                const rows = await auth.rpc<Account[]>('admin_list_site_accounts', {
-                    p_search: term,
-                    p_offset: tab === 'legacy' ? 0 : page * 50
-                });
-                if (generation === requestGeneration.current) setAccounts(rows);
+                const [rows, grants] = await Promise.all([
+                    auth.rpc<Account[]>('admin_list_site_accounts', {
+                        p_search: term,
+                        p_offset: tab === 'legacy' ? 0 : page * 50
+                    }),
+                    tab === 'accounts'
+                        ? auth.rpc<PlayerAdmin[]>('admin_list_player_admins')
+                        : Promise.resolve([])
+                ]);
+                if (generation === requestGeneration.current) {
+                    setAccounts(rows);
+                    setPlayerAdmins(grants);
+                }
             }
             if (tab === 'requests') {
                 const rows = await auth.rpc<Request[]>('admin_account_requests', {
@@ -235,6 +253,43 @@ export function AccountsAdmin({
                 </form>
             )}
             {tab === 'accounts' && (
+                <section>
+                    <h3>Administradores por jogador</h3>
+                    <p className="muted">
+                        O acesso é liberado quando a conta Google assume o jogador reservado.
+                    </p>
+                    <div className="site-account-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Jogador</th>
+                                    <th>Nome na Bandai</th>
+                                    <th>Vínculo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {playerAdmins.map((grant) => (
+                                    <tr key={grant.player_id}>
+                                        <td>{grant.player_name}</td>
+                                        <td>{grant.bandai_nick || grant.player_name}</td>
+                                        <td>
+                                            {!grant.enabled
+                                                ? 'Desativado'
+                                                : grant.claimed
+                                                  ? 'Vinculado'
+                                                  : 'Aguardando claim'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {!loading && !playerAdmins.length && (
+                        <p>Nenhum jogador com privilégio reservado.</p>
+                    )}
+                </section>
+            )}
+            {tab === 'accounts' && (
                 <div className="site-account-table">
                     <table>
                         <thead>
@@ -301,6 +356,7 @@ export function AccountsAdmin({
                                                     busy ||
                                                     (!account.is_admin &&
                                                         (!account.email_confirmed ||
+                                                            !account.player_id ||
                                                             account.status !== 'active'))
                                                 }
                                                 onClick={() => {
