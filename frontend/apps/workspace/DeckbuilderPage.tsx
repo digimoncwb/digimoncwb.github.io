@@ -501,7 +501,12 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                         Novidade
                                     </span>
                                     <strong className="deck-community-title">
-                                        Conheça o novo formato da comunidade - formato{' '}
+                                        <span className="deck-community-intro">
+                                            Conheça o novo formato da comunidade - formato{' '}
+                                        </span>
+                                        <span className="deck-community-mobile-intro">
+                                            Novo formato:{' '}
+                                        </span>
                                         <span className="deck-community-format-name">
                                             {highlight.name}
                                         </span>

@@ -315,6 +315,9 @@
 .deck-community-format-name {
     color: var(--accent) !important;
 }
+.deck-community-mobile-intro {
+    display: none;
+}
 .deck-community-notice p {
     margin: 10px 0 0;
     line-height: 1.7;
@@ -690,10 +693,27 @@
         white-space: nowrap;
     }
     .deck-community-notice {
-        align-items: flex-start;
-        flex-direction: column;
-        padding: 20px;
-        gap: 18px;
+        padding: 10px 12px;
+        gap: 12px;
+    }
+    .deck-library .deck-community-notice {
+        margin-bottom: 16px;
+    }
+    .deck-community-notice .deck-community-badge,
+    .deck-community-notice .deck-community-intro,
+    .deck-community-notice p {
+        display: none;
+    }
+    .deck-community-mobile-intro {
+        display: inline;
+    }
+    .deck-community-title {
+        font-size: 13px;
+        overflow-wrap: anywhere;
+    }
+    .deck-community-notice > .button {
+        padding: 8px 10px;
+        font-size: 12px;
     }
     .deck-library-filters,
     .deck-library-extra {
