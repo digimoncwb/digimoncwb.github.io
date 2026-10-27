@@ -64,7 +64,7 @@ export function paintDeckDistribution(ctx, groups, accent) {
     ctx.fillStyle = accent;
     ctx.font = '700 17px Arial';
     const titleX = 724 - ctx.measureText('OPTION').width / 2;
-    ctx.fillText('DISTRIBUIÇÃO POR LEVEL', titleX, 65, 320);
+    ctx.fillText('LEVEL DISTRIBUTION', titleX, 65, 320);
     const max = Math.max(1, ...groups.map((group) => group.total));
     const step = Math.min(21, 152 / Math.max(1, groups.length));
     const tile = Math.min(12, 194 / max - 2);

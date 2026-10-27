@@ -203,7 +203,7 @@ test('Deck format has a label and only its name uses the accent color', async ()
     assert.ok(points.x > formatName.x);
     const format = styledLabels.find(({ text }) => text === 'FORMATO ');
     assert.equal(
-        styledLabels.find(({ text }) => text === 'DISTRIBUIÇÃO POR LEVEL').font,
+        styledLabels.find(({ text }) => text === 'LEVEL DISTRIBUTION').font,
         format.font
     );
 });
@@ -312,7 +312,7 @@ test('Distribution uses the entire deck on every page and can be hidden', async 
     }));
     const { api, canvas, labels } = renderer();
     await api.renderDeckPost(canvas, cards, { name: 'Deck' }, { page: 1 }, '');
-    assert.ok(labels.includes('DISTRIBUIÇÃO POR LEVEL'));
+    assert.ok(labels.includes('LEVEL DISTRIBUTION'));
     assert.ok(labels.includes('LV.3'));
     assert.ok(labels.includes('50'));
     const hidden = renderer();
@@ -323,7 +323,7 @@ test('Distribution uses the entire deck on every page and can be hidden', async 
         { showLevelDistribution: false },
         ''
     );
-    assert.equal(hidden.labels.includes('DISTRIBUIÇÃO POR LEVEL'), false);
+    assert.equal(hidden.labels.includes('LEVEL DISTRIBUTION'), false);
 });
 
 test('Dual cards count toward their Digimon level alongside regular Digimon', () => {
