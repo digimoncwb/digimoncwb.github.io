@@ -417,6 +417,15 @@
     gap: 20px;
     min-width: 0;
 }
+.community-manager > .catalog-heading {
+    margin: 26px 0 2px;
+}
+@media (max-width: 780px) {
+    .community-manager > .catalog-heading {
+        margin: 22px 0 0;
+        gap: 14px;
+    }
+}
 .community-title-row {
     display: flex;
     align-items: center;

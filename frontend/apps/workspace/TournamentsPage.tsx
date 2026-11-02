@@ -98,7 +98,7 @@ export function TournamentsPage({
                 <PageHeading title="Torneios" />
                 <div className="tournament-heading-actions">
                     <button className="button primary" onClick={() => openEditor('create')}>
-                        + Adicionar torneio
+                        Enviar Resultados
                     </button>
                     <button
                         className="button primary"
