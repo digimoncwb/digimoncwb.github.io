@@ -141,6 +141,8 @@ jobs:
                     database/migrations/20261102210000_community_organizer_round_controls.sql \
                     database/migrations/20261102220000_community_player_score_perspective.sql \
                     database/migrations/20261102230000_community_minimum_four_players.sql \
+                    database/migrations/20261102233000_admin_account_links.sql \
+                    database/migrations/20261102234000_admin_account_role_consistency.sql \
                     supabase/config.toml \
                     supabase/functions/_shared \
                     supabase/functions/digilab-deck-catalog \

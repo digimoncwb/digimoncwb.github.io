@@ -84,10 +84,12 @@ function Shell() {
         return () => window.removeEventListener('digistats:account-open', open);
     }, []);
     useEffect(() => {
+        if (account.loading) return;
         if (account.recoveryRequired) setAccountView('password');
         else if (account.profileRequired) setAccountView('profile');
         else if (account.available && account.error && !account.user) setAccountView('login');
     }, [
+        account.loading,
         account.recoveryRequired,
         account.profileRequired,
         account.available,
@@ -481,7 +483,11 @@ function Shell() {
                 <div id="sidebar-support" className="sidebar-support" hidden={!mobileOpen} />
             </aside>
             <main className={styles.main}>
-                <CommunityAlerts active={true} onOpen={openCommunityEvent} eventHref={communityEventHref} />
+                <CommunityAlerts
+                    active={true}
+                    onOpen={openCommunityEvent}
+                    eventHref={communityEventHref}
+                />
                 {route.name === 'admin' && !adminDenied && (
                     <header className="site-admin-heading">
                         <h1>Administração</h1>

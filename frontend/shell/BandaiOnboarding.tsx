@@ -57,7 +57,12 @@ export function BandaiOnboarding({ auth, onComplete }: { auth: SiteAuth; onCompl
         (!needsLegal ||
             (declarations.termsAccepted && declarations.privacyRead && declarations.adultDeclared));
     return (
-        <Dialog title="Vincule seu jogador" onClose={() => {}} dismissible={false} busy={busy}>
+        <Dialog
+            title="Vincule os dados à sua conta"
+            onClose={() => {}}
+            dismissible={false}
+            busy={busy}
+        >
             <div className="site-account site-bandai-onboarding">
                 <p>
                     Qual é seu nome no Bandai TCG+? Vamos conectar sua conta ao seu jogador e ao

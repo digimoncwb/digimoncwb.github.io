@@ -123,16 +123,18 @@ export function AccountPanel({
     }
     const contact = state.config?.support_email || 'dulopes1997@gmail.com';
     const loggedView = state.user && view !== 'password';
-    const title =
-        view === 'password'
-            ? 'Definir nova senha'
-            : loggedView
-              ? 'Minha conta'
-              : view === 'signup'
-                ? 'Criar conta'
-                : view === 'recover'
-                  ? 'Recuperar acesso'
-                  : 'Login';
+    const loadingAccount = !!state.user && state.loading && view !== 'password';
+    const title = loadingAccount
+        ? 'Preparando sua conta'
+        : view === 'password'
+          ? 'Definir nova senha'
+          : loggedView
+            ? 'Minha conta'
+            : view === 'signup'
+              ? 'Criar conta'
+              : view === 'recover'
+                ? 'Recuperar acesso'
+                : 'Login';
     return (
         <Dialog title={title} onClose={onClose} busy={busy} closeLabel="Fechar">
             <div className="site-account">
@@ -142,7 +144,9 @@ export function AccountPanel({
                 {error && <p role="alert">{error}</p>}
                 {state.available && state.error && <p role="alert">{state.error}</p>}
                 {notice && <p role="status">{notice}</p>}
-                {view === 'password' ? (
+                {loadingAccount ? (
+                    <p role="status">Carregando os dados da sua conta…</p>
+                ) : view === 'password' ? (
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();

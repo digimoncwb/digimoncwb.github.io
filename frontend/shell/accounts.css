@@ -302,6 +302,65 @@ dialog.list-dialog:has(.site-account) > header h2 {
     flex-wrap: wrap;
     gap: 9px;
 }
+.site-account-links,
+.site-account-link-list {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+.site-account-link-row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    gap: 16px;
+    align-items: center;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+}
+.site-account-link-list {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) max-content;
+}
+.site-account-link-list > p {
+    grid-column: 1 / -1;
+}
+.site-account-link-row > div:not(.site-account-actions) {
+    display: grid;
+    gap: 4px;
+    overflow-wrap: anywhere;
+}
+.site-account-link-row small {
+    color: var(--muted);
+    font-size: 14px;
+}
+.site-account-links .site-account-unlink {
+    color: #ff8c94;
+    border-color: #a1444c;
+}
+.site-account-link-options {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 8px;
+}
+.site-account-link-options .button {
+    width: 100%;
+    text-align: left;
+    white-space: normal;
+}
+@media (max-width: 900px) {
+    .site-account-link-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .site-account-link-row > .site-account-actions {
+        grid-column: 1 / -1;
+    }
+}
+@media (max-width: 480px) {
+    .site-account-link-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
 .site-account .button {
     min-height: 40px;
     cursor: pointer;

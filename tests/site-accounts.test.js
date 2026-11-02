@@ -107,6 +107,89 @@ async function prepare(db) {
     );
 }
 
+test('only admins can manage account links, with uniqueness, stale checks, auditing and preserved player data', async () => {
+    const db = await setup(['20261102233000_admin_account_links.sql']);
+    try {
+        await prepare(db);
+        await as(db, null);
+        await assert.rejects(() => db.query("select admin_list_account_links('',0)"));
+        await as(db, 'a');
+        await assert.rejects(
+            () => db.query("select admin_list_account_links('',0)"),
+            /administrativo/
+        );
+        await assert.rejects(
+            () => db.query('select admin_set_account_player($1,$2,null)', [ids.a, ids.player]),
+            /administrativo/
+        );
+        await as(db, 'admin');
+        await db.query('select admin_set_account_player($1,$2,null)', [ids.a, ids.player]);
+        const linked = (
+            await db.query("select admin_list_account_links('Registered player',0) as rows")
+        ).rows[0].rows;
+        assert.equal(linked.length, 1);
+        assert.equal(linked[0].user_id, ids.a);
+        assert.equal(linked[0].player_name, 'Registered player');
+        await assert.rejects(
+            () => db.query('select admin_set_account_player($1,$2,null)', [ids.b, ids.player]),
+            /outra conta/
+        );
+        await assert.rejects(
+            () => db.query('select admin_set_account_player($1,null,null)', [ids.a]),
+            /mudou/
+        );
+        assert.deepEqual(
+            (await db.query("select admin_search_link_players('Registered',$1) as rows", [ids.b]))
+                .rows[0].rows,
+            []
+        );
+        assert.equal(
+            (await db.query("select admin_search_link_players('Registered',$1) as rows", [ids.a]))
+                .rows[0].rows.length,
+            1
+        );
+        await sqlOwner(db);
+        await db.query('update decklists set creator_player_id=$1,owner_user_id=$2 where id=1', [
+            ids.player,
+            ids.a
+        ]);
+        await as(db, 'admin');
+        await db.query('select admin_set_account_player($1,null,$2)', [ids.a, ids.player]);
+        await sqlOwner(db);
+        assert.equal(
+            (await db.query('select player_id from user_profiles where user_id=$1', [ids.a]))
+                .rows[0].player_id,
+            null
+        );
+        assert.equal(
+            (await db.query('select count(*)::int n from players where id=$1', [ids.player]))
+                .rows[0].n,
+            1
+        );
+        assert.equal(
+            (await db.query('select owner_user_id from decklists where id=1')).rows[0]
+                .owner_user_id,
+            ids.a
+        );
+        const audit = (
+            await db.query(
+                "select actor_user_id,changes from site_audit.events where action='account.player_link.updated' order by event_id desc limit 1"
+            )
+        ).rows[0];
+        assert.equal(audit.actor_user_id, ids.admin);
+        assert.equal(audit.changes.player_id.before, ids.player);
+        assert.equal(audit.changes.player_id.after, null);
+        await db.query('update players set is_active=false where id=$1', [ids.player]);
+        await as(db, 'admin');
+        await assert.rejects(
+            () => db.query('select admin_set_account_player($1,$2,null)', [ids.a, ids.player]),
+            /indisponível/
+        );
+    } finally {
+        await db.close();
+    }
+});
+
 test('Verified player links reconcile historical decks and future approvals without replacing owners', async () => {
     const db = await setup();
     const migration = readFileSync(
@@ -1694,6 +1777,111 @@ test('Audit monitoring detects absent collectors, failed and stalled operations 
             (await db.query('select admin_site_audit_health() value')).rows[0].value.recent_checks
                 .length,
             1
+        );
+    } finally {
+        await db.close();
+    }
+});
+
+test('unlinking a reserved player cannot remove the last active administrator', async () => {
+    const db = await setup([
+        legalMigration,
+        bandaiMigration,
+        playerAdminMigration,
+        '20261102233000_admin_account_links.sql'
+    ]);
+    try {
+        await preparePlayerAdmins(db);
+        await db.query(
+            "insert into player_admin_grants(player_id,username,display_name) values($1,'reserved_admin','Reserved Admin')",
+            [ids.player]
+        );
+        await db.query('select sync_player_admin_user($1)', [ids.admin]);
+        await as(db, 'admin');
+        await assert.rejects(
+            () => db.query('select admin_set_account_player($1,null,$2)', [ids.admin, ids.player]),
+            /administrativa ativa/
+        );
+        await sqlOwner(db);
+        assert.equal(
+            (await db.query('select player_id from user_profiles where user_id=$1', [ids.admin]))
+                .rows[0].player_id,
+            ids.player
+        );
+        assert.equal(
+            (
+                await db.query('select count(*)::int n from admin_users where user_id=$1', [
+                    ids.admin
+                ])
+            ).rows[0].n,
+            1
+        );
+    } finally {
+        await db.close();
+    }
+});
+
+test('manual admin grants support confirmed email accounts and report player links separately from automatic claims', async () => {
+    const db = await setup([
+        legalMigration,
+        bandaiMigration,
+        playerAdminMigration,
+        '20261102233000_admin_account_links.sql',
+        '20261102234000_admin_account_role_consistency.sql'
+    ]);
+    try {
+        await prepareLegal(db);
+        await sqlOwner(db);
+        await db.query(
+            "insert into player_admin_grants(player_id,username,display_name) values($1,'reserved_player','Reserved Player')",
+            [ids.player]
+        );
+        await as(db, 'admin');
+        await db.query('select admin_set_account_player($1,$2,null)', [ids.a, ids.player]);
+        let grant = (await db.query('select admin_list_player_admins() as rows')).rows[0].rows[0];
+        assert.equal(grant.linked, true);
+        assert.equal(grant.claimed, false);
+        assert.equal(
+            grant.is_admin,
+            false,
+            'Linking an email account does not automatically grant admin'
+        );
+        await as(db, 'a');
+        await assert.rejects(
+            () => db.query('select admin_update_site_account($1,null,true)', [ids.a]),
+            /administrativo/
+        );
+        await as(db, 'admin');
+        await db.query('select admin_update_site_account($1,null,true)', [ids.a]);
+        grant = (await db.query('select admin_list_player_admins() as rows')).rows[0].rows[0];
+        assert.equal(grant.linked, true);
+        assert.equal(grant.is_admin, true);
+        assert.equal(grant.claimed, false, 'A manual email grant is not a Google automatic claim');
+        await as(db, 'a');
+        assert.equal((await db.query('select site_is_admin() as allowed')).rows[0].allowed, true);
+        await as(db, 'admin');
+        await assert.rejects(
+            () => db.query('select admin_update_site_account($1,null,true)', [ids.b]),
+            (error) => error.code !== '42501' && /vinculado/.test(error.message)
+        );
+        await db.query('select admin_update_site_account($1,null,false)', [ids.a]);
+        grant = (await db.query('select admin_list_player_admins() as rows')).rows[0].rows[0];
+        assert.equal(grant.linked, true);
+        assert.equal(grant.is_admin, false);
+        await assert.rejects(
+            () => db.query('select admin_update_site_account($1,null,false)', [ids.admin]),
+            /administrativa ativa/
+        );
+        await sqlOwner(db);
+        assert.equal(
+            (await db.query('select count(*)::int n from player_admin_grants')).rows[0].n,
+            1
+        );
+        await db.query('update auth.users set email_confirmed_at=null where id=$1', [ids.a]);
+        await as(db, 'admin');
+        await assert.rejects(
+            () => db.query('select admin_update_site_account($1,null,true)', [ids.a]),
+            (error) => error.code !== '42501' && /confirmado/.test(error.message)
         );
     } finally {
         await db.close();

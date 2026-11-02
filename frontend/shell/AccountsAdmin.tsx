@@ -1,7 +1,7 @@
 import { AuditHealth } from './AuditHealth';
 import { AuditChanges } from './AuditChanges';
 import { prepareAuditExport } from './audit-export';
-import { AccountErasure } from './AccountErasure';
+import { AccountLinksAdmin } from './AccountLinksAdmin';
 import { useEffect, useRef, useState } from 'react';
 import type { SiteAuth } from '../contracts';
 import { useSiteAuth } from '../shared/site-auth';
@@ -16,19 +16,6 @@ type Account = {
     is_admin: boolean;
     player_id: string | null;
     email_confirmed: boolean;
-};
-type Request = {
-    id: string;
-    user_id: string;
-    display_name: string;
-    username: string;
-    request_type: string;
-    status: string;
-    player_id: string | null;
-    player_name: string | null;
-    decklist_id: number | null;
-    note: string;
-    review_note: string | null;
 };
 type AuditEvent = {
     event_id: number;
@@ -50,10 +37,12 @@ type PlayerAdmin = {
     username: string;
     enabled: boolean;
     claimed: boolean;
+    linked: boolean;
+    is_admin: boolean;
 };
 const tabs = [
     { value: 'accounts', label: 'Contas' },
-    { value: 'requests', label: 'Solicitações' },
+    { value: 'links', label: 'Vínculos de contas' },
     { value: 'legacy', label: 'Propriedade de decks' },
     { value: 'audit', label: 'Auditoria' }
 ];
@@ -74,13 +63,11 @@ export function AccountsAdmin({
     const [term, setTerm] = useState('');
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [playerAdmins, setPlayerAdmins] = useState<PlayerAdmin[]>([]);
-    const [requests, setRequests] = useState<Request[]>([]);
     const [events, setEvents] = useState<AuditEvent[]>([]);
     const [unownedOnly, setUnownedOnly] = useState(true);
     const [outcome, setOutcome] = useState('');
     const [operation, setOperation] = useState('');
     const [legacy, setLegacy] = useState<LegacyDeck[]>([]);
-    const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
     const [transfer, setTransfer] = useState<LegacyDeck | null>(null);
     const [ownerId, setOwnerId] = useState('');
     const [transferReason, setTransferReason] = useState('');
@@ -111,7 +98,6 @@ export function AccountsAdmin({
         const generation = ++requestGeneration.current;
         setAccounts([]);
         setPlayerAdmins([]);
-        setRequests([]);
         setEvents([]);
         setLegacy([]);
         if (!state.isAdmin) return;
@@ -132,12 +118,6 @@ export function AccountsAdmin({
                     setAccounts(rows);
                     setPlayerAdmins(grants);
                 }
-            }
-            if (tab === 'requests') {
-                const rows = await auth.rpc<Request[]>('admin_account_requests', {
-                    p_offset: page * 50
-                });
-                if (generation === requestGeneration.current) setRequests(rows);
             }
             if (tab === 'audit') {
                 const rows = await auth.rpc<AuditEvent[]>('admin_audit_events', {
@@ -186,13 +166,7 @@ export function AccountsAdmin({
     if (!state.isAdmin)
         return <p role="alert">Entre com uma conta administrativa ativa para acessar esta área.</p>;
     const count =
-        tab === 'accounts'
-            ? accounts.length
-            : tab === 'requests'
-              ? requests.length
-              : tab === 'legacy'
-                ? legacy.length
-                : events.length;
+        tab === 'accounts' ? accounts.length : tab === 'legacy' ? legacy.length : events.length;
     return (
         <section className="site-account-admin">
             {scope === 'accounts' && (
@@ -256,7 +230,8 @@ export function AccountsAdmin({
                 <section>
                     <h3>Administradores por jogador</h3>
                     <p className="muted">
-                        O acesso é liberado quando a conta Google assume o jogador reservado.
+                        O vínculo identifica a conta do jogador. O acesso administrativo pode ser
+                        concedido na lista de contas abaixo.
                     </p>
                     <div className="site-account-table">
                         <table>
@@ -265,6 +240,7 @@ export function AccountsAdmin({
                                     <th>Jogador</th>
                                     <th>Nome na Bandai</th>
                                     <th>Vínculo</th>
+                                    <th>Acesso admin</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -273,11 +249,16 @@ export function AccountsAdmin({
                                         <td>{grant.player_name}</td>
                                         <td>{grant.bandai_nick || grant.player_name}</td>
                                         <td>
-                                            {!grant.enabled
-                                                ? 'Desativado'
-                                                : grant.claimed
-                                                  ? 'Vinculado'
-                                                  : 'Aguardando claim'}
+                                            {grant.linked ? 'Vinculado' : 'Sem conta vinculada'}
+                                        </td>
+                                        <td>
+                                            {grant.is_admin
+                                                ? 'Ativo'
+                                                : !grant.enabled
+                                                  ? 'Desativado'
+                                                  : grant.linked
+                                                    ? 'Aguardando concessão'
+                                                    : 'Reservado'}
                                         </td>
                                     </tr>
                                 ))}
@@ -391,111 +372,15 @@ export function AccountsAdmin({
                     {!loading && !accounts.length && <p>Nenhuma conta encontrada.</p>}
                 </div>
             )}
-            {tab === 'requests' &&
-                requests.map((request) => (
-                    <section key={request.id}>
-                        <h3>
-                            {request.display_name} (@{request.username})
-                        </h3>
-                        <p>
-                            {
-                                (
-                                    {
-                                        player_link: 'Vínculo com jogador',
-                                        deck_claim: 'Propriedade de deck',
-                                        data_access: 'Acesso a dados',
-                                        correction: 'Correção',
-                                        erasure: 'Eliminação de dados',
-                                        account_closure: 'Encerramento de conta'
-                                    } as Record<string, string>
-                                )[request.request_type]
-                            }{' '}
-                            · {request.status}
-                        </p>
-                        {request.player_id && (
-                            <p>Jogador: {request.player_name || request.player_id}</p>
-                        )}
-                        {request.decklist_id && <p>Deck: {request.decklist_id}</p>}
-                        <p>{request.note || 'Sem observação.'}</p>
-                        {request.status === 'pending' && request.request_type === 'erasure' && (
-                            <AccountErasure
-                                auth={auth}
-                                requestId={request.id}
-                                onBusy={(value) => {
-                                    setBusy(value);
-                                    onBusy(value);
-                                }}
-                                onCompleted={() => setRevision((value) => value + 1)}
-                            />
-                        )}
-                        {request.status === 'pending' ? (
-                            <>
-                                <label>
-                                    Resposta à solicitação
-                                    <textarea
-                                        rows={2}
-                                        maxLength={1000}
-                                        value={reviewNotes[request.id] || ''}
-                                        onChange={(e) =>
-                                            setReviewNotes((old) => ({
-                                                ...old,
-                                                [request.id]: e.target.value
-                                            }))
-                                        }
-                                    />
-                                </label>
-                                <div className="site-account-actions">
-                                    {(request.request_type === 'player_link' ||
-                                    request.request_type === 'deck_claim' ||
-                                    request.request_type === 'account_closure'
-                                        ? ['approved', 'rejected']
-                                        : ['completed', 'rejected']
-                                    )
-                                        .filter(
-                                            (decision) =>
-                                                request.request_type !== 'erasure' ||
-                                                decision === 'rejected'
-                                        )
-                                        .map((decision) => (
-                                            <button
-                                                className="button secondary"
-                                                disabled={busy}
-                                                key={decision}
-                                                onClick={() => {
-                                                    if (
-                                                        window.confirm(
-                                                            `Confirmar ${decision === 'approved' ? 'aprovação após validar a titularidade' : decision === 'completed' ? 'conclusão do atendimento' : 'recusa'} da solicitação de ${request.display_name}?`
-                                                        )
-                                                    )
-                                                        void run(async () => {
-                                                            await auth.rpc(
-                                                                'admin_review_account_request',
-                                                                {
-                                                                    p_request_id: request.id,
-                                                                    p_decision: decision,
-                                                                    p_note:
-                                                                        reviewNotes[request.id] ||
-                                                                        ''
-                                                                }
-                                                            );
-                                                            await auth.refresh();
-                                                        }, 'Solicitação analisada.');
-                                                }}
-                                            >
-                                                {decision === 'approved'
-                                                    ? 'Aprovar'
-                                                    : decision === 'completed'
-                                                      ? 'Concluir atendimento'
-                                                      : 'Recusar'}
-                                            </button>
-                                        ))}
-                                </div>
-                            </>
-                        ) : (
-                            request.review_note && <p>{request.review_note}</p>
-                        )}
-                    </section>
-                ))}
+            {tab === 'links' && (
+                <AccountLinksAdmin
+                    auth={auth}
+                    onBusy={(value) => {
+                        setBusy(value);
+                        onBusy(value);
+                    }}
+                />
+            )}
             {tab === 'legacy' && (
                 <>
                     <label>
@@ -800,7 +685,7 @@ export function AccountsAdmin({
                     </div>
                 </>
             )}
-            {(page > 0 || count >= (tab === 'audit' ? 100 : 50)) && (
+            {tab !== 'links' && (page > 0 || count >= (tab === 'audit' ? 100 : 50)) && (
                 <div className="site-account-actions site-admin-pagination">
                     <button
                         className="button secondary"

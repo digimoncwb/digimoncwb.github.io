@@ -182,6 +182,7 @@ export function createSiteAuth(): SiteAuth {
                       isAdmin: false,
                       isMember: false,
                       legalCurrent: false,
+                      profileRequired: false,
                       playerLinkRequired: false
                   }
                 : {})
