@@ -2,8 +2,8 @@
 export const siteLegalDocuments = {
     terms: {
         title: 'Termos de Uso',
-        version: '2026-11-02.1',
-        url: 'https://digimoncwb.github.io/legal/termos-2026-11-02.html',
+        version: '2026-11-02.2',
+        url: 'https://digimoncwb.github.io/legal/termos-2026-11-02-v2.html',
         sections: [
             {
                 title: '1. Sobre o site',
@@ -56,31 +56,31 @@ export const siteLegalDocuments = {
     },
     privacy: {
         title: 'Aviso de Privacidade',
-        version: '2026-11-02.1',
-        url: 'https://digimoncwb.github.io/legal/privacidade-2026-11-02.html',
+        version: '2026-11-02.2',
+        url: 'https://digimoncwb.github.io/legal/privacidade-2026-11-02-v2.html',
         sections: [
             {
                 title: '1. Quem trata os dados e como falar conosco',
                 paragraphs: [
-                    'A Comunidade Digimon CWB mantém o DIGIMON CWB. Eduardo Lopes é o responsável pela administração técnica do projeto e o contato para contas e privacidade é digimoncwb@gmail.com. Este aviso descreve o tratamento realizado no site e em seus serviços de apoio.',
+                    'A Comunidade Digimon CWB é responsável pelo DIGIMON CWB e pelo uso dos dados descrito neste aviso. Para assuntos relacionados à sua conta e à privacidade, entre em contato pelo e-mail digimoncwb@gmail.com.',
                     'Você pode falar sobre seus dados mesmo sem possuir conta. Não envie senha, código de confirmação ou documento pessoal na primeira mensagem; quando necessário, solicitaremos apenas informações proporcionais para verificar sua identidade.'
                 ]
             },
             {
                 title: '2. Quais dados usamos e para quê',
                 paragraphs: [
-                    'Conta: e-mail, nome de exibição, nome de usuário, situação da conta, vínculo com jogador, permissões e registros de aceite. Usamos esses dados para criar e proteger o acesso, identificar o conteúdo da conta e prestar suporte. A autenticação é processada pelo Supabase; sua senha não fica disponível para consulta pela equipe no painel administrativo.',
-                    'No login opcional com Google, solicitamos identidade básica (openid, e-mail e perfil), que pode incluir identificador do provedor, nome, e-mail verificado e metadados como a URL da imagem do perfil no serviço de autenticação. Não solicitamos acesso ao Gmail, ao Google Drive, à agenda ou aos contatos e não recebemos a senha do Google. Você pode escolher o acesso por e-mail e senha em vez do login social.',
-                    'Comunidade e torneios: nomes e apelidos de jogadores, identificadores Bandai e DigiLab, participações, classificações, decks e cartas. Usamos esses dados para manter o histórico dos eventos, permitir buscas, montar estatísticas e compartilhar decklists. Eles podem ser cadastrados por organizadores ou importados de fontes externas e podem existir mesmo para quem não criou uma conta.',
-                    'Suporte: mensagem de sugestão ou bug, e-mail da conta autenticada, página, versão do site e informações do navegador. Esses dados ajudam a responder e investigar problemas. Dados de conexão e um identificador derivado da conexão também são usados para limitar spam.',
-                    'Segurança e auditoria: operações relevantes, responsáveis pelas alterações, datas, resultados de integrações e registros técnicos dos fornecedores. Usamos essas informações para detectar abuso, investigar falhas, controlar permissões e manter evidências de alterações. Não envie dados sensíveis nos campos de texto livre.'
+                    'Conta: e-mail, nome de exibição, nome de usuário, situação da conta, vínculo com jogador, permissões e registros de aceite. Usamos esses dados para criar e proteger o acesso, identificar o conteúdo da conta e prestar suporte. A equipe não tem acesso à sua senha.',
+                    'Se você escolher entrar com uma conta de outro serviço, recebemos os dados básicos necessários ao acesso, como nome, e-mail confirmado, identificação da conta e foto de perfil, quando disponíveis. Não recebemos a senha dessa conta nem solicitamos acesso às suas mensagens, arquivos, agenda ou contatos. Você também pode entrar com e-mail e senha.',
+                    'Comunidade e torneios: nomes e apelidos de jogadores, identificadores de jogador, participações, classificações, decks e cartas. Usamos esses dados para manter o histórico dos eventos, permitir buscas, montar estatísticas e compartilhar listas de cartas. Eles podem ser cadastrados por organizadores ou obtidos de outras fontes e podem existir mesmo para quem não criou uma conta.',
+                    'Suporte: mensagem de sugestão ou relato de problema, e-mail da conta utilizada, página, versão do site e informações do navegador. Esses dados ajudam a responder e investigar problemas. Informações sobre a conexão também são usadas para limitar mensagens abusivas ou repetidas.',
+                    'Segurança e histórico de alterações: ações realizadas no site, seus responsáveis, datas e registros de funcionamento dos serviços de apoio. Usamos essas informações para detectar abuso, investigar falhas, controlar o acesso e acompanhar alterações. Não envie dados pessoais sensíveis nos campos de mensagem.'
                 ]
             },
             {
                 title: '3. O que fica público',
                 paragraphs: [
                     'Nomes e apelidos de jogadores, resultados de torneios, classificações, estatísticas, decks publicados e autoria creditada podem ser consultados publicamente e podem aparecer em ferramentas de busca ou ser copiados por terceiros.',
-                    'O e-mail da conta não é publicado nas listas de jogadores e decks nem apresentado no gerenciamento comum de contas da administração. O fornecedor de autenticação e responsáveis autorizados pela operação técnica podem precisar tratar o e-mail para autenticação, suporte e segurança. Mensagens de suporte são encaminhadas à equipe, não publicadas como conteúdo da comunidade.'
+                    'O e-mail da conta não é publicado nas listas de jogadores e decks nem apresentado no gerenciamento comum de contas da administração. Os serviços que permitem o acesso à conta e as pessoas autorizadas a manter o site podem precisar usar esse e-mail para acesso, suporte e segurança. Mensagens de suporte são encaminhadas à equipe, não publicadas como conteúdo da comunidade.'
                 ]
             },
             {
@@ -88,29 +88,29 @@ export const siteLegalDocuments = {
                 paragraphs: [
                     'Os dados necessários à conta e aos recursos que você solicita são tratados para executar esse relacionamento. Segurança, prevenção de abuso e manutenção do histórico da comunidade podem envolver legítimo interesse, com avaliação dos direitos das pessoas. Obrigações legais e exercício regular de direitos podem justificar tratamentos específicos.',
                     'O aceite dos Termos de Uso e a ciência deste aviso não representam autorização genérica para qualquer uso de dados. Quando uma finalidade depender de consentimento, ele deverá ser solicitado de forma específica e poderá ser revogado pelo canal de privacidade, sem invalidar o tratamento anterior que era permitido.',
-                    'A consulta pública não exige cadastro. Para manter uma conta, precisamos dos dados necessários à autenticação e operação do perfil. Nesta versão, o cadastro é restrito a maiores de 18 anos. Solicitações relativas a dados de menores eventualmente presentes em históricos de eventos devem ser encaminhadas ao contato de privacidade para avaliação.'
+                    'A consulta pública não exige cadastro. Para manter uma conta, precisamos dos dados necessários ao acesso e ao funcionamento do perfil. Nesta versão, o cadastro é restrito a maiores de 18 anos. Solicitações relativas a dados de menores eventualmente presentes em históricos de eventos devem ser encaminhadas ao contato de privacidade para avaliação.'
                 ]
             },
             {
                 title: '5. Fornecedores e compartilhamento',
                 paragraphs: [
-                    'Utilizamos GitHub Pages para hospedar o site, Supabase para banco de dados, autenticação e arquivos, Google para o login opcional e Gmail SMTP para e-mails de conta e Resend para encaminhar sugestões e bugs à equipe. DigiLab e outros provedores de imagens e dados apoiam as funções de torneios e cartas. Ao carregar arquivos externos, esses provedores podem receber informações técnicas de conexão.',
-                    'Esses fornecedores podem processar dados em outros países, conforme a infraestrutura contratada e suas condições. O uso deve observar os mecanismos e garantias aplicáveis às transferências internacionais. Não vendemos os dados pessoais cadastrados. Compartilhamentos adicionais podem ocorrer quando necessários ao suporte, à segurança ou ao cumprimento de uma exigência legal válida.'
+                    'Contamos com serviços de apoio para manter o site disponível, guardar dados e arquivos, permitir o acesso às contas e enviar e-mails e mensagens de suporte. Também consultamos fontes de informações sobre torneios, cartas e imagens. Esses serviços podem receber os dados necessários à sua função e informações de conexão quando seu navegador carrega conteúdo fornecido por eles.',
+                    'Esses serviços podem usar ou armazenar dados em outros países, conforme suas condições. O uso deve observar as garantias aplicáveis ao envio de dados para outros países. Não vendemos os dados pessoais cadastrados. Outros compartilhamentos podem ocorrer quando necessários ao suporte, à segurança ou ao cumprimento de uma exigência legal válida.'
                 ]
             },
             {
                 title: '6. Armazenamento no navegador e e-mails',
                 paragraphs: [
-                    'O navegador guarda preferências de aparência, arquivos de cache e dados necessários à sessão. Com Lembrar de mim, a sessão e o e-mail podem persistir entre visitas; sem essa opção, a sessão fica restrita à aba. Sair encerra a sessão, mas pode preservar o e-mail lembrado. A senha não é salva pelo site no armazenamento local: o preenchimento depende do gerenciador de senhas do navegador.',
-                    'Você pode apagar os dados do site nas configurações do navegador, o que pode encerrar a sessão e remover preferências. Os e-mails de conta incluem confirmação de endereço, recuperação e alterações de acesso; o envio depende dos provedores e pode estar sujeito a filtros de spam e limites. O envio de sugestões ou bugs não implica uma resposta automática ao remetente.'
+                    'O navegador guarda preferências de aparência, cópias de arquivos para agilizar o carregamento e dados para manter sua conta conectada. Com Lembrar de mim, o acesso e o e-mail podem ser mantidos entre visitas; sem essa opção, o acesso fica restrito à aba. Sair desconecta sua conta, mas pode preservar o e-mail lembrado. O site não salva sua senha no navegador; o preenchimento automático depende do recurso de senhas do próprio navegador.',
+                    'Você pode apagar os dados do site nas configurações do navegador, o que pode desconectar sua conta e remover preferências. Os e-mails de conta incluem confirmação de endereço, recuperação e alterações de acesso; a entrega depende dos serviços de e-mail e pode estar sujeita a filtros e limites. O envio de sugestões ou relatos de problemas não implica uma resposta automática ao remetente.'
                 ]
             },
             {
                 title: '7. Por quanto tempo conservamos',
                 paragraphs: [
                     'Os dados da conta são mantidos enquanto necessários à prestação do serviço e à resolução de solicitações. Pedidos de encerramento, exclusão e anonimização são analisados individualmente. Resultados históricos de torneios podem exigir correção ou anonimização em vez da remoção integral do evento.',
-                    'A auditoria da aplicação tem retenção configurada de 90 dias com rotina diária de limpeza. Solicitações concluídas e mensagens de suporte resolvidas têm revisão e limpeza manual previstas em 180 dias após a conclusão. A rotina da aplicação não apaga automaticamente logs dos fornecedores, cópias de segurança ou material já compartilhado por terceiros.',
-                    'Prazos podem ser estendidos quando houver obrigação legal, investigação de incidente ou necessidade de defesa de direitos, limitados ao que for necessário. Dados de fornecedores e backups seguem também as condições e possibilidades técnicas desses serviços.'
+                    'Os registros de alterações do site são mantidos por 90 dias, com limpeza diária. Solicitações concluídas e mensagens de suporte resolvidas têm revisão e limpeza pela equipe previstas em 180 dias após a conclusão. Essa limpeza não remove automaticamente os registros dos serviços de apoio, cópias de segurança ou material já compartilhado por outras pessoas.',
+                    'Prazos podem ser estendidos quando houver obrigação legal, investigação de incidente ou necessidade de defesa de direitos, limitados ao que for necessário. Dados mantidos pelos serviços de apoio e em cópias de segurança também seguem as condições e os recursos disponíveis nesses serviços.'
                 ]
             },
             {
@@ -118,7 +118,7 @@ export const siteLegalDocuments = {
                 paragraphs: [
                     'Conforme a LGPD e as condições aplicáveis, você pode solicitar confirmação e acesso, correção, informação sobre compartilhamento, anonimização, bloqueio ou eliminação de dados excessivos ou tratados irregularmente, portabilidade nos termos da regulamentação e revisão de decisões automatizadas quando cabível. Também pode solicitar exclusão de dados tratados com consentimento e informação sobre a possibilidade de recusá-lo e suas consequências.',
                     'Envie sua solicitação a digimoncwb@gmail.com. A equipe poderá verificar sua identidade antes de entregar ou alterar dados e explicará quando um pedido não puder ser atendido integralmente. Você também pode apresentar petição à Autoridade Nacional de Proteção de Dados e aos demais órgãos competentes.',
-                    'Adotamos controles de acesso, registro de alterações e mecanismos de autenticação, mas nenhum serviço é livre de riscos. Incidentes serão avaliados e comunicados quando exigido. Mudanças relevantes neste aviso serão publicadas em nova versão, com nova ciência quando aplicável ao cadastro.'
+                    'Adotamos medidas para proteger o acesso às contas e acompanhar alterações, mas nenhum serviço é livre de riscos. Incidentes serão avaliados e comunicados quando exigido. Mudanças relevantes neste aviso serão publicadas em nova versão, com nova ciência quando aplicável ao cadastro.'
                 ]
             }
         ]

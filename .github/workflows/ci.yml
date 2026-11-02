@@ -144,6 +144,7 @@ jobs:
                     database/migrations/20261102233000_admin_account_links.sql \
                     database/migrations/20261102234000_admin_account_role_consistency.sql \
                     database/migrations/20261102235000_community_legal_contact.sql \
+                    database/migrations/20261102235500_plain_language_privacy.sql \
                     supabase/functions/send-feedback \
                     supabase/config.toml \
                     supabase/functions/_shared \
