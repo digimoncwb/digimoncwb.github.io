@@ -241,7 +241,10 @@ test('resume restores the same tables, confirmed scores and proposals, freezing 
             state.event.revision
         ]);
         const proposed = state.matches[1];
-        const proposer = state.entries.find((entry) => entry.id === proposed.p1);
+        // Pairings are randomized; an admin submission would confirm immediately.
+        const proposer = state.entries.find(
+            (entry) => [proposed.p1, proposed.p2].includes(entry.id) && entry.player_id !== pid(1)
+        );
         await login(Number(proposer.player_id.slice(-12)));
         state = await rpc('community_command', [
             id,
@@ -255,6 +258,8 @@ test('resume restores the same tables, confirmed scores and proposals, freezing 
             }),
             state.event.revision
         ]);
+        assert.equal(state.matches.find((match) => match.id === proposed.id).status, 'proposed');
+        assert.equal(state.rounds[0].status, 'running');
         await login(1);
         for (const overtime of [false, true]) {
             if (overtime) {
