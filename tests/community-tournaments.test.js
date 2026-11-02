@@ -6,7 +6,7 @@ const { Buffer } = require('node:buffer');
 const uid = (n) => `10000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 const pid = (n) => `20000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
-test('an admin playing as Player 2 can refute with their own score and the opponent confirms it', async () => {
+test('an admin playing as Player 2 refutes with their own score and confirms immediately', async () => {
     const { db, rpc, create, login } = await setup(true);
     try {
         const id = await create();
@@ -49,12 +49,74 @@ test('an admin playing as Player 2 can refute with their own score and the oppon
         await command('contest', { match_id, wins: 2, losses: 1, draws: 0 });
         assert.equal(state.matches[0].wins, 1);
         assert.equal(state.matches[0].losses, 2);
-        assert.equal(state.matches[0].status, 'proposed');
         assert.equal(state.matches[0].proposed_by, admin.id);
-        await login(2);
-        await command('confirm', { match_id });
         assert.equal(state.matches[0].status, 'confirmed');
         assert.equal(state.standings[0].id, admin.id);
+    } finally {
+        await db.close();
+    }
+});
+
+test('admin scores confirm immediately in either seat, against players or admins, and close the round', async () => {
+    const { db, rpc, create, login } = await setup(true);
+    try {
+        for (const opponentAdmin of [false, true]) {
+            if (opponentAdmin)
+                await db.exec(
+                    `reset role; insert into public.admin_users values('${uid(2)}'); set role authenticated;`
+                );
+            for (const adminSecond of [false, true]) {
+                for (const action of ['propose', 'resolve']) {
+                    await login(1);
+                    const id = await create();
+                    let state = await rpc('community_snapshot', [id]);
+                    state = await rpc('community_add_players', [
+                        id,
+                        JSON.stringify([pid(1), pid(2), pid(3), pid(4)]),
+                        state.event.revision
+                    ]);
+                    const entry = (n) => state.entries.find((e) => e.player_id === pid(n)).id;
+                    const command = async (action, data = {}) => {
+                        if (data.match_id)
+                            data.match_revision = state.matches.find(
+                                (m) => m.id === data.match_id
+                            ).revision;
+                        state = await rpc('community_command', [
+                            id,
+                            action,
+                            JSON.stringify(data),
+                            state.event.revision
+                        ]);
+                    };
+                    await command('start');
+                    await command('pair', {
+                        seed: 'admin-result',
+                        pairs: [
+                            { p1: entry(adminSecond ? 2 : 1), p2: entry(adminSecond ? 1 : 2) },
+                            { p1: entry(3), p2: entry(4) }
+                        ]
+                    });
+                    await command('start_round');
+                    const match = state.matches.find((m) => m.p1 === entry(adminSecond ? 2 : 1));
+                    const other = state.matches.find((m) => m.id !== match.id);
+                    await login(3);
+                    await command('propose', { match_id: other.id, wins: 2, losses: 0, draws: 0 });
+                    assert.equal(state.matches.find((m) => m.id === other.id).status, 'proposed');
+                    await login(4);
+                    await command('confirm', { match_id: other.id });
+                    assert.equal(state.rounds[0].status, 'running');
+                    await login(1);
+                    // Older clients propose relative to the submitter; resolve uses table order.
+                    await command(action, { match_id: match.id, wins: 2, losses: 0, draws: 0 });
+                    const result = state.matches.find((m) => m.id === match.id);
+                    assert.equal(result.status, 'confirmed');
+                    assert.equal(result.wins, action === 'propose' && adminSecond ? 0 : 2);
+                    assert.equal(result.losses, action === 'propose' && adminSecond ? 2 : 0);
+                    assert.ok(state.audit.some((a) => a.action === 'match_before_resolution'));
+                    assert.equal(state.rounds[0].status, 'closed');
+                }
+            }
+        }
     } finally {
         await db.close();
     }
@@ -1085,7 +1147,7 @@ test('PLAY: enrollment, repeated counterproposals, score limits, server clock an
             assert.equal(Date.parse(round.overtime_ends_at) - Date.parse(round.ends_at), 5 * 60000);
             const matches = s.matches.filter((m) => m.round_id === round.id);
             if (index === 0) {
-                const match = matches[0];
+                const match = matches.find((m) => m.p1 !== entries[0].id && m.p2 !== entries[0].id);
                 const n1 = Number(s.entries.find((e) => e.id === match.p1).player_id.slice(-12));
                 const n2 = Number(s.entries.find((e) => e.id === match.p2).player_id.slice(-12));
                 await login(n1);
@@ -1118,7 +1180,12 @@ test('PLAY: enrollment, repeated counterproposals, score limits, server clock an
                 await command('confirm', { match_id: match.id });
                 assert.equal(s.rounds[s.rounds.length - 1].status, 'running');
                 await login(1);
-                await command('resolve', { match_id: matches[1].id, wins: 2, losses: 0, draws: 0 });
+                await command('resolve', {
+                    match_id: matches.find((m) => m.id !== match.id).id,
+                    wins: 2,
+                    losses: 0,
+                    draws: 0
+                });
             } else {
                 for (const match of matches)
                     await command('resolve', { match_id: match.id, wins: 2, losses: 1, draws: 0 });
@@ -1253,6 +1320,9 @@ async function setup(playFlow = false) {
                 'database/migrations/20261102230000_community_minimum_four_players.sql',
                 'utf8'
             )
+        );
+        await db.exec(
+            readFileSync('database/migrations/20261102240000_community_admin_results.sql', 'utf8')
         );
     }
     await db.exec(

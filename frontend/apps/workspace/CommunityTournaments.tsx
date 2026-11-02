@@ -249,12 +249,7 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
     const event = snapshot?.event,
         mine = snapshot?.entries.find((e) => e.player_id === auth.profile?.player_id);
     const preparing = !!event && ['draft', 'published'].includes(event.status);
-    const scoreAsAdmin =
-        auth.isAdmin &&
-        (historicalScore ||
-            !mine ||
-            (!!score && score.p1 !== mine.id && score.p2 !== mine.id) ||
-            score?.status === 'confirmed');
+    const scoreAsAdmin = auth.isAdmin;
     const SummaryPanel = desktop || preparing ? 'section' : 'details';
     const tournamentTabs = [
         ...(event?.status === 'running' ? [['pairings', 'Pairings']] : []),
