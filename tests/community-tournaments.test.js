@@ -827,6 +827,49 @@ test('admins correct historical results without losing later rounds and must rev
     }
 });
 
+test('players can withdraw only their own registration before starting and rejoin the freed seat', async () => {
+    const { db, rpc, create, login } = await setup(true);
+    try {
+        const id = await create();
+        let state = await rpc('community_snapshot', [id]);
+        state = await rpc('community_add_players', [
+            id,
+            JSON.stringify([pid(1), pid(2), pid(3), pid(4)]),
+            state.event.revision
+        ]);
+        const command = async (action, data = {}, revision = state.event.revision) => {
+            state = await rpc('community_command', [id, action, JSON.stringify(data), revision]);
+        };
+        const other = state.entries.find((entry) => entry.player_id === pid(3)).id;
+        await login(null);
+        await assert.rejects(() => command('drop'), /conta ativa/);
+        await login(5);
+        await assert.rejects(() => command('drop', { entry_id: other }), /própria inscrição/);
+        await login(2);
+        await assert.rejects(() => command('drop', { entry_id: other }), /própria inscrição/);
+        assert.equal(state.entries.length, 4);
+        const stale = state.event.revision;
+        await command('drop');
+        assert.equal(state.event.status, 'published');
+        assert.equal(state.entries.length, 3);
+        assert.ok(!state.entries.some((entry) => entry.player_id === pid(2)));
+        assert.ok(state.entries.some((entry) => entry.id === other));
+        assert.ok(state.audit === undefined || state.audit.length === 0);
+        await assert.rejects(() => command('drop', {}, stale), /torneio mudou/);
+        await assert.rejects(() => command('drop'), /própria inscrição/);
+        await command('register');
+        assert.equal(state.entries.length, 4);
+        await login(1);
+        state = await rpc('community_snapshot', [id]);
+        assert.ok(state.audit.some((item) => item.action === 'drop' && item.actor === uid(2)));
+        state = await rpc('community_start_event', [id, state.event.revision]);
+        await login(2);
+        await assert.rejects(() => command('drop'), /administrativo/);
+    } finally {
+        await db.close();
+    }
+});
+
 test('overview only shows a running event to players who have not dropped', async () => {
     const { db, rpc, create, login } = await setup(true);
     try {
@@ -1323,6 +1366,9 @@ async function setup(playFlow = false) {
         );
         await db.exec(
             readFileSync('database/migrations/20261102240000_community_admin_results.sql', 'utf8')
+        );
+        await db.exec(
+            readFileSync('database/migrations/20261102250000_community_self_withdrawal.sql', 'utf8')
         );
     }
     await db.exec(
