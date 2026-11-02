@@ -5,6 +5,7 @@
 - [Guia de administradores](guides/guia-administradores-digistats.md)
 - [Importação de resultados por imagem](features/ocr-import.md)
 - [Integração DigiLab](features/digilab-integration.md)
+- [Torneios da comunidade](features/community-tournaments.md)
 - [Criação de posts](../post-preview/README.md)
 
 ## Para desenvolver e manter o site

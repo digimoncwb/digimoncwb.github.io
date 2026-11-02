@@ -32,6 +32,11 @@ export function OverviewHighlights({ context }: { context: MicroContext }) {
         { key: 'titles', title: 'Mais títulos', rows: titles },
         { key: 'top4', title: 'Conversão em Top 4', rows: top }
     ];
+    const topEligibleEvents = new Set(
+        range.events
+            .filter((event) => event.players >= 8 && model.complete.has(event.id))
+            .map((event) => event.id)
+    );
     return (
         <section className="overview-featured overview-highlights">
             <div className="section-heading">
@@ -74,8 +79,7 @@ export function OverviewHighlights({ context }: { context: MicroContext }) {
                                     >
                                         {column.key === 'played' ? (
                                             <>
-                                                <path d="M5 20V12M12 20V4M19 20V8" />
-                                                <path d="M3 20h18" />
+                                                <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />
                                             </>
                                         ) : column.key === 'titles' ? (
                                             <>
@@ -94,70 +98,113 @@ export function OverviewHighlights({ context }: { context: MicroContext }) {
                             {column.rows.map((row, index) => {
                                 const contributions = new Map<
                                     string,
-                                    { name: string; count: number }
+                                    { name: string; count: number; top4: number }
                                 >();
                                 for (const result of model.known.filter(
-                                    (r) => r.deck_id === row.id && r.player_id && r.player
+                                    (r) =>
+                                        r.deck_id === row.id &&
+                                        r.player_id &&
+                                        r.player &&
+                                        (column.key !== 'top4' ||
+                                            topEligibleEvents.has(String(r.tournament_id))) &&
+                                        (column.key !== 'titles' ||
+                                            (r.placement === 1 &&
+                                                model.complete.has(String(r.tournament_id))))
                                 )) {
                                     const player = contributions.get(result.player_id!) || {
                                         name: result.player!.name,
-                                        count: 0
+                                        count: 0,
+                                        top4: 0
                                     };
                                     player.count++;
+                                    if (result.placement <= 4) player.top4++;
                                     contributions.set(result.player_id!, player);
                                 }
-                                const most = Math.max(
-                                    0,
-                                    ...[...contributions.values()].map((p) => p.count)
+                                const contributors = [...contributions.entries()].sort(
+                                    ([, a], [, b]) =>
+                                        b.count - a.count || a.name.localeCompare(b.name, 'pt-BR')
                                 );
-                                const names = [...contributions.values()]
-                                    .filter((p) => p.count === most)
-                                    .map((p) => p.name)
-                                    .sort();
                                 const value =
                                     column.key === 'played'
-                                        ? `${row.count} participações`
+                                        ? String(row.count)
                                         : column.key === 'titles'
-                                          ? `${row.titles} ${row.titles === 1 ? 'título' : 'títulos'}`
-                                          : `${((row.top4 / row.topEligible) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% · ${row.top4} de ${row.topEligible}`;
+                                          ? String(row.titles)
+                                          : `${((row.top4 / row.topEligible) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+                                const valueLabel =
+                                    column.key === 'played'
+                                        ? row.count === 1
+                                            ? 'participação'
+                                            : 'participações'
+                                        : column.key === 'titles'
+                                          ? row.titles === 1
+                                              ? 'título'
+                                              : 'títulos'
+                                          : `${row.top4}/${row.topEligible} no Top 4`;
                                 return (
                                     <div
-                                        className="highlight-row featured-deck-card"
+                                        className="highlight-row"
                                         data-rank={index + 1}
                                         key={row.id}
                                     >
-                                        <div className="featured-deck-heading">
-                                            <Portrait image={row.image} />
-                                            <div className="highlight-identity">
-                                                <span className="featured-deck-rank">
-                                                    #{index + 1}{' '}
-                                                    {column.key === 'played'
-                                                        ? 'MAIS JOGADO'
-                                                        : column.key === 'titles'
-                                                          ? 'MAIS TÍTULOS'
-                                                          : 'TOP 4'}
-                                                </span>
-                                                <button
-                                                    onClick={() =>
-                                                        context.navigate('decks', {
-                                                            deckId: row.id
-                                                        })
+                                        <span
+                                            className="highlight-place"
+                                            aria-label={`${index + 1}º lugar`}
+                                        >
+                                            {index + 1}º
+                                        </span>
+                                        <Portrait image={row.image} />
+                                        <div className="highlight-identity">
+                                            <a
+                                                href={context.href('decks', { deckId: row.id })}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    context.navigate('decks', {
+                                                        deckId: row.id
+                                                    });
+                                                }}
+                                            >
+                                                {row.name}
+                                            </a>
+                                            {contributors.length > 0 && (
+                                                <ul
+                                                    className="highlight-contributors"
+                                                    aria-label={
+                                                        column.key === 'titles'
+                                                            ? 'Jogadores campeões e quantidade de títulos'
+                                                            : column.key === 'played'
+                                                              ? 'Jogadores e quantidade de participações'
+                                                              : 'Top 4 por participações elegíveis de cada jogador'
                                                     }
                                                 >
-                                                    {row.name}
-                                                </button>
-                                                <strong className="highlight-value">{value}</strong>
-                                            </div>
+                                                    {contributors.map(([id, player]) => (
+                                                        <li key={id}>
+                                                            {player.name}
+                                                            {column.key !== 'top4' && (
+                                                                <span
+                                                                    className="highlight-title-count"
+                                                                    aria-label={`${player.count} ${column.key === 'titles' ? 'títulos' : 'participações'}`}
+                                                                >
+                                                                    x{player.count}
+                                                                </span>
+                                                            )}
+                                                            {column.key === 'top4' && (
+                                                                <span
+                                                                    className="highlight-title-count"
+                                                                    title={`${player.top4} Top 4 em ${player.count} participações elegíveis`}
+                                                                    aria-label={`${player.top4} Top 4 em ${player.count} participações elegíveis`}
+                                                                >
+                                                                    {player.top4}/{player.count}
+                                                                </span>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
                                         </div>
-                                        {names.length > 0 && (
-                                            <div className="featured-deck-contributor">
-                                                <span>
-                                                    Maior participação
-                                                    {names.length > 1 ? ' · empate' : ''}
-                                                </span>
-                                                <strong>{names.join(' · ')}</strong>
-                                            </div>
-                                        )}
+                                        <div className="highlight-metric">
+                                            <strong>{value}</strong>
+                                            <span>{valueLabel}</span>
+                                        </div>
                                     </div>
                                 );
                             })}

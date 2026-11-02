@@ -22,6 +22,7 @@ export interface Result {
     members?: Result[];
 }
 export interface Tournament {
+    organizer?: string | null;
     id: string;
     storeId: string;
     title: string;

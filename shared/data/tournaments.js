@@ -123,11 +123,12 @@
                 };
                 return {
                     id: String(event.id),
-                    storeId: String(event.store_id),
+                    storeId: event.store_id == null ? '' : String(event.store_id),
+                    organizer: event.organizer_name || null,
                     title: deckless ? 'Release Event' : event.tournament_name || 'Torneio',
                     deckless,
                     team,
-                    store: store?.name || 'Loja não informada',
+                    store: store?.name || event.organizer_name || 'Loja não informada',
                     logo: validImage(store?.logo_url),
                     isoDate: event.tournament_date,
                     date: displayDate(event.tournament_date),
@@ -172,7 +173,7 @@
         const [tournaments, results, stores, formats, schedule, deckFormats] = await Promise.all([
             readAll(
                 'tournament',
-                'id,store_id,tournament_date,tournament_name,total_players,format_id,deck_format_id,instagram_link',
+                'id,store_id,organizer_name,tournament_date,tournament_name,total_players,format_id,deck_format_id,instagram_link',
                 request,
                 signal
             ),

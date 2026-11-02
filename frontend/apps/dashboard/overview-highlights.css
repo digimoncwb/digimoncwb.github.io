@@ -1,266 +1,225 @@
-.highlights-period {
-    color: var(--muted);
-    font-size: 13px;
-    margin: 0 0 20px;
-    line-height: 1.6;
+.overview-highlights .overview-eyebrow {
+    font-size: 12px;
+    line-height: 1.5;
+    letter-spacing: 0.08em;
 }
-.highlights-columns {
+.overview-highlights .highlights-columns {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 18px;
+    grid-template-rows: auto repeat(3, minmax(max-content, 1fr));
+    gap: 6px 20px;
 }
-.highlights-column {
+.overview-highlights .highlights-column {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 4;
+    min-width: 0;
+    padding: 16px;
     border: 1px solid var(--line);
     border-radius: 14px;
     background: var(--panel);
-    padding: 20px;
-    min-width: 0;
-}
-.highlights-column h3 {
-    font-size: 16px;
-    margin: 0 0 18px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--line);
-}
-.highlight-row {
-    --rank-color: #e2bb68;
-    display: flex;
-    align-items: start;
-    gap: 12px;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--line);
-}
-.highlight-row:last-child {
-    border: 0;
-    padding-bottom: 0;
-}
-.highlight-row[data-rank='2'] {
-    --rank-color: #c8ced5;
-}
-.highlight-row[data-rank='3'] {
-    --rank-color: #cb7b43;
-}
-.highlight-place {
-    color: var(--rank-color);
-    font-size: 15px;
-    font-weight: 800;
-    margin-top: 12px;
-    flex: 0 0 22px;
-}
-.highlight-row .art {
-    width: 48px;
-    height: 48px;
-    flex: 0 0 48px;
-    border: 2px solid var(--rank-color);
-}
-.highlight-identity {
-    min-width: 0;
-    flex: 1;
-}
-.highlight-identity button {
-    border: 0;
-    background: none;
-    padding: 0;
-    text-align: left;
-    font: inherit;
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--rank-color);
-    cursor: pointer;
-    overflow-wrap: anywhere;
-}
-.highlight-value {
-    display: block;
-    font-size: 12px;
-    color: var(--muted);
-    font-weight: 500;
-    margin-top: 6px;
-}
-.highlight-identity p {
-    color: var(--rank-color);
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.5;
-    margin: 12px 0 0;
-    overflow-wrap: anywhere;
-}
-.highlight-identity p > span {
-    display: block;
-    font-size: 10px;
-    font-weight: 400;
-    margin-bottom: 3px;
-}
-.highlights-empty,
-.highlights-note {
-    font-size: 12px;
-    color: var(--muted);
-    line-height: 1.6;
-}
-.highlights-note {
-    margin: 16px 0 0;
-}
-@media (max-width: 1050px) {
-    .highlights-columns {
-        grid-template-columns: 1fr;
-    }
-    .highlight-row {
-        align-items: center;
-    }
-    .highlight-place {
-        margin-top: 0;
-    }
-    .highlight-identity p {
-        margin-top: 8px;
-    }
-    .highlights-column {
-        padding: 18px;
-    }
-}
-
-/* Keep the original featured card treatment inside each ranking column. */
-.overview-highlights .highlights-column {
-    padding: 18px;
-    border: 1px solid var(--line);
-    background: linear-gradient(160deg, #14191b, #0d1113 35%);
-    box-shadow: inset 0 1px 0 #ffffff04;
 }
 .overview-highlights .highlights-column > h3 {
     display: flex;
     align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid var(--line);
-    padding: 0 0 16px;
+    gap: 10px;
     margin: 0 0 16px;
-    font-size: 18px;
-    letter-spacing: -0.3px;
+    font-size: 19px;
+    line-height: 1.4;
 }
-.highlight-column-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    flex: 0 0 38px;
-    border: 1px solid color-mix(in srgb, var(--accent) 14.51%, transparent);
-    border-radius: 10px;
-    background: linear-gradient(
-        140deg,
-        color-mix(in srgb, var(--accent) 9.41%, transparent),
-        color-mix(in srgb, var(--accent) 1.57%, transparent)
-    );
+.overview-highlights .highlight-column-icon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
     color: var(--accent);
 }
-.highlight-column-icon svg {
-    width: 21px;
-    height: 21px;
+.overview-highlights .highlight-column-icon svg {
+    width: 23px;
+    height: 23px;
 }
-.overview-highlights .highlight-row.featured-deck-card {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    padding: 22px;
-    margin-bottom: 0;
-    gap: 18px;
-    border: 1px solid var(--line);
-    border-radius: 0;
-    transition:
-        background 180ms ease,
-        border-color 180ms ease;
+.overview-highlights .highlight-row {
+    --rank-color: #c8ced5;
+    display: grid;
+    grid-template-columns: 28px 56px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 100px;
+    margin-top: 0;
+    padding: 12px 10px;
+    border-radius: 10px;
+    background: linear-gradient(
+        110deg,
+        color-mix(in srgb, var(--rank-color) 8%, transparent),
+        transparent 95%
+    );
 }
-.overview-highlights .highlight-row.featured-deck-card::before {
-    left: 22px;
-    right: 22px;
-    height: 1px;
-    opacity: 0.45;
+.overview-highlights .highlight-row[data-rank='1'] {
+    --rank-color: #edbe61;
 }
-.overview-highlights .highlight-row.featured-deck-card:hover {
-    border-color: var(--line);
-    background:
-        radial-gradient(
-            ellipse at 0 0,
-            color-mix(in srgb, var(--featured-color) 12%, transparent),
-            transparent 70%
-        ),
-        linear-gradient(145deg, #1c2124, #131719 68%);
-    box-shadow: inset 0 1px 0 #ffffff08;
+.overview-highlights .highlight-row[data-rank='3'] {
+    --rank-color: #e09357;
 }
-.overview-highlights .highlights-column > .highlight-row:first-of-type {
-    border-radius: 12px 12px 0 0;
-}
-.overview-highlights .highlights-column > .highlight-row + .highlight-row {
-    border-top: 0;
-}
-.overview-highlights .highlights-column > .highlight-row:last-of-type {
-    border-radius: 0 0 12px 12px;
-}
-.overview-highlights .highlights-column > .highlight-row:only-of-type {
-    border-radius: 12px;
-}
-.overview-highlights .highlight-row.featured-deck-card:last-child {
-    padding-bottom: 22px;
-    margin-bottom: 0;
-}
-.overview-highlights .highlight-row .art {
-    width: 64px;
-    height: 64px;
-    flex: 0 0 64px;
-}
-.overview-highlights .highlight-identity button {
-    display: block;
-    margin-top: 9px;
-    font-size: 18px;
-    color: var(--featured-color);
-    line-height: 1.3;
-}
-.overview-highlights .highlight-value {
-    margin-top: 10px;
-    display: inline-block;
-    padding: 5px 9px;
-    border-radius: 6px;
-    background: #ffffff04;
-    border: 1px solid #ffffff06;
-    color: #d2d7da;
-    font-size: 12px;
+.overview-highlights .highlight-place {
+    color: var(--rank-color);
+    text-align: center;
+    font-size: 23px;
+    font-weight: 800;
     font-variant-numeric: tabular-nums;
 }
-.overview-highlights .featured-deck-contributor {
-    color: var(--featured-color);
-    border-left: 2px solid color-mix(in srgb, var(--featured-color) 35%, transparent);
-    padding: 12px 14px;
-}
-.overview-highlights .featured-deck-contributor > span {
-    font-size: 11px;
-    opacity: 0.85;
-}
-.overview-highlights .featured-deck-rank {
-    font-size: 10px;
-    letter-spacing: 0.65px;
-}
-.overview-highlights .featured-deck-contributor strong {
+.overview-highlights .highlight-row .art {
     display: block;
-    font-size: 13px;
-    line-height: 1.5;
-    margin-top: 6px;
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    aspect-ratio: 1;
+    border: 2px solid var(--rank-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--rank-color) 12%, transparent);
+    border-radius: 50%;
+    overflow: hidden;
+}
+.overview-highlights .highlight-identity {
+    min-width: 0;
+}
+.overview-highlights .highlight-identity a {
+    display: inline-block;
+    color: var(--rank-color);
+    font-size: 18px;
+    font-weight: 750;
+    line-height: 1.35;
+    text-decoration: none;
+    text-underline-offset: 4px;
     overflow-wrap: anywhere;
 }
-@media (max-width: 780px) {
-    .overview-highlights .highlights-column {
-        padding: 14px;
-    }
-    .overview-highlights .highlight-row.featured-deck-card,
-    .overview-highlights .highlight-row.featured-deck-card:last-child {
-        padding: 16px;
+.overview-highlights .highlight-identity a:hover {
+    text-decoration: underline;
+}
+.overview-highlights .highlight-identity a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 3px;
+}
+.overview-highlights .highlight-contributors {
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0;
+    color: #d3d7dc;
+    font-size: 15px;
+    font-weight: 450;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+.overview-highlights .highlight-metric {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    padding-left: 6px;
+    text-align: center;
+    line-height: 1.3;
+}
+.overview-highlights .highlight-title-count {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--rank-color) 12%, transparent);
+    color: var(--rank-color);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.overview-highlights .highlight-metric strong {
+    color: var(--text, #f0f3f5);
+    font-size: 26px;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+}
+.overview-highlights .highlight-metric > span {
+    color: #bfc7d0;
+    font-size: 13px;
+}
+.overview-highlights .highlights-empty {
+    margin: 0;
+    padding: 16px 4px;
+    font-size: 15px;
+    color: #c4ccd4;
+    line-height: 1.6;
+}
+@media (max-width: 1200px) and (min-width: 1101px) {
+    .overview-highlights .highlight-row {
+        grid-template-columns: 26px 48px minmax(0, 1fr);
     }
     .overview-highlights .highlight-row .art {
-        width: 52px;
-        height: 52px;
-        flex-basis: 52px;
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
     }
-    .overview-highlights .highlight-identity button {
-        font-size: 16px;
+    .overview-highlights .highlight-metric {
+        grid-column: 3;
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 8px;
+        padding: 0;
+        text-align: center;
     }
-    .overview-highlights .featured-deck-contributor {
-        padding: 10px 12px;
-        margin-top: 14px;
+}
+@media (max-width: 1100px) {
+    .overview-highlights .highlights-columns {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        gap: 16px;
+    }
+    .overview-highlights .highlights-column {
+        grid-template-rows: auto;
+        grid-row: auto;
+        row-gap: 6px;
+    }
+}
+@media (max-width: 600px) {
+    .overview-highlights .highlights-column {
+        padding: 12px;
+    }
+    .overview-highlights .highlights-column > h3 {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+    .overview-highlights .highlight-row {
+        grid-template-columns: 24px 48px minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 12px 8px;
+    }
+    .overview-highlights .highlight-row .art {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+    }
+    .overview-highlights .highlight-place {
+        font-size: 21px;
+    }
+    .overview-highlights .highlight-identity a {
+        font-size: 17px;
+    }
+    .overview-highlights .highlight-contributors {
+        font-size: 14px;
+    }
+    .overview-highlights .highlight-metric strong {
+        font-size: 24px;
+    }
+}
+@media (max-width: 390px) {
+    .overview-highlights .highlight-row {
+        grid-template-columns: 24px 48px minmax(0, 1fr);
+    }
+    .overview-highlights .highlight-metric {
+        grid-column: 3;
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 8px;
+        padding: 0;
+        text-align: center;
     }
 }

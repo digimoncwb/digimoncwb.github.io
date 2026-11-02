@@ -237,3 +237,15 @@ permissions. Browser verification covers desktop/mobile layouts, stable full car
 images, imports, failed saves and retry, reopening, navigation and validation.
 
 Run `npm test`, `npm run lint`, `npm run typecheck` and `npm run build:release`.
+Published game formats can be returned to draft with **Voltar para rascunho** in
+the admin list. This changes publication status only, preserving rules, card
+points, version history and references from existing decks and tournaments.
+Drafts remain editable by admins; restrictive database policies hide the format
+and its rule versions from visitors and non-admin accounts. Deckbuilder community
+filters and highlights include published formats only, even when an admin is
+browsing the community. In **Formatos e regras**, admins can inspect all formats,
+including drafts and inactive formats; other accounts see active published formats.
+Both admin lists load through the authenticated admin session so a previously
+loaded public catalog does not hide drafts after login. The admin list offers
+**Publicar formato** and **Voltar para rascunho**, preserving all other fields.
+Publishing requires complete construction rules and no unresolved card point codes.

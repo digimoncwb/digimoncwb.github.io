@@ -10,6 +10,8 @@ import { restoreAccent } from './ThemePicker';
 import { useNativeSelects } from '../shared/NativeSelects';
 import { loadStylesheet } from './styles';
 import { useSiteAuth } from '../shared/site-auth';
+import { CommunityAlerts } from '../shared/CommunityAlerts';
+import '../shared/community.css';
 import { AccountPanel } from './AccountPanel';
 import { BandaiOnboarding } from './BandaiOnboarding';
 import { AccountsAdmin } from './AccountsAdmin';
@@ -18,6 +20,8 @@ import '../../demo-v2/styles.css';
 import '../../shared/presentation.css';
 import '../../shared/workspace/presentation.css';
 import '../../shared/accent.css';
+const openCommunityEvent = (event: string) => navigate('tournaments', { community: '1', event });
+const communityEventHref = (event: string) => href('tournaments', { community: '1', event });
 const sections: {
     key: string;
     label: string;
@@ -477,6 +481,7 @@ function Shell() {
                 <div id="sidebar-support" className="sidebar-support" hidden={!mobileOpen} />
             </aside>
             <main className={styles.main}>
+                <CommunityAlerts active={true} onOpen={openCommunityEvent} eventHref={communityEventHref} />
                 {route.name === 'admin' && !adminDenied && (
                     <header className="site-admin-heading">
                         <h1>Administração</h1>

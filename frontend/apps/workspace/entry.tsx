@@ -10,6 +10,7 @@ import { TournamentSteps } from './TournamentSteps';
 import './catalog.css';
 import { PortraitEditor } from './PortraitEditor';
 import { AdminFormatsPage } from './AdminFormatsPage';
+import { CommunityTournaments } from './CommunityTournaments';
 const Forms = memo(DomainForms);
 let initialized: Promise<void> | null = null;
 const view = (name: string) => (name === 'manage' ? 'tournaments' : name);
@@ -28,26 +29,32 @@ export const mount = (element: HTMLElement, context: MicroContext) =>
     mountReact(Workspace, element, context);
 function Workspace({ context }: { context: MicroContext }) {
     const [command, setCommand] = useState<TournamentCommand | null>(null);
+    const community =
+        ['tournaments', 'manage'].includes(context.route.name) &&
+        context.route.params.get('community') === '1';
     const native = ['decks', 'players', 'tournaments', 'manage'].includes(context.route.name);
     useEffect(() => {
-        if (!context.active) setCommand(null);
-    }, [context.active]);
+        if (!context.active || community) setCommand(null);
+    }, [context.active, community]);
     return (
         <>
             {context.route.name === 'decks' && <DecksPage context={context} />}
             {context.route.name === 'players' && <PlayersPage context={context} />}
-            {['tournaments', 'manage'].includes(context.route.name) && (
+            {community && <CommunityTournaments context={context} />}
+            {!community && ['tournaments', 'manage'].includes(context.route.name) && (
                 <TournamentsPage context={context} onEditor={setCommand} />
             )}
-            <LegacyWorkspace
-                context={{ ...context, active: context.active && (!native || !!command) }}
-                command={command}
-                native={native}
-                onEditorClosed={() => {
-                    setCommand(null);
-                    void context.data.refresh();
-                }}
-            />
+            {!community && (
+                <LegacyWorkspace
+                    context={{ ...context, active: context.active && (!native || !!command) }}
+                    command={command}
+                    native={native}
+                    onEditorClosed={() => {
+                        setCommand(null);
+                        void context.data.refresh();
+                    }}
+                />
+            )}
         </>
     );
 }

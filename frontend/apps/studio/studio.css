@@ -13,11 +13,21 @@
     gap: 16px;
     align-items: stretch;
 }
+.studio-settings {
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    align-self: start;
+    gap: 16px;
+    min-width: 0;
+}
 .studio-view .studio-controls {
     display: flex;
     flex-direction: column;
     contain: none;
     min-height: 0;
+    min-width: 0;
 }
 .studio-control-options {
     flex: none;
@@ -95,7 +105,7 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    contain: size;
+    align-self: start;
     min-height: 0;
     min-width: 0;
     overflow: auto;
@@ -103,7 +113,7 @@
     scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
 }
 .studio-post-caption {
-    flex: 1 0 260px;
+    flex: none;
     min-height: 0;
     min-width: 0;
     border: 1px solid var(--line);
@@ -246,8 +256,8 @@
     width: 100%;
     box-sizing: border-box;
     resize: none;
-    flex: 1;
-    height: 0;
+    flex: none;
+    height: clamp(280px, 45dvh, 420px);
     min-height: 80px;
     padding: 12px;
     border: 1px solid var(--line);
@@ -275,26 +285,40 @@
 .studio-caption-status:empty {
     display: none;
 }
-.studio-customization {
-    border-top: 1px solid var(--line);
-    padding-top: 14px;
-    margin-top: 14px;
+.studio-view .studio-customization {
+    display: block;
+    border: 1px solid var(--line);
 }
 .studio-customization > summary {
-    color: var(--muted);
+    color: var(--text);
     cursor: pointer;
     font-size: 14px;
-    padding-block: 8px;
+    font-weight: 700;
+    padding-block: 4px;
+}
+.studio-customization > summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
 }
 .studio-customization-body {
     display: grid;
     gap: 14px;
-    padding-top: 14px;
+    margin-top: 14px;
+    padding: 2px 4px 4px;
+    max-height: min(480px, 55dvh);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ds-scroll-thumb) var(--ds-scroll-track);
 }
 .studio-customization .studio-background-controls {
     border: 0;
     padding: 0;
     background: none;
+}
+.studio-customization .studio-deck-line-control,
+.studio-customization .studio-background-control {
+    display: grid;
+    margin: 0;
 }
 .studio-view .studio-export .muted {
     min-height: 0;
@@ -315,6 +339,11 @@
 .studio-view .page-heading h1 {
     font-size: 26px;
     line-height: 1.25;
+}
+@media (min-width: 1001px) {
+    .studio-customization-body {
+        max-height: clamp(120px, calc(100dvh - 560px), 480px);
+    }
 }
 @media (max-width: 1000px) {
     .studio-view .studio-controls,
@@ -338,7 +367,7 @@
     .studio-view .studio-with-caption {
         grid-template-columns: minmax(280px, 560px) minmax(220px, 300px);
     }
-    .studio-with-caption .studio-controls {
+    .studio-with-caption .studio-settings {
         grid-column: 1 / -1;
         grid-row: 1;
         position: static;
@@ -354,19 +383,26 @@
 }
 @media (max-width: 760px) {
     .studio-side .studio-post-caption textarea {
-        flex: none;
-        height: clamp(280px, 45dvh, 420px);
         resize: vertical;
+        font-size: 16px;
     }
     .studio-view .studio-with-caption {
         grid-template-columns: minmax(0, 1fr);
+    }
+    .studio-view .studio-settings,
+    .studio-with-caption .post-preview,
+    .studio-with-caption .studio-side {
+        width: 100%;
+        min-width: 0;
+        max-width: 560px;
+        justify-self: center;
     }
     .studio-with-caption .studio-side {
         grid-column: auto;
         grid-row: auto;
         max-width: 560px;
     }
-    .studio-with-caption .studio-controls,
+    .studio-with-caption .studio-settings,
     .studio-with-caption .post-preview {
         grid-column: auto;
         grid-row: auto;

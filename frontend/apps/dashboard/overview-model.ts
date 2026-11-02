@@ -101,7 +101,12 @@ export function latestStoreTournaments(events: Tournament[], registeredStores?: 
     };
     return ordered
         .filter((event) => {
-            if (activeStores && !activeStores.has(String(event.storeId))) return false;
+            if (
+                activeStores &&
+                !activeStores.has(String(event.storeId)) &&
+                !(event.organizer && !event.storeId)
+            )
+                return false;
             const key = event.storeId || event.store;
             if (stores.has(key)) return false;
             stores.add(key);

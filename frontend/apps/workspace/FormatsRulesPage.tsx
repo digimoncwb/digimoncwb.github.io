@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Format, MicroContext } from '../../contracts';
 import { Loader } from '../../shared/runtime';
+import { useSiteAuth } from '../../shared/site-auth';
 import { EmptyState } from '../../shared/ListPage';
 import { PointsBadge } from '../../shared/PointsBadge';
 import { tryCardImageFallback } from '../../shared/card-image-fallback';
@@ -66,13 +67,27 @@ export function FormatsRulesPage({
     onCreate(id: string): void;
     onBrowse(id: string): void;
 }) {
+    const auth = useSiteAuth();
     const [query, setQuery] = useState('');
     const [base, setBase] = useState<FormatRules>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [revision, setRevision] = useState(0);
     const [selectedId, setSelectedId] = useState(context.route.params.get('rulesFormat') || '');
-    const available = formats.filter((format) => format.is_active !== false);
+    const available = formats.filter(
+        (format) =>
+            auth.isAdmin || (format.is_active !== false && format.rules_status === 'published')
+    );
+    const statusLabel = (format: Format) =>
+        format.is_active === false
+            ? 'Inativo'
+            : format.rules_status !== 'published'
+              ? 'Rascunho'
+              : pendingFormatRules(format).length
+                ? 'Em definição'
+                : 'Disponível';
+    const isPending = (format: Format) =>
+        format.is_active === false || pendingFormatRules(format).length > 0;
     const selected =
         available.find((f) => String(f.id) === selectedId) ||
         available.find((f) => f.code === 'STANDARD') ||
@@ -151,6 +166,9 @@ export function FormatsRulesPage({
                                 {available.map((format) => (
                                     <option key={format.id} value={format.id}>
                                         {format.name}
+                                        {statusLabel(format) !== 'Disponível'
+                                            ? ` · ${statusLabel(format)}`
+                                            : ''}
                                     </option>
                                 ))}
                             </select>
@@ -166,11 +184,9 @@ export function FormatsRulesPage({
                                     <div>
                                         <strong>{format.name}</strong>
                                         <span
-                                            className={`format-status${pendingFormatRules(format).length ? ' defining' : ' available'}`}
+                                            className={`format-status${isPending(format) ? ' defining' : ' available'}`}
                                         >
-                                            {pendingFormatRules(format).length
-                                                ? 'Em definição'
-                                                : 'Disponível'}
+                                            {statusLabel(format)}
                                         </span>
                                     </div>
                                     <p>{format.description || 'Descrição ainda não publicada.'}</p>
@@ -189,9 +205,9 @@ export function FormatsRulesPage({
                             <div className="format-details-heading">
                                 <h3>{selected.name}</h3>
                                 <span
-                                    className={`format-status${pending.length ? ' defining' : ' available'}`}
+                                    className={`format-status${isPending(selected) ? ' defining' : ' available'}`}
                                 >
-                                    {pending.length ? 'Em definição' : 'Disponível'}
+                                    {statusLabel(selected)}
                                 </span>
                             </div>
                             <p>{selected.description || 'Descrição ainda não publicada.'}</p>
@@ -439,6 +455,7 @@ export function FormatsRulesPage({
                             <div className="format-detail-actions">
                                 <button
                                     className="button primary"
+                                    disabled={selected.is_active === false}
                                     onClick={() => onCreate(String(selected.id))}
                                 >
                                     ＋{' '}

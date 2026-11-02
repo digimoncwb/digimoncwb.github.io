@@ -11,6 +11,32 @@ const model = vm.runInNewContext(
         '\n({featuredDecks,latestWeekTournaments,latestStoreTournaments,overviewWeekEvents,centeredTournamentOrder,tournamentCarouselSlides})'
 );
 
+test('imported community tournaments without a store remain visible in the overview', () => {
+    const events = [
+        {
+            id: '2',
+            storeId: '',
+            organizer: 'Digimon CWB',
+            store: 'Digimon CWB',
+            isoDate: '2026-11-01'
+        },
+        {
+            id: '1',
+            storeId: '',
+            organizer: 'Digimon CWB',
+            store: 'Digimon CWB',
+            isoDate: '2026-10-01'
+        }
+    ];
+    assert.equal(
+        model
+            .latestStoreTournaments(events, [])
+            .map((e) => e.id)
+            .join(','),
+        '2'
+    );
+});
+
 test('carousel keeps the newest event per store across all weeks', () => {
     const events = [
         { id: '8', storeId: 'a', store: 'Same name', isoDate: '2026-10-05' },

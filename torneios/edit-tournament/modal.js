@@ -10,6 +10,7 @@ const modalHeaders = window.createSupabaseHeaders
       };
 
 let editingTournamentId = null;
+let editingTournamentOrganizer = '';
 let editPlayers = [];
 let editDecks = [];
 let editStores = [];
@@ -230,6 +231,8 @@ async function loadEditFormData(id) {
         }
 
         document.getElementById('editTournamentDate').value = data.tournament_date || '';
+        editingTournamentOrganizer = data.organizer_name || '';
+        document.getElementById('editStoreSelect').required = !editingTournamentOrganizer;
         document.getElementById('editTournamentName').value = data.tournament_name || '';
         document.getElementById('editTotalPlayers').value = '0';
         document.getElementById('editInstagramLink').value = data.instagram_link || '';
@@ -290,6 +293,7 @@ async function loadStoresToEdit(selectedStoreId) {
     editStores = stores || [];
     const select = document.getElementById('editStoreSelect');
     select.innerHTML = '<option value="">Selecione a loja...</option>';
+    if (editingTournamentOrganizer) select.options[0].textContent = `Sem loja · ${editingTournamentOrganizer}`;
 
     stores.forEach((s) => {
         const isSelected = String(s.id) === String(selectedStoreId);
@@ -344,7 +348,7 @@ async function loadResultsToEdit(tournamentId, tournamentData) {
         rows = await res.json();
     }
 
-    editResults = (rows || []).slice(0, 36).map((r) => ({
+    editResults = (rows || []).slice(0, 128).map((r) => ({
         id: r.id,
         player_id: r.player_id || '',
         deck_id: r.deck_id || '',
@@ -589,7 +593,7 @@ function syncEditResultsByTotal() {
     }
 
     const next = [];
-    for (let i = 0; i < Math.min(qty, 36); i++) {
+    for (let i = 0; i < Math.min(qty, 128); i++) {
         next.push(
             editResults[i] || {
                 id: null,
@@ -612,8 +616,8 @@ function addEditResultRow() {
     )
         ? 2
         : 1;
-    if (editResults.length + size > 36) {
-        alert('O limite é 36 jogadores (18 duplas).');
+    if (editResults.length + size > (size === 2 ? 36 : 128)) {
+        alert(size === 2 ? 'O limite é 18 duplas (36 jogadores).' : 'O limite é 128 jogadores.');
         return;
     }
     for (let member = 0; member < size; member++) {
@@ -839,7 +843,7 @@ function mergeOcrPlayersByMemberIdModal(allPlayers) {
     });
     return Array.from(merged.values())
         .sort((a, b) => a.rank - b.rank)
-        .slice(0, 36);
+        .slice(0, 128);
 }
 
 function findPlayerMatchFromOcrModal(ocrPlayer) {
@@ -1287,6 +1291,7 @@ async function editTournamentFormSubmit(e) {
         const totalPlayers = editResults.length;
         const updatedBase = {
             store_id: document.getElementById('editStoreSelect').value,
+            organizer_name: editingTournamentOrganizer || null,
             tournament_date: document.getElementById('editTournamentDate').value,
             tournament_name: document.getElementById('editTournamentName').value,
             total_players: totalPlayers,
@@ -1350,7 +1355,7 @@ async function editTournamentFormSubmit(e) {
             ? window.validation.isValidOptionalUrl(updated.instagram_link)
             : true;
         if (
-            !updated.store_id ||
+            (!updated.store_id && !updated.organizer_name) ||
             !updated.tournament_date ||
             !updated.tournament_name ||
             updated.total_players < 1 ||

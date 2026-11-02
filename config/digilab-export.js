@@ -9,13 +9,14 @@
         return Number.isFinite(number) ? String(number) : '';
     }
 
-    function buildDigilabClipboardText(rows) {
+    function buildDigilabClipboardText(rows, options = {}) {
         return [...(Array.isArray(rows) ? rows : [])]
             .sort((a, b) => Number(a?.placement || 0) - Number(b?.placement || 0))
             .map((row) => {
                 const placement = toNumberText(row?.placement);
                 const playerName = String(row?.playerName || '').trim().replace(/\s+/g, ' ');
-                const memberNumber = String(row?.memberNumber || '').trim().replace(/^#/, '');
+                const memberId = String(row?.memberNumber || '').trim().replace(/^#+/, '');
+                const memberNumber = memberId && options.hashPrefix ? `#${memberId}` : memberId;
                 const points = toNumberText(row?.points);
                 return [placement, playerName, memberNumber, points]
                     .filter((value) => value !== '')

@@ -18,7 +18,28 @@ async function main() {
         '20261005040000_require_digilab_tournament_format.sql',
         '20261005050000_store_digilab_catalog_images.sql',
         '20261006010000_digilab_tournaments_hourly.sql',
-        '20261006020000_card_portrait_settings.sql'
+        '20261006020000_card_portrait_settings.sql',
+        '20261010000000_local_2v2_tournaments.sql',
+        '20261101010000_community_tournaments.sql',
+        '20261101020000_community_history.sql',
+        '20261101030000_community_digilab_reconciliation.sql',
+        '20261101040000_community_event_defaults_and_players.sql',
+        '20261101050000_community_delete_event.sql',
+        '20261101060000_community_bye_game_percentage.sql',
+        '20261101070000_community_start_datetime.sql',
+        '20261101080000_draft_game_format_visibility.sql',
+        '20261101090000_community_play_flow.sql',
+        '20261101100000_community_open_enrollment.sql',
+        '20261101110000_community_readable_audit.sql',
+        '20261101120000_community_automatic_first_round.sql',
+        '20261101130000_community_active_notices.sql',
+        '20261101140000_community_history_corrections.sql',
+        '20261101150000_community_clock_no_reason.sql',
+        '20261101160000_community_admin_configuration.sql',
+        '20261101170000_community_two_player_events.sql',
+        '20261101180000_community_restart_round.sql',
+        '20261101190000_community_round_durations.sql',
+        '20261101200000_community_resume_round.sql'
     ];
     const query = migrations
         .map((migration) =>

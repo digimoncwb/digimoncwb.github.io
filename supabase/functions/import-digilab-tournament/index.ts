@@ -55,6 +55,32 @@ Deno.serve(
             const tournament = detail?.tournament || {};
             const standings = Array.isArray(detail?.standings) ? detail.standings : [];
             const dnfs = Array.isArray(detail?.dnfs) ? detail.dnfs : [];
+            const { data: community, error: contextError } = await supabase.rpc(
+                'community_import_context',
+                { p_external: externalId }
+            );
+            if (contextError) throw contextError;
+            if (community) {
+                if (
+                    targetTournamentId !== null &&
+                    targetTournamentId !== community.canonical_tournament_id
+                )
+                    return json(
+                        { error: 'O destino informado difere do vínculo operacional.' },
+                        422
+                    );
+                const { data: reconciled, error: reconcileError } = await supabase.rpc(
+                    'community_reconcile',
+                    {
+                        p_external: externalId,
+                        p_tournament: tournament,
+                        p_standings: standings,
+                        p_dnfs: dnfs
+                    }
+                );
+                if (reconcileError) throw reconcileError;
+                return json(reconciled, reconciled.ok ? 200 : 422);
+            }
             if (normalize(tournament.scene?.slug) !== normalize(DIGILAB_SCENE)) {
                 return json({ error: 'O torneio não pertence à scene Curitiba.' }, 422);
             }

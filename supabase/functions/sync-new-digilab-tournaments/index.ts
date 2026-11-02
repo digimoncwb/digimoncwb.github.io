@@ -96,6 +96,8 @@ Deno.serve(
         if (action === 'retry' && !positiveInteger(retryId))
             return json({ error: 'ID DigiLab invalido.' }, 400);
         const summary: JsonRecord = {
+            community_imported: 0,
+            community_pending: 0,
             discovered: 0,
             attempted: 0,
             imported: 0,
@@ -131,6 +133,28 @@ Deno.serve(
                     });
                 }
                 // Always scan the newest page, then resume historical discovery.
+                // Explicit community links may belong to Online rather than Curitiba.
+                const links = await rpc('community_pending_links', {});
+                for (const link of links || []) {
+                    if (Date.now() >= deadline) break;
+                    try {
+                        const imported = await call('import-digilab-tournament', {
+                            digilab_tournament_id: link.digilab_id
+                        });
+                        if (imported.tournament_id) summary.community_imported += 1;
+                    } catch (error) {
+                        summary.community_pending += 1;
+                        await rpc('community_import_failure', {
+                            p_external: link.digilab_id,
+                            p_message:
+                                error instanceof Error
+                                    ? error.message
+                                    : 'Falha na importação do evento da comunidade.'
+                        });
+                        if (error instanceof FunctionHttpError && error.status === 429) throw error;
+                    }
+                    await delay(REQUEST_DELAY_MS);
+                }
                 const pages = [1, Math.max(2, Number(run.next_page) || 2)];
                 for (const page of pages) {
                     if (Date.now() >= deadline) break;

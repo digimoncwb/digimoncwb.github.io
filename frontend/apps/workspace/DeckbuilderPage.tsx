@@ -1,7 +1,8 @@
 import { tryCardImageFallback } from '../../shared/card-image-fallback';
 import { useEffect, useState } from 'react';
-import type { MicroContext } from '../../contracts';
+import type { Format, MicroContext } from '../../contracts';
 import { FormatsRulesPage } from './FormatsRulesPage';
+import { useAdminGameFormats } from './use-admin-game-formats';
 import { orderListCards } from '../builder/editor-service';
 import { useData, Loader } from '../../shared/runtime';
 import { PageHeading } from '../../shared/PageHeading';
@@ -79,6 +80,11 @@ function ListViewIcon() {
 
 export function DecksPage({ context }: { context: MicroContext }) {
     const account = useSiteAuth();
+    const {
+        formats: adminFormats,
+        error: formatsError,
+        refresh: refreshFormats
+    } = useAdminGameFormats(context.active && account.isAdmin, account.user?.id || '');
     const { data, loading: dataLoading, error: dataError } = useData(context.data);
     const params = context.route.params;
     const tab =
@@ -178,9 +184,14 @@ export function DecksPage({ context }: { context: MicroContext }) {
         window.addEventListener('focus', refresh);
         return () => window.removeEventListener('focus', refresh);
     }, [context.active]);
-    const activeFormats = (data.deckFormats || []).filter((f) => f.is_active !== false);
-    const formatLabel = (code: string) =>
-        (data.deckFormats || []).find((f) => f.code === code)?.name || code;
+    const allFormats = account.isAdmin
+        ? adminFormats || data.deckFormats || []
+        : data.deckFormats || [];
+    const publishedFormats = allFormats.filter((f) => f.rules_status === 'published');
+    const activeFormats = (account.isAdmin ? allFormats : publishedFormats).filter(
+        (f) => f.is_active !== false
+    );
+    const formatLabel = (code: string) => allFormats.find((f) => f.code === code)?.name || code;
     const update = (changes: Record<string, string>, reset = true) => {
         const next = new URLSearchParams(params);
         if (reset) next.delete('page');
@@ -244,7 +255,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
     const freePaging = paginate(filteredFree, page, size);
     const pointDecks = freePaging.items.filter(
         (deck) =>
-            data.deckFormats?.find((format) => String(format.id) === String(deck.deck_format_id))
+            allFormats.find((format) => String(format.id) === String(deck.deck_format_id))
                 ?.validation_rules?.points_limit != null
     );
     const summaryKey = communityTab
@@ -296,9 +307,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
     const freeParams = (deck: LibraryDeck): Record<string, string> => ({
         decklistId: String(deck.id),
         deck: deck.name,
-        format:
-            (data.deckFormats || []).find((f) => String(f.id) === String(deck.deck_format_id))
-                ?.code || '',
+        format: allFormats.find((f) => String(f.id) === String(deck.deck_format_id))?.code || '',
         returnView: 'decks',
         libraryState
     });
@@ -346,7 +355,9 @@ export function DecksPage({ context }: { context: MicroContext }) {
         setRevision((v) => v + 1);
         void context.data.refresh();
     };
-    const highlight = activeFormats.find((f) => f.is_community_highlight);
+    const highlight = publishedFormats.find(
+        (f) => f.is_active !== false && f.is_community_highlight
+    );
     const pagination = (free = false, compact = false) => {
         const current = free ? freePaging : paging;
         return (
@@ -451,6 +462,14 @@ export function DecksPage({ context }: { context: MicroContext }) {
                 ))}
             </div>
             <div role="tabpanel" id={`deck-panel-${tab}`} aria-labelledby={`deck-tab-${tab}`}>
+                {formatsError && (
+                    <p role="alert">
+                        {formatsError}{' '}
+                        <button className="button secondary" onClick={() => void refreshFormats()}>
+                            Tentar novamente
+                        </button>
+                    </p>
+                )}
                 {dataError && (
                     <p className="list-error" role="alert">
                         {dataError}{' '}
@@ -462,7 +481,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                 {tab === 'formats' ? (
                     <FormatsRulesPage
                         context={context}
-                        formats={data.deckFormats || []}
+                        formats={allFormats}
                         onCreate={(id) => beginCreate(false, id)}
                         onBrowse={(id) =>
                             update({
@@ -556,7 +575,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                     onChange={(value) => update({ [communityFormatKey]: value })}
                                     options={[
                                         { value: '', label: 'Todos os formatos' },
-                                        ...(data.deckFormats || []).map((f) => ({
+                                        ...publishedFormats.map((f) => ({
                                             value: String(f.id),
                                             label: formatLabel(f.code)
                                         }))
@@ -581,7 +600,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                         onChange={(value) => update({ filterFormat: value })}
                                         options={[
                                             { value: '', label: 'Todos os formatos' },
-                                            ...(data.deckFormats || []).map((format) => ({
+                                            ...publishedFormats.map((format) => ({
                                                 value: String(format.id),
                                                 label: format.name
                                             }))
@@ -840,7 +859,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                                         setLibraryNotice('');
                                                     }
                                                 });
-                                            const format = data.deckFormats?.find(
+                                            const format = allFormats.find(
                                                 (format) =>
                                                     String(format.id) ===
                                                     String(deck.deck_format_id)
@@ -859,7 +878,9 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                                     <div className="deck-free-card-header">
                                                         <span className="overview-eyebrow">
                                                             {format?.name ||
-                                                                'Formato não informado'}
+                                                                (deck.deck_format_id
+                                                                    ? 'Formato indisponível'
+                                                                    : 'Formato não informado')}
                                                         </span>
                                                         {pointsLimit != null && (
                                                             <PointsTotalTag
@@ -1450,7 +1471,12 @@ export function DecksPage({ context }: { context: MicroContext }) {
                 </Dialog>
             )}
             {preview && (
-                <ListPreview preview={preview} context={context} onClose={() => setPreview(null)} />
+                <ListPreview
+                    preview={preview}
+                    context={context}
+                    formats={allFormats}
+                    onClose={() => setPreview(null)}
+                />
             )}
             {associate && (
                 <Dialog
@@ -1489,7 +1515,7 @@ export function DecksPage({ context }: { context: MicroContext }) {
                                     <option value={deck.id} key={deck.id}>
                                         {deck.name} ·{' '}
                                         {
-                                            (data.deckFormats || []).find(
+                                            allFormats.find(
                                                 (f) => String(f.id) === String(deck.deck_format_id)
                                             )?.name
                                         }
@@ -1558,10 +1584,12 @@ function safeRulesUrl(value?: string | null) {
 function ListPreview({
     preview,
     context,
+    formats,
     onClose
 }: {
     preview: Preview;
     context: MicroContext;
+    formats: Format[];
     onClose(): void;
 }) {
     const [cards, setCards] = useState<ListCard[]>([]);
@@ -1570,10 +1598,9 @@ function ListPreview({
     const [revision, setRevision] = useState(0);
     const [copyStatus, setCopyStatus] = useState('');
     const [manualCopy, setManualCopy] = useState(false);
-    const { data } = useData(context.data);
     const format =
-        data.deckFormats?.find((format) => String(format.id) === String(preview.formatId)) ||
-        data.deckFormats?.find(
+        formats.find((format) => String(format.id) === String(preview.formatId)) ||
+        formats.find(
             (format) =>
                 normalizeSearch(format.code) === normalizeSearch(preview.params.format) ||
                 normalizeSearch(format.name) === normalizeSearch(preview.params.format)

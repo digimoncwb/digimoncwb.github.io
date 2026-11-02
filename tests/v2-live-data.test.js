@@ -8,6 +8,36 @@ const {
     validImage
 } = require('../shared/data/tournaments.js');
 
+test('community results retain their organizer and do not require a fictitious store', () => {
+    const events = normalize({
+        stores: [],
+        formats: [{ id: 1, code: 'EX13' }],
+        tournaments: [
+            {
+                id: 1,
+                store_id: null,
+                organizer_name: 'Digimon CWB',
+                format_id: 1,
+                tournament_date: '2026-11-01',
+                total_players: 4
+            }
+        ],
+        results: [
+            {
+                id: 'r1',
+                tournament_id: 1,
+                store_id: null,
+                placement: 1,
+                player: 'Player',
+                deck: 'Deck'
+            }
+        ]
+    });
+    assert.equal(events[0].storeId, '');
+    assert.equal(events[0].store, 'Digimon CWB');
+    assert.equal(events[0].winner.name, 'Player');
+});
+
 test('V2 joins results by tournament ID and never mixes same-day events', () => {
     const data = {
         stores: [{ id: 'store', name: 'Loja real', logo_url: 'https://example.com/logo.png' }],

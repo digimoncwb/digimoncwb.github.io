@@ -94,6 +94,35 @@
     margin: 0;
     font-size: 13px;
 }
+.admin-game-format-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.admin-game-format-heading h3 {
+    margin: 0;
+}
+.admin-game-format-status {
+    display: inline-flex;
+    padding: 4px 10px;
+    border: 1px solid;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.admin-game-format-status.published {
+    color: #65df99;
+    border-color: #34754e;
+    background: #34754e10;
+}
+.admin-game-format-status.draft {
+    color: #f1c358;
+    border-color: #b98b26;
+    background: #b98b2610;
+}
 .admin-game-format-actions {
     display: flex;
     align-items: center;

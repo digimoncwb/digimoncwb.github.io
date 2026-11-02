@@ -230,233 +230,238 @@ function Studio({ context }: { context: MicroContext }) {
         <section className="view studio-view">
             <PageHeading title="Estúdio de posts" />
             <div className="studio studio-with-caption">
-                <div className="studio-controls">
-                    <div className="studio-control-options">
-                        <fieldset className="studio-group">
-                            <legend>Conteúdo</legend>
-                            <Select
-                                overlay
-                                label="Modelo"
-                                value={template}
-                                onChange={(value) => {
-                                    setTemplate(value);
-                                    setPage(0);
-                                }}
-                                options={[
-                                    { value: 'podium', label: 'Pódio — Top 3' },
-                                    { value: 'weekly', label: 'Resumo da semana' },
-                                    ...(currentEvent?.team
-                                        ? [{ value: 'teams', label: 'Classificação — Duplas' }]
-                                        : [])
-                                ]}
-                            />
-                            {template !== 'weekly' ? (
-                                <>
-                                    <Select
-                                        overlay
-                                        label="Torneio"
-                                        value={currentEvent?.id || ''}
-                                        onChange={(value) => {
-                                            setTournament(value);
-                                            setPage(0);
-                                            if (
-                                                template === 'teams' &&
-                                                !events.find((event) => event.id === value)?.team
-                                            )
-                                                setTemplate('podium');
-                                        }}
-                                        options={events.map((event) => ({
-                                            value: event.id,
-                                            label:
-                                                event.store +
-                                                ' · ' +
-                                                event.date +
-                                                ' · ' +
-                                                event.title
-                                        }))}
-                                    />
-                                </>
-                            ) : (
-                                <>
-                                    <Select
-                                        overlay
-                                        label="Semana"
-                                        value={currentWeek}
-                                        onChange={(value) => {
-                                            setWeek(value);
-                                            setPage(0);
-                                        }}
-                                        options={weeks.map((week) => ({
-                                            value: week,
-                                            label:
-                                                window.liveData.displayDate(week) +
-                                                ' — ' +
-                                                window.liveData.displayDate(
-                                                    window.liveData.weekEnd(week)
-                                                )
-                                        }))}
-                                    />
-                                </>
-                            )}
-                            {(template === 'weekly' || template === 'teams') && pageCount > 1 && (
+                <div className="studio-settings">
+                    <div className="studio-controls">
+                        <div className="studio-control-options">
+                            <fieldset className="studio-group">
+                                <legend>Conteúdo</legend>
                                 <Select
                                     overlay
-                                    label="Página"
-                                    value={String(Math.min(page, pageCount - 1))}
-                                    onChange={(value) => setPage(Number(value))}
-                                    options={Array.from({ length: pageCount }, (_, index) => ({
-                                        value: String(index),
-                                        label: index + 1 + ' de ' + pageCount
-                                    }))}
+                                    label="Modelo"
+                                    value={template}
+                                    onChange={(value) => {
+                                        setTemplate(value);
+                                        setPage(0);
+                                    }}
+                                    options={[
+                                        { value: 'podium', label: 'Pódio — Top 3' },
+                                        { value: 'weekly', label: 'Resumo da semana' },
+                                        ...(currentEvent?.team
+                                            ? [{ value: 'teams', label: 'Classificação — Duplas' }]
+                                            : [])
+                                    ]}
                                 />
-                            )}
-                        </fieldset>
-                        <details
-                            className="studio-customization"
-                            onToggle={(event) => setCustomizing(event.currentTarget.open)}
-                        >
-                            <summary>Personalizar</summary>
-                            {customizing && (
-                                <div className="studio-customization-body">
-                                    <fieldset className="studio-group">
-                                        <legend>Aparência</legend>
+                                {template !== 'weekly' ? (
+                                    <>
                                         <Select
                                             overlay
-                                            label="Cor de destaque"
-                                            value={accent}
-                                            onChange={setAccent}
-                                            options={[
-                                                { value: '#ef646b', label: 'Vermelho' },
-                                                { value: '#66a7f5', label: 'Azul' },
-                                                { value: '#4edb9b', label: 'Verde' },
-                                                { value: '#f1cc5b', label: 'Amarelo' }
-                                            ]}
+                                            label="Torneio"
+                                            value={currentEvent?.id || ''}
+                                            onChange={(value) => {
+                                                setTournament(value);
+                                                setPage(0);
+                                                if (
+                                                    template === 'teams' &&
+                                                    !events.find((event) => event.id === value)
+                                                        ?.team
+                                                )
+                                                    setTemplate('podium');
+                                            }}
+                                            options={events.map((event) => ({
+                                                value: event.id,
+                                                label:
+                                                    event.store +
+                                                    ' · ' +
+                                                    event.date +
+                                                    ' · ' +
+                                                    event.title
+                                            }))}
                                         />
-                                    </fieldset>
-                                    {template === 'podium' &&
-                                        !currentEvent?.team &&
-                                        !currentEvent?.deckless && (
-                                            <label className="studio-deck-line-control">
-                                                <span id="studio-deck-line-label">
-                                                    Caracteres por linha
-                                                </span>
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    max={40}
-                                                    step={1}
-                                                    value={deckNameLineLengthInput}
-                                                    onChange={(event) =>
-                                                        setDeckNameLineLengthInput(
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    onBlur={() =>
-                                                        setDeckNameLineLengthInput(
-                                                            String(deckNameLineLength)
-                                                        )
-                                                    }
-                                                    aria-describedby="studio-deck-line-hint"
-                                                    aria-labelledby="studio-deck-line-label"
-                                                />
-                                                <small id="studio-deck-line-hint">
-                                                    Padrão: 11 caracteres para os nomes dos decks.
-                                                </small>
-                                            </label>
-                                        )}
-
-                                    {template === 'podium' && (
-                                        <section
-                                            className="studio-background-controls"
-                                            aria-labelledby="studio-background-title"
-                                        >
-                                            <h2 id="studio-background-title">Fundo</h2>
-                                            <label className="studio-checkbox">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={showBackgroundIcon}
-                                                    onChange={(event) =>
-                                                        setShowBackgroundIcon(event.target.checked)
-                                                    }
-                                                />
-                                                Mostrar ícone no fundo
-                                            </label>
-                                            <fieldset
-                                                disabled={!showBackgroundIcon}
-                                                aria-label="Ajustar fundo"
-                                            >
-                                                {backgroundControls.map((control) => {
-                                                    const value = Math.round(
-                                                        background[control.key] * control.factor
-                                                    );
-                                                    const id = `studio-background-${control.key}`;
-                                                    return (
-                                                        <label
-                                                            key={control.key}
-                                                            htmlFor={id}
-                                                            className="studio-background-control"
-                                                        >
-                                                            <span>
-                                                                {control.label}
-                                                                <output htmlFor={id}>
-                                                                    {value}
-                                                                    {control.unit}
-                                                                </output>
-                                                            </span>
-                                                            <input
-                                                                id={id}
-                                                                type="range"
-                                                                aria-label={control.label}
-                                                                aria-valuetext={`${value}${control.unit}`}
-                                                                min={control.min}
-                                                                max={control.max}
-                                                                step={1}
-                                                                value={value}
-                                                                onChange={(event) => {
-                                                                    const next =
-                                                                        Number(event.target.value) /
-                                                                        control.factor;
-                                                                    setBackground((previous) => ({
-                                                                        ...previous,
-                                                                        [control.key]: next
-                                                                    }));
-                                                                }}
-                                                            />
-                                                        </label>
-                                                    );
-                                                })}
-                                            </fieldset>
-                                            <button
-                                                type="button"
-                                                className="text-action"
-                                                onClick={() => {
-                                                    setBackground(defaultBackground);
-                                                    setShowBackgroundIcon(true);
-                                                }}
-                                            >
-                                                Restaurar fundo
-                                            </button>
-                                        </section>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Select
+                                            overlay
+                                            label="Semana"
+                                            value={currentWeek}
+                                            onChange={(value) => {
+                                                setWeek(value);
+                                                setPage(0);
+                                            }}
+                                            options={weeks.map((week) => ({
+                                                value: week,
+                                                label:
+                                                    window.liveData.displayDate(week) +
+                                                    ' — ' +
+                                                    window.liveData.displayDate(
+                                                        window.liveData.weekEnd(week)
+                                                    )
+                                            }))}
+                                        />
+                                    </>
+                                )}
+                                {(template === 'weekly' || template === 'teams') &&
+                                    pageCount > 1 && (
+                                        <Select
+                                            overlay
+                                            label="Página"
+                                            value={String(Math.min(page, pageCount - 1))}
+                                            onChange={(value) => setPage(Number(value))}
+                                            options={Array.from(
+                                                { length: pageCount },
+                                                (_, index) => ({
+                                                    value: String(index),
+                                                    label: index + 1 + ' de ' + pageCount
+                                                })
+                                            )}
+                                        />
                                     )}
-                                </div>
-                            )}
-                        </details>
+                            </fieldset>
+                        </div>
+                        <section className="studio-export" aria-label="Exportação">
+                            <small className="studio-export-specs">
+                                PNG &middot; {POST_FORMAT.width} &times; {POST_FORMAT.height} px
+                            </small>
+                            <button
+                                className="button primary"
+                                disabled={!ready || loading}
+                                onClick={() => void download()}
+                            >
+                                Baixar PNG ↓
+                            </button>
+                            <p className="muted" role="status">
+                                {status}
+                            </p>
+                        </section>
                     </div>
-                    <section className="studio-export" aria-label="Exportação">
-                        <small className="studio-export-specs">
-                            PNG &middot; {POST_FORMAT.width} &times; {POST_FORMAT.height} px
-                        </small>
-                        <button
-                            className="button primary"
-                            disabled={!ready || loading}
-                            onClick={() => void download()}
-                        >
-                            Baixar PNG ↓
-                        </button>
-                        <p className="muted" role="status">
-                            {status}
-                        </p>
-                    </section>
+                    <details
+                        className="studio-controls studio-customization"
+                        onToggle={(event) => setCustomizing(event.currentTarget.open)}
+                    >
+                        <summary>Personalizar</summary>
+                        {customizing && (
+                            <div className="studio-customization-body">
+                                <fieldset className="studio-group">
+                                    <legend>Aparência</legend>
+                                    <Select
+                                        overlay
+                                        label="Cor de destaque"
+                                        value={accent}
+                                        onChange={setAccent}
+                                        options={[
+                                            { value: '#ef646b', label: 'Vermelho' },
+                                            { value: '#66a7f5', label: 'Azul' },
+                                            { value: '#4edb9b', label: 'Verde' },
+                                            { value: '#f1cc5b', label: 'Amarelo' }
+                                        ]}
+                                    />
+                                </fieldset>
+                                {template === 'podium' &&
+                                    !currentEvent?.team &&
+                                    !currentEvent?.deckless && (
+                                        <label className="studio-deck-line-control">
+                                            <span id="studio-deck-line-label">
+                                                Caracteres por linha
+                                            </span>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                max={40}
+                                                step={1}
+                                                value={deckNameLineLengthInput}
+                                                onChange={(event) =>
+                                                    setDeckNameLineLengthInput(event.target.value)
+                                                }
+                                                onBlur={() =>
+                                                    setDeckNameLineLengthInput(
+                                                        String(deckNameLineLength)
+                                                    )
+                                                }
+                                                aria-describedby="studio-deck-line-hint"
+                                                aria-labelledby="studio-deck-line-label"
+                                            />
+                                            <small id="studio-deck-line-hint">
+                                                Padrão: 11 caracteres para os nomes dos decks.
+                                            </small>
+                                        </label>
+                                    )}
+
+                                {template === 'podium' && (
+                                    <section
+                                        className="studio-background-controls"
+                                        aria-labelledby="studio-background-title"
+                                    >
+                                        <h2 id="studio-background-title">Fundo</h2>
+                                        <label className="studio-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={showBackgroundIcon}
+                                                onChange={(event) =>
+                                                    setShowBackgroundIcon(event.target.checked)
+                                                }
+                                            />
+                                            Mostrar ícone no fundo
+                                        </label>
+                                        <fieldset
+                                            disabled={!showBackgroundIcon}
+                                            aria-label="Ajustar fundo"
+                                        >
+                                            {backgroundControls.map((control) => {
+                                                const value = Math.round(
+                                                    background[control.key] * control.factor
+                                                );
+                                                const id = `studio-background-${control.key}`;
+                                                return (
+                                                    <label
+                                                        key={control.key}
+                                                        htmlFor={id}
+                                                        className="studio-background-control"
+                                                    >
+                                                        <span>
+                                                            {control.label}
+                                                            <output htmlFor={id}>
+                                                                {value}
+                                                                {control.unit}
+                                                            </output>
+                                                        </span>
+                                                        <input
+                                                            id={id}
+                                                            type="range"
+                                                            aria-label={control.label}
+                                                            aria-valuetext={`${value}${control.unit}`}
+                                                            min={control.min}
+                                                            max={control.max}
+                                                            step={1}
+                                                            value={value}
+                                                            onChange={(event) => {
+                                                                const next =
+                                                                    Number(event.target.value) /
+                                                                    control.factor;
+                                                                setBackground((previous) => ({
+                                                                    ...previous,
+                                                                    [control.key]: next
+                                                                }));
+                                                            }}
+                                                        />
+                                                    </label>
+                                                );
+                                            })}
+                                        </fieldset>
+                                        <button
+                                            type="button"
+                                            className="text-action"
+                                            onClick={() => {
+                                                setBackground(defaultBackground);
+                                                setShowBackgroundIcon(true);
+                                            }}
+                                        >
+                                            Restaurar fundo
+                                        </button>
+                                    </section>
+                                )}
+                            </div>
+                        )}
+                    </details>
                 </div>
                 <div className="post-preview">
                     <div className="preview-caption">Prévia</div>

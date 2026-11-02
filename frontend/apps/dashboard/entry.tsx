@@ -8,6 +8,7 @@ import { Select } from '../../shared/Select';
 import { featuredDecks, latestStoreTournaments, overviewWeekEvents } from './overview-model';
 import { MetagamePage } from './MetagamePage';
 import { OverviewHighlights } from './OverviewHighlights';
+import { CommunityNotices } from '../../shared/CommunityNotices';
 export const apiVersion = 1;
 export const mount = (element: HTMLElement, context: MicroContext) =>
     mountReact(DashboardRouter, element, context);
@@ -100,6 +101,7 @@ function Dashboard({ context }: { context: MicroContext }) {
             {context.route.name === 'overview' ? (
                 <>
                     <h1 className="sr-only">Visão geral</h1>
+                    <CommunityNotices context={context} />
                     <div className="section-heading overview-tournaments-heading">
                         <div className="overview-section-title">
                             <h2>Últimos torneios</h2>

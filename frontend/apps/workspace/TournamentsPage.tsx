@@ -96,9 +96,19 @@ export function TournamentsPage({
         <section className="catalog-app">
             <div className="catalog-heading">
                 <PageHeading title="Torneios" />
-                <button className="button primary" onClick={() => openEditor('create')}>
-                    + Adicionar torneio
-                </button>
+                <div className="tournament-heading-actions">
+                    <button className="button primary" onClick={() => openEditor('create')}>
+                        + Adicionar torneio
+                    </button>
+                    <button
+                        className="button primary"
+                        onClick={() => {
+                            context.navigate('tournaments', { community: '1' });
+                        }}
+                    >
+                        Organizar torneio
+                    </button>
+                </div>
             </div>
             <ListToolbar
                 query={query}
@@ -286,68 +296,86 @@ export function TournamentsPage({
                                                 className="catalog-item"
                                                 onClick={() => setSelected(event)}
                                             >
-                                                <time
-                                                    className="tournament-list-date"
-                                                    dateTime={event.isoDate}
-                                                >
-                                                    <strong>{event.date.split('/')[0]}</strong>
-                                                    <span>
-                                                        {new Date(
-                                                            `${event.isoDate}T12:00:00`
-                                                        ).toLocaleDateString('pt-BR', {
-                                                            month: 'short',
-                                                            year: '2-digit'
-                                                        })}
+                                                <span className="tournament-list-header">
+                                                    <time
+                                                        className="tournament-list-date"
+                                                        dateTime={event.isoDate}
+                                                        aria-label={event.date}
+                                                        title={event.date}
+                                                    >
+                                                        <strong>{event.date.split('/')[0]}</strong>
+                                                        <span>
+                                                            {new Date(`${event.isoDate}T12:00:00`)
+                                                                .toLocaleDateString('pt-BR', {
+                                                                    month: 'short'
+                                                                })
+                                                                .replace('.', '')}{' '}
+                                                            <span className="tournament-list-year">
+                                                                {event.isoDate.slice(0, 4)}
+                                                            </span>
+                                                        </span>
+                                                    </time>
+                                                    <StoreLogo
+                                                        logo={event.logo}
+                                                        name={event.store}
+                                                    />
+                                                    <span className="catalog-identity">
+                                                        <strong>{event.title}</strong>
+                                                        <span>{event.store}</span>
                                                     </span>
-                                                </time>
-                                                <StoreLogo logo={event.logo} name={event.store} />
-                                                <span className="catalog-identity">
-                                                    <strong>{event.title}</strong>
-                                                    <span>{event.store}</span>
-                                                </span>
-                                                <span className="tournament-list-meta">
-                                                    <span className="catalog-badge">
-                                                        {event.format || '—'}
+                                                    <span className="tournament-list-meta">
+                                                        <span className="catalog-badge">
+                                                            {event.format || '—'}
+                                                        </span>
+                                                        <span>{event.players} jogadores</span>
+                                                        {event.team && (
+                                                            <span>{event.players / 2} duplas</span>
+                                                        )}
                                                     </span>
-                                                    <span>{event.players} jogadores</span>
-                                                    {event.team && (
-                                                        <span>{event.players / 2} duplas</span>
-                                                    )}
                                                 </span>
                                                 <span className="tournament-list-winner">
                                                     {(event.winner?.members || [event.winner]).map(
                                                         (member, index) => (
                                                             <Portrait
-                                                                key={index}
+                                                                key={member?.id || index}
                                                                 image={member?.image}
                                                             />
                                                         )
                                                     )}
-                                                    <span>
+                                                    <span className="tournament-list-winner-info">
                                                         <strong>
                                                             {event.winner?.name || 'Sem resultados'}
                                                         </strong>
-                                                        {event.team && event.winner?.members ? (
-                                                            <span className="tournament-list-decks">
-                                                                {event.winner.members.map(
-                                                                    (member, index) => (
-                                                                        <span
-                                                                            key={member.id || index}
-                                                                        >
-                                                                            {index ? '& ' : ''}
-                                                                            {member.deck}
-                                                                        </span>
-                                                                    )
-                                                                )}
-                                                            </span>
-                                                        ) : (
-                                                            <span>
-                                                                {event.deckless
-                                                                    ? 'Vencedor'
-                                                                    : event.winner?.deck ||
-                                                                      'Classificação pendente'}
-                                                            </span>
-                                                        )}
+                                                        <span className="tournament-list-detail">
+                                                            {event.team && event.winner?.members ? (
+                                                                <span className="tournament-list-decks">
+                                                                    {event.winner.members.map(
+                                                                        (member, index) => (
+                                                                            <span
+                                                                                key={
+                                                                                    member.id ||
+                                                                                    index
+                                                                                }
+                                                                            >
+                                                                                {index ? '& ' : ''}
+                                                                                {member.deck}
+                                                                            </span>
+                                                                        )
+                                                                    )}
+                                                                </span>
+                                                            ) : (
+                                                                <span>
+                                                                    {event.deckless
+                                                                        ? 'Vencedor'
+                                                                        : event.winner?.deck ||
+                                                                          'Classificação pendente'}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </span>
+                                                    <span className="tournament-list-store">
+                                                        <StoreLogo logo={event.logo} />
+                                                        <span>{event.store}</span>
                                                     </span>
                                                 </span>
                                             </button>

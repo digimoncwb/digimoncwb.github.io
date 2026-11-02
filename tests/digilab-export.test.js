@@ -7,6 +7,24 @@ const {
     normalizeDigilabExportRows
 } = require('../config/digilab-export.js');
 
+test('community paste emits exactly one hash and keeps zero points and leading zeroes', () => {
+    assert.equal(
+        buildDigilabClipboardText(
+            [
+                {
+                    placement: 2,
+                    playerName: '  Player Two ',
+                    memberNumber: '##0098765432',
+                    points: 0
+                },
+                { placement: 1, playerName: 'PlayerOne', memberNumber: '0012345678', points: 9 }
+            ],
+            { hashPrefix: true }
+        ),
+        '1 PlayerOne #0012345678 9\n2 Player Two #0098765432 0'
+    );
+});
+
 test('DigiLab clipboard text sorts rows and preserves Bandai ID leading zeroes', () => {
     const text = buildDigilabClipboardText([
         { placement: 2, playerName: 'Outro Player', memberNumber: '0000238400', points: 7 },

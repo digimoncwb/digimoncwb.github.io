@@ -119,7 +119,8 @@ export function Dialog({
     closeLabel = 'Cancelar',
     busy = false,
     wide = false,
-    dismissible = true
+    dismissible = true,
+    closeOnBackdrop = true
 }: {
     title: string;
     onClose(): void;
@@ -129,6 +130,7 @@ export function Dialog({
     busy?: boolean;
     wide?: boolean;
     dismissible?: boolean;
+    closeOnBackdrop?: boolean;
 }) {
     const dialog = useRef<HTMLDialogElement>(null);
     const close = useRef(onClose);
@@ -153,7 +155,12 @@ export function Dialog({
                 if (!busy && dismissible) close.current();
             }}
             onClick={(event) => {
-                if (!busy && dismissible && event.target === event.currentTarget) {
+                if (
+                    !busy &&
+                    dismissible &&
+                    closeOnBackdrop &&
+                    event.target === event.currentTarget
+                ) {
                     const rect = event.currentTarget.getBoundingClientRect();
                     if (
                         event.clientX < rect.left ||

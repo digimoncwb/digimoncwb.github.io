@@ -9124,7 +9124,7 @@ function applyDigilabPreviewToCreateForm(preview) {
     const tournament = preview?.tournament || {};
     const standings = Array.isArray(preview?.standings) ? preview.standings : [];
     if (!standings.length) throw new Error('O DigiLab não retornou jogadores para este torneio.');
-    if (standings.length > 36) throw new Error('O torneio possui mais de 36 jogadores.');
+    if (standings.length > 128) throw new Error('O torneio possui mais de 128 jogadores.');
 
     const previewFormat = preview?.import_resolution?.format;
     const previewFormatId = Number(previewFormat?.format_id);
@@ -9256,7 +9256,7 @@ function syncCreateResultsByTotal() {
     }
 
     const next = [];
-    for (let i = 0; i < Math.min(qty, 36); i++) {
+    for (let i = 0; i < Math.min(qty, 128); i++) {
         next.push(
             createResults[i] || {
                 player_id: '',
@@ -9396,7 +9396,7 @@ function mergeOcrPlayersByMemberId(allPlayers) {
     });
     return Array.from(merged.values())
         .sort((a, b) => a.rank - b.rank)
-        .slice(0, 36);
+        .slice(0, 128);
 }
 
 function findPlayerMatchFromOcr(ocrPlayer) {
@@ -10561,8 +10561,8 @@ function addCreateResultRow() {
     )
         ? 2
         : 1;
-    if (createResults.length + size > 36) {
-        alert('O limite é 36 jogadores (18 duplas).');
+    if (createResults.length + size > (size === 2 ? 36 : 128)) {
+        alert(size === 2 ? 'O limite é 18 duplas (36 jogadores).' : 'O limite é 128 jogadores.');
         return;
     }
     for (let member = 0; member < size; member++) {
@@ -11275,7 +11275,7 @@ async function createTournamentFormSubmit(e) {
         );
 
         const validTotalPlayers = window.validation
-            ? window.validation.isPositiveInteger(payload.total_players, 1, 36)
+            ? window.validation.isPositiveInteger(payload.total_players, 1, 128)
             : payload.total_players > 0;
         const validInstagram = window.validation
             ? window.validation.isValidOptionalUrl(payload.instagram_link)

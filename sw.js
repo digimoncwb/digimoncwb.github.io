@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v189';
+const CACHE_VERSION = 'v190';
 const CACHE_NAME = `digistats-${CACHE_VERSION}`;
 
 // Cache screens as they are visited, rather than downloading every tool during
@@ -40,6 +40,20 @@ self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const target = new URL(event.notification.data?.url || './', self.location.href);
+    if (target.origin !== self.location.origin) return;
+    event.waitUntil((async () => {
+        const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const client = windows.find((candidate) => new URL(candidate.url).origin === target.origin);
+        if (client) {
+            await client.navigate(target.href);
+            await client.focus();
+        } else await self.clients.openWindow(target.href);
+    })());
 });
 
 self.addEventListener('fetch', (event) => {
