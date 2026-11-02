@@ -2545,7 +2545,7 @@ dialog::backdrop {
     padding: 0;
     overflow: hidden;
     border-color: color-mix(in srgb, var(--accent) 25%, var(--line));
-    background: #111517;
+    background: var(--panel);
     box-shadow: 0 24px 100px #000b;
 }
 .event-results-dialog[open] {
@@ -2562,8 +2562,12 @@ dialog::backdrop {
     justify-content: space-between;
     gap: 16px;
     padding: 24px;
-    border-bottom: 1px solid #ffffff0c;
-    background: linear-gradient(135deg, #21191f, #161b1e 70%);
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent) 7%, var(--panel)),
+        var(--panel) 70%
+    );
     flex-shrink: 0;
 }
 .event-results-title {
@@ -2664,7 +2668,7 @@ dialog::backdrop {
     gap: 14px;
     padding: 12px 14px;
     border: 1px solid #ffffff06;
-    background: #191e21;
+    background: var(--ds-raised);
 }
 .event-results-dialog .podium-detail[data-placement='1'] {
     --result-color: #e2bb68;
@@ -2680,8 +2684,8 @@ dialog::backdrop {
     border-color: color-mix(in srgb, var(--result-color) 20%, transparent);
     background: linear-gradient(
         90deg,
-        color-mix(in srgb, var(--result-color) 7%, #161b1e),
-        #191e21
+        color-mix(in srgb, var(--result-color) 7%, var(--panel)),
+        var(--ds-raised)
     );
 }
 .event-results-dialog .podium-detail.deckless {

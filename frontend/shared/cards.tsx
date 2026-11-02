@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Tournament, Result, Store, MicroContext } from '../contracts';
+import { useSiteAuth } from './site-auth';
+import { canAccessRoute } from './route-access';
 export function Portrait({ image, className = 'art' }: { image?: string; className?: string }) {
     const [, update] = useState(0);
     useEffect(() => {
@@ -123,6 +125,7 @@ export function EventCard({
     context: MicroContext;
     onDetails(event: Tournament): void;
 }) {
+    const account = useSiteAuth();
     const others = event.results.filter((result) => result.placement > 3);
     return (
         <article className="event-card">
@@ -175,7 +178,7 @@ export function EventCard({
                 <button className="text-button" onClick={() => onDetails(event)}>
                     Ver resultados
                 </button>
-                {event.winner && (
+                {event.winner && canAccessRoute('posts', account) && (
                     <a
                         className="event-link"
                         href={context.href('posts', { tournament: event.id })}

@@ -29,15 +29,28 @@
                 openFeedbackModal(link.dataset.feedbackType);
             });
         });
+        const syncAccount = () => {
+            const user = window.digistatsAuth?.getSnapshot().user;
+            document.querySelectorAll('[data-feedback-type]').forEach((link) => {
+                link.hidden = !user;
+            });
+            if (!user) modal.classList.remove('active');
+        };
+        window.digistatsAuth?.subscribe(syncAccount);
+        syncAccount();
         document.getElementById('feedbackCloseX')?.addEventListener('click', closeFeedbackModal);
         document.getElementById('feedbackCancel')?.addEventListener('click', closeFeedbackModal);
         form.addEventListener('submit', submitFeedback);
     }
 
     function openFeedbackModal(type) {
+        const user = window.digistatsAuth?.getSnapshot().user;
         const config = TYPE_CONFIG[type];
         const modal = document.getElementById('feedbackModal');
-        if (!config || !modal || sending) return;
+        if (!config || !modal || sending || !user) return;
+        const email = document.getElementById('feedbackContactEmail');
+        email.value = user.email || '';
+        email.readOnly = true;
         requestId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         openedAt = Date.now();
         document.getElementById('feedbackType').value = type;
@@ -57,10 +70,13 @@
     async function submitFeedback(event) {
         event.preventDefault();
         if (sending) return;
+        const user = window.digistatsAuth?.getSnapshot().user;
+        const token = window.digistatsAuth?.getAccessToken();
+        if (!user || !token) return;
         const form = event.currentTarget;
         const type = document.getElementById('feedbackType').value;
         const message = document.getElementById('feedbackMessage').value.trim();
-        const contactEmail = document.getElementById('feedbackContactEmail').value.trim();
+        const contactEmail = user.email || '';
         const website = document.getElementById('feedbackWebsite').value;
         const status = document.getElementById('feedbackStatus');
         const submit = document.getElementById('feedbackSubmit');
@@ -83,6 +99,7 @@
                 method: 'POST',
                 headers: {
                     ...window.createSupabaseHeaders(),
+                    Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
@@ -98,7 +115,8 @@
                 })
             });
             const payload = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(payload.error || `Falha no envio (${response.status})`);
+            if (!response.ok)
+                throw new Error(payload.error || `Falha no envio (${response.status})`);
 
             status.textContent = 'Obrigado! Sua mensagem foi enviada.';
             status.className = 'feedback-status is-success';

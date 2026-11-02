@@ -12,6 +12,7 @@ import {
 } from './catalog-service';
 import { paginateTournamentWeeks } from './tournament-weeks';
 import { useSiteAuth } from '../../shared/site-auth';
+import { canAccessRoute } from '../../shared/route-access';
 
 export interface TournamentCommand {
     kind: 'create' | 'edit';
@@ -27,7 +28,7 @@ export function TournamentsPage({
     onEditor(command: TournamentCommand): void;
 }) {
     const account = useSiteAuth();
-    const canManageTournaments = !!account.user && account.isAdmin;
+    const canManageTournaments = canAccessRoute('manage', account);
     const snapshot = useData(context.data);
     const [query, setQuery] = useState(''),
         [period, setPeriod] = useState(''),
@@ -258,7 +259,11 @@ export function TournamentsPage({
                             : months[0] || new Date().toISOString().slice(0, 7)
                     }
                     onDetails={setSelected}
-                    onCreate={(date) => openEditor('create', undefined, date)}
+                    onCreate={
+                        canManageTournaments
+                            ? (date) => openEditor('create', undefined, date)
+                            : undefined
+                    }
                 />
             ) : (
                 <>
@@ -386,20 +391,24 @@ export function TournamentsPage({
                                                 <button onClick={() => setSelected(event)}>
                                                     Ver resultados
                                                 </button>
-                                                <button
-                                                    onClick={() => openEditor('edit', event.id)}
-                                                >
-                                                    Editar torneio
-                                                </button>
-                                                <button
-                                                    onClick={() =>
-                                                        context.navigate('posts', {
-                                                            tournament: event.id
-                                                        })
-                                                    }
-                                                >
-                                                    Criar post
-                                                </button>
+                                                {canManageTournaments && (
+                                                    <button
+                                                        onClick={() => openEditor('edit', event.id)}
+                                                    >
+                                                        Editar torneio
+                                                    </button>
+                                                )}
+                                                {canAccessRoute('posts', account) && (
+                                                    <button
+                                                        onClick={() =>
+                                                            context.navigate('posts', {
+                                                                tournament: event.id
+                                                            })
+                                                        }
+                                                    >
+                                                        Criar post
+                                                    </button>
+                                                )}
                                                 {event.instagram && (
                                                     <a
                                                         href={event.instagram}
@@ -459,7 +468,7 @@ function TournamentCalendar({
     events: Tournament[];
     month: string;
     onDetails(event: Tournament): void;
-    onCreate(date: string): void;
+    onCreate?(date: string): void;
 }) {
     const [visible, setVisible] = useState(month);
     useEffect(() => setVisible(month), [month]);
@@ -505,14 +514,18 @@ function TournamentCalendar({
                         key={date}
                         className={`calendar-day${date.startsWith(visible) ? '' : ' is-outside'}`}
                     >
-                        <button
-                            className="calendar-day-number"
-                            aria-label={`Cadastrar torneio em ${window.liveData.displayDate(date)}`}
-                            onClick={() => onCreate(date)}
-                        >
-                            {Number(date.slice(8))}
-                            <span aria-hidden="true">+</span>
-                        </button>
+                        {onCreate ? (
+                            <button
+                                className="calendar-day-number"
+                                aria-label={`Cadastrar torneio em ${window.liveData.displayDate(date)}`}
+                                onClick={() => onCreate(date)}
+                            >
+                                {Number(date.slice(8))}
+                                <span aria-hidden="true">+</span>
+                            </button>
+                        ) : (
+                            <span className="calendar-day-number">{Number(date.slice(8))}</span>
+                        )}
                         {events
                             .filter((event) => event.isoDate === date)
                             .map((event) => (
@@ -545,6 +558,7 @@ function TournamentDetails({
     onClose(): void;
     onEdit(): void;
 }) {
+    const account = useSiteAuth();
     const [ids, setIds] = useState<TournamentResultRecord[]>([]),
         [error, setError] = useState(''),
         [exportText, setExportText] = useState(''),
@@ -594,7 +608,7 @@ function TournamentDetails({
                     <strong>{result.name}</strong>
                     {!event.deckless && <span>{result.deck}</span>}
                 </div>
-                {!event.deckless && row && (
+                {!event.deckless && row && canAccessRoute('builder', account) && (
                     <button
                         className="button secondary"
                         onClick={() =>
@@ -628,15 +642,19 @@ function TournamentDetails({
                 </div>
             </div>
             <div className="catalog-detail-actions">
-                <button className="button secondary" onClick={onEdit}>
-                    Editar evento e resultados
-                </button>
-                <button
-                    className="button primary"
-                    onClick={() => context.navigate('posts', { tournament: event.id })}
-                >
-                    Criar post ↗
-                </button>
+                {canAccessRoute('manage', account) && (
+                    <button className="button secondary" onClick={onEdit}>
+                        Editar evento e resultados
+                    </button>
+                )}
+                {canAccessRoute('posts', account) && (
+                    <button
+                        className="button primary"
+                        onClick={() => context.navigate('posts', { tournament: event.id })}
+                    >
+                        Criar post ↗
+                    </button>
+                )}
                 {event.instagram && (
                     <a
                         className="button secondary"
@@ -647,7 +665,7 @@ function TournamentDetails({
                         Instagram ↗
                     </a>
                 )}
-                {!event.team && (
+                {!event.team && canAccessRoute('manage', account) && (
                     <button
                         className="button secondary"
                         disabled={!ids.length}
@@ -678,7 +696,7 @@ function TournamentDetails({
                     {exportNotice}
                 </p>
             )}
-            {exportText && (
+            {exportText && canAccessRoute('manage', account) && (
                 <div className="catalog-export">
                     <label>
                         Classificação para DigiLab

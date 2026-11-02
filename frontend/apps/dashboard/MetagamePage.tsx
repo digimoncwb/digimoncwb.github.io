@@ -11,6 +11,8 @@ import { analyzeMeta, currentFormat, eventType, communityActivity } from './meta
 import '../workspace/catalog.css';
 import './metagame.css';
 import { useMetaResults } from './useMetaResults';
+import { useSiteAuth } from '../../shared/site-auth';
+import { canAccessRoute } from '../../shared/route-access';
 
 const percent = (n: number, d: number) =>
     d ? `${((n / d) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%` : '—';
@@ -24,6 +26,11 @@ const deckBarColor = (code: string) =>
         ? '#73777f'
         : deckColors.find((color) => color.code === code)?.color || 'var(--accent)';
 export function MetagamePage({ context }: { context: MicroContext }) {
+    const account = useSiteAuth();
+    const canOpenLists = canAccessRoute('builder', account);
+    const PlayerName = canAccessRoute('players', account) ? 'button' : 'span';
+    const DeckName = canAccessRoute('decks', account) ? 'button' : 'span';
+    const ListCard = canOpenLists ? 'button' : 'article';
     const snapshot = useData(context.data),
         { data } = snapshot;
     const { records, loading, error, retry } = useMetaResults(context, snapshot.updatedAt);
@@ -148,8 +155,11 @@ export function MetagamePage({ context }: { context: MicroContext }) {
     const go = (
         name: 'decks' | 'players' | 'builder' | 'tournaments',
         params: Record<string, string>
-    ) => context.navigate(name, params);
+    ) => {
+        if (canAccessRoute(name, account)) context.navigate(name, params);
+    };
     const openList = (result: (typeof model.results)[number]) => {
+        if (!canOpenLists) return;
         const event = events.find((event) => event.id === String(result.tournament_id));
         go('builder', {
             resultId: result.id,
@@ -462,9 +472,7 @@ export function MetagamePage({ context }: { context: MicroContext }) {
                                                         {String(start + index + 1).padStart(2, '0')}
                                                     </span>
                                                     <Portrait image={r.image} />
-                                                    <span className="meta-deck-name">
-                                                        {r.name}
-                                                    </span>
+                                                    <span className="meta-deck-name">{r.name}</span>
                                                     <DeckColors colors={r.colors} />
                                                 </button>
                                             </th>
@@ -652,14 +660,19 @@ export function MetagamePage({ context }: { context: MicroContext }) {
                                             {playerRows.slice(start, start + size).map((r) => (
                                                 <tr key={r.id}>
                                                     <th>
-                                                        <button
+                                                        <PlayerName
                                                             className="meta-text-button"
-                                                            onClick={() =>
-                                                                go('players', { playerId: r.id })
+                                                            onClick={
+                                                                canAccessRoute('players', account)
+                                                                    ? () =>
+                                                                          go('players', {
+                                                                              playerId: r.id
+                                                                          })
+                                                                    : undefined
                                                             }
                                                         >
                                                             {r.name}
-                                                        </button>
+                                                        </PlayerName>
                                                     </th>
                                                     <td>{r.count}</td>
                                                     <td>{r.titles}</td>
@@ -680,18 +693,24 @@ export function MetagamePage({ context }: { context: MicroContext }) {
                                                                     )
                                                             )
                                                             .map((d) => (
-                                                                <button
+                                                                <DeckName
                                                                     key={d.id}
                                                                     className="meta-text-button meta-player-deck"
-                                                                    onClick={() =>
-                                                                        go('decks', {
-                                                                            deckId: d.id
-                                                                        })
+                                                                    onClick={
+                                                                        canAccessRoute(
+                                                                            'decks',
+                                                                            account
+                                                                        )
+                                                                            ? () =>
+                                                                                  go('decks', {
+                                                                                      deckId: d.id
+                                                                                  })
+                                                                            : undefined
                                                                     }
                                                                 >
                                                                     {d.name}{' '}
                                                                     <small>({d.count})</small>
-                                                                </button>
+                                                                </DeckName>
                                                             ))}
                                                         {!r.decks.size && '—'}
                                                     </td>
@@ -711,7 +730,11 @@ export function MetagamePage({ context }: { context: MicroContext }) {
                             </p>
                             <div className="meta-list-cards">
                                 {lists.slice(start, start + size).map((r) => (
-                                    <button key={r.id} onClick={() => openList(r)}>
+                                    <ListCard
+                                        className="meta-list-card"
+                                        key={r.id}
+                                        onClick={canOpenLists ? () => openList(r) : undefined}
+                                    >
                                         <strong>{r.deck?.name || 'Deck não informado'}</strong>
                                         <span>
                                             {r.player?.name || 'Jogador não informado'} ·{' '}
@@ -722,9 +745,9 @@ export function MetagamePage({ context }: { context: MicroContext }) {
                                                 events.find((e) => e.id === String(r.tournament_id))
                                                     ?.date
                                             }{' '}
-                                            · Abrir lista ↗
+                                            {canOpenLists ? '· Abrir lista ↗' : ''}
                                         </span>
-                                    </button>
+                                    </ListCard>
                                 ))}
                             </div>
                         </>
@@ -871,14 +894,16 @@ export function MetagamePage({ context }: { context: MicroContext }) {
                                                             </button>
                                                         </td>
                                                         <td>
-                                                            <button
-                                                                className="meta-table-link"
-                                                                onClick={() => openList(r)}
-                                                            >
-                                                                {r.decklists?.length
-                                                                    ? 'Ver lista ↗'
-                                                                    : 'Cadastrar ↗'}
-                                                            </button>
+                                                            {canOpenLists && (
+                                                                <button
+                                                                    className="meta-table-link"
+                                                                    onClick={() => openList(r)}
+                                                                >
+                                                                    {r.decklists?.length
+                                                                        ? 'Ver lista ↗'
+                                                                        : 'Cadastrar ↗'}
+                                                                </button>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 );

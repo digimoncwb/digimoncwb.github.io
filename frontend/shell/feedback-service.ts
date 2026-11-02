@@ -1,12 +1,15 @@
 export interface Feedback {
     type: 'bug' | 'suggestion';
     message: string;
-    email: string;
     website: string;
     id: string;
     openedAt: number;
 }
 export async function sendFeedback(feedback: Feedback) {
+    const auth = window.digistatsAuth;
+    const user = auth?.getSnapshot().user;
+    const token = auth?.getAccessToken();
+    if (!user || !token) throw Error('Entre com sua conta para enviar uma mensagem.');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
@@ -24,12 +27,16 @@ export async function sendFeedback(feedback: Feedback) {
             {
                 method: 'POST',
                 signal: controller.signal,
-                headers: { ...window.createSupabaseHeaders(), 'Content-Type': 'application/json' },
+                headers: {
+                    ...window.createSupabaseHeaders(),
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
                     request_id: feedback.id,
                     feedback_type: feedback.type,
                     message: feedback.message.trim(),
-                    contact_email: feedback.email.trim() || null,
+                    contact_email: user.email || null,
                     page_url: page.href,
                     app_version: window.APP_VERSION || null,
                     user_agent: navigator.userAgent,

@@ -42,7 +42,7 @@ for (const kind of ['terms', 'privacy']) {
         path.join(root, 'legal', document.filename),
         `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="dark light"><title>${escape(document.title)} — DIGIMON CWB</title><link rel="stylesheet" href="legal.css"></head>
-<body><main><nav aria-label="Navegação"><a href="../index.html">Voltar ao site</a><a href="${other.filename}">${escape(other.title)}</a></nav><header><p>DIGIMON CWB</p><h1>${escape(document.title)}</h1><p>Versão ${escape(documents.version)} · ${escape(documents.publishedDate)}</p></header>${content}<footer><a href="mailto:dulopes1997@gmail.com">Contas e privacidade: dulopes1997@gmail.com</a></footer></main></body></html>\n`
+<body><main><nav aria-label="Navegação"><a href="../index.html">Voltar ao site</a><a href="${other.filename}">${escape(other.title)}</a></nav><header><p>DIGIMON CWB</p><h1>${escape(document.title)}</h1><p>Versão ${escape(documents.version)} · ${escape(documents.publishedDate)}</p></header>${content}<footer><a href="mailto:digimoncwb@gmail.com">Contas e privacidade: digimoncwb@gmail.com</a></footer></main></body></html>\n`
     );
     inserts.push(`insert into public.site_legal_documents(kind,version,url,body,sha256)
 values('${kind}',${literal(documents.version)},${literal(url)},${literal(body)},encode(pg_catalog.sha256(convert_to(${literal(body)},'UTF8')),'hex'))
@@ -62,6 +62,7 @@ const migration = `begin;
 ${inserts.join('\n\n')}
 
 update public.site_security_config set
+    support_email='digimoncwb@gmail.com',
     terms_url='https://digimoncwb.github.io/legal/${documents.terms.filename}',
     terms_version=${literal(documents.version)},
     privacy_url='https://digimoncwb.github.io/legal/${documents.privacy.filename}',

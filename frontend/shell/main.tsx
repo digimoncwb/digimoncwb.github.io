@@ -14,6 +14,7 @@ import { CommunityAlerts } from '../shared/CommunityAlerts';
 import '../shared/community.css';
 import { AccountPanel } from './AccountPanel';
 import { BandaiOnboarding } from './BandaiOnboarding';
+import { canAccessRoute, routeAccess } from '../shared/route-access';
 import { AccountsAdmin } from './AccountsAdmin';
 import '../../shared/theme.css';
 import '../../demo-v2/styles.css';
@@ -111,7 +112,7 @@ function Shell() {
     const outlet = useRef<HTMLDivElement>(null);
     const handles = useRef(new Map<string, { element: HTMLElement; handle: MicroHandle }>());
     const manifest = useRef<Manifest | null>(null);
-    const adminDenied = route.name === 'admin' && (!account.user || !account.isAdmin);
+    const routeDenied = !canAccessRoute(route.name, account);
     const adminSections = [
         ['tournaments', 'Torneios'],
         ['catalog', 'Catálogo'],
@@ -138,7 +139,7 @@ function Shell() {
         let cancelled = false;
         setLoading(true);
         setError('');
-        if (adminDenied) {
+        if (routeDenied) {
             for (const item of handles.current.values()) item.element.hidden = true;
             setLoading(false);
             return;
@@ -219,7 +220,7 @@ function Shell() {
         return () => {
             cancelled = true;
         };
-    }, [route, retry, adminDenied]);
+    }, [route, retry, routeDenied]);
     useEffect(() => {
         const onClick = (event: MouseEvent) => {
             const anchor = (event.target as Element)?.closest<HTMLAnchorElement>('a[href]');
@@ -408,12 +409,7 @@ function Shell() {
                     hidden={!mobileOpen}
                 >
                     {sections
-                        .filter(
-                            (section) =>
-                                (section.key !== 'decks' || !!account.user) &&
-                                (!['admin', 'players', 'posts'].includes(section.key) ||
-                                    (!!account.user && account.isAdmin))
-                        )
+                        .filter((section) => canAccessRoute(section.links[0][1], account))
                         .map((section) => (
                             <div
                                 key={section.key}
@@ -490,7 +486,7 @@ function Shell() {
                     onOpen={openCommunityEvent}
                     eventHref={communityEventHref}
                 />
-                {route.name === 'admin' && !adminDenied && (
+                {route.name === 'admin' && !routeDenied && (
                     <header className="site-admin-heading">
                         <h1>Administração</h1>
                         <nav aria-label="Seções administrativas">
@@ -511,9 +507,15 @@ function Shell() {
                     </header>
                 )}
                 {loading && !accountSection && <Loader />}
-                {adminDenied && (
+                {routeDenied && (
                     <div className={styles.failure} role="alert">
-                        <p>Esta área exige uma conta administrativa ativa.</p>
+                        <p>
+                            {account.loading
+                                ? 'Verificando acesso…'
+                                : routeAccess(route.name) === 'admin'
+                                  ? 'Esta área exige uma conta administrativa ativa.'
+                                  : 'Entre com sua conta para acessar esta área.'}
+                        </p>
                         <button
                             className="button secondary"
                             onClick={() => setAccountView(account.user ? 'profile' : 'login')}

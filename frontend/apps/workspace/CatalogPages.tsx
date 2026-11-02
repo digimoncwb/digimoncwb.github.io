@@ -1,5 +1,6 @@
 import { tryCardImageFallback } from '../../shared/card-image-fallback';
 import { useSiteAuth } from '../../shared/site-auth';
+import { canAccessRoute } from '../../shared/route-access';
 import { useEffect, useState } from 'react';
 import { playerStatistics } from './player-statistics';
 import { orderListCards } from '../builder/editor-service';
@@ -727,6 +728,7 @@ function HistoryEntry({
     name: string;
     recordId: string;
 }) {
+    const account = useSiteAuth();
     const [open, setOpen] = useState(false);
     const lists = useRecords(
         async (signal) => {
@@ -776,13 +778,15 @@ function HistoryEntry({
                         {window.liveData.displayDate(row.tournament_date)}
                     </span>
                 </div>
-                <button
-                    className="button secondary"
-                    aria-expanded={open}
-                    onClick={() => setOpen(!open)}
-                >
-                    {open ? 'Fechar' : 'Decklist'}
-                </button>
+                {canAccessRoute('builder', account) && (
+                    <button
+                        className="button secondary"
+                        aria-expanded={open}
+                        onClick={() => setOpen(!open)}
+                    >
+                        {open ? 'Fechar' : 'Decklist'}
+                    </button>
+                )}
                 {tournamentId && (
                     <button
                         className="button secondary"
@@ -794,7 +798,7 @@ function HistoryEntry({
                     </button>
                 )}
             </div>
-            {open && (
+            {open && canAccessRoute('builder', account) && (
                 <div className="catalog-history-cards">
                     <LoadError error={lists.error} retry={lists.refresh} />
                     {lists.loading ? (

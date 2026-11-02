@@ -14,6 +14,15 @@ Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
     if (req.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) return json({ error: 'Supabase não configurado.' }, 500);
+    const token = req.headers.get('authorization')?.match(/^Bearer\s+(\S+)$/i)?.[1];
+    if (!token) return json({ error: 'Entre com sua conta para enviar uma mensagem.' }, 401);
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return json({ error: 'Entre com sua conta para enviar uma mensagem.' }, 401);
+
     let body: Record<string, unknown>;
     try {
         body = await req.json();
@@ -28,7 +37,7 @@ Deno.serve(async (req) => {
     const subject = SUBJECTS[feedbackType];
     const message = String(body.message || '').trim();
     const requestId = String(body.request_id || '');
-    const contactEmail = String(body.contact_email || '').trim() || null;
+    const contactEmail = user.email?.trim() || null;
     const openedAt = Number(body.opened_at || 0);
 
     if (!subject || !/^[0-9a-f-]{36}$/i.test(requestId)) {
@@ -44,14 +53,9 @@ Deno.serve(async (req) => {
         return json({ error: 'Envio rápido demais. Revise a mensagem e tente novamente.' }, 429);
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     const recipient = Deno.env.get('FEEDBACK_RECIPIENT_EMAIL');
     const fromEmail = Deno.env.get('FEEDBACK_FROM_EMAIL');
-    if (!supabaseUrl || !serviceRoleKey) return json({ error: 'Supabase não configurado.' }, 500);
-
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
     const { data: existingSubmission } = await supabase
         .from('feedback_submissions')
         .select('id,email_sent_at')

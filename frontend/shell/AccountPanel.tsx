@@ -121,7 +121,7 @@ export function AccountPanel({
             setConfirmPassword('');
         }
     }
-    const contact = state.config?.support_email || 'dulopes1997@gmail.com';
+    const contact = state.config?.support_email || 'digimoncwb@gmail.com';
     const loggedView = state.user && view !== 'password';
     const loadingAccount = !!state.user && state.loading && view !== 'password';
     const title = loadingAccount

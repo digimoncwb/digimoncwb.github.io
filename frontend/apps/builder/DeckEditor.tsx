@@ -42,6 +42,7 @@ import { loadDecks, type DeckRecord as ArchetypeRecord } from '../workspace/cata
 import { Portrait } from '../../shared/cards';
 import { SearchSelect } from '../../shared/SearchSelect';
 import { useSiteAuth, canEditCommunityDeck } from '../../shared/site-auth';
+import { canAccessRoute } from '../../shared/route-access';
 import { Select } from '../../shared/Select';
 import { CatalogViewport } from './CatalogViewport';
 import { createPortal } from 'react-dom';
@@ -648,13 +649,14 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const returnParams = p.has('libraryState')
         ? Object.fromEntries(new URLSearchParams(p.get('libraryState') || ''))
         : Object.fromEntries(p);
-    const returnView =
+    const requestedReturnView =
         (
             { decks: 'decks', players: 'players', statistics: 'meta', meta: 'meta' } as Record<
                 string,
                 RouteName
             >
         )[p.get('returnView') || 'decks'] || 'tournaments';
+    const returnView = canAccessRoute(requestedReturnView, account) ? requestedReturnView : 'decks';
     if (returnView === 'meta') {
         returnParams.format = p.get('returnFormat') || p.get('format') || '';
         returnParams.period = p.get('returnPeriod') || '';

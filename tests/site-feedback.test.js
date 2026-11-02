@@ -3,7 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { stripTypeScriptTypes } = require('node:module');
-function service(response, href = 'https://site.test/?player=Nome&token=privado#overview') {
+function service(
+    response,
+    href = 'https://site.test/?player=Nome&token=privado#overview',
+    signedIn = true
+) {
     const calls = [];
     const context = {
         URL,
@@ -13,6 +17,12 @@ function service(response, href = 'https://site.test/?player=Nome&token=privado#
         location: { href },
         navigator: { userAgent: 'Browser' },
         window: {
+            digistatsAuth: {
+                getSnapshot: () => ({
+                    user: signedIn ? { id: 'user', email: 'player@example.com' } : null
+                }),
+                getAccessToken: () => (signedIn ? 'account-token' : null)
+            },
             APP_CONFIG: { SUPABASE_URL: 'https://api.test' },
             APP_VERSION: '2026.10.05.3',
             createSupabaseHeaders: () => ({ apikey: 'public' })
@@ -31,7 +41,6 @@ function service(response, href = 'https://site.test/?player=Nome&token=privado#
 const feedback = {
     type: 'bug',
     message: '  Erro ao abrir torneio  ',
-    email: '',
     website: '',
     id: 'request',
     openedAt: 10
@@ -43,8 +52,14 @@ test('feedback uses the existing endpoint and excludes URL query data', async ()
     const body = JSON.parse(api.calls[0].options.body);
     assert.equal(body.feedback_type, 'bug');
     assert.equal(body.message, 'Erro ao abrir torneio');
-    assert.equal(body.contact_email, null);
+    assert.equal(body.contact_email, 'player@example.com');
+    assert.equal(api.calls[0].options.headers.Authorization, 'Bearer account-token');
     assert.equal(body.page_url, 'https://site.test/#overview');
+});
+test('feedback refuses anonymous submissions without making a request', async () => {
+    const api = service(null, 'https://site.test/#overview', false);
+    await assert.rejects(api.send(feedback), /Entre com sua conta/);
+    assert.equal(api.calls.length, 0);
 });
 test('feedback surfaces server errors instead of showing false success', async () => {
     const api = service({ ok: false, json: async () => ({ error: 'Envio indisponível' }) });

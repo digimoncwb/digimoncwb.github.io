@@ -896,7 +896,7 @@
     display: grid;
     gap: 10px;
 }
-.meta-list-cards > button,
+.meta-list-cards > .meta-list-card,
 .meta-detail-results > button {
     display: grid;
     gap: 8px;
@@ -913,6 +913,10 @@
 .meta-detail-results span {
     font-size: 12px;
     color: var(--muted);
+}
+.meta-list-cards > article.meta-list-card,
+span.meta-text-button {
+    cursor: default;
 }
 .meta-methodology {
     margin-top: 24px;

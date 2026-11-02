@@ -44,7 +44,8 @@ async function main() {
         '20261102220000_community_player_score_perspective.sql',
         '20261102230000_community_minimum_four_players.sql',
         '20261102233000_admin_account_links.sql',
-        '20261102234000_admin_account_role_consistency.sql'
+        '20261102234000_admin_account_role_consistency.sql',
+        '20261102235000_community_legal_contact.sql'
     ];
     const query = migrations
         .map((migration) =>

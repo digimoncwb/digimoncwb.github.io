@@ -9,6 +9,8 @@ import { featuredDecks, latestStoreTournaments, overviewWeekEvents } from './ove
 import { MetagamePage } from './MetagamePage';
 import { OverviewHighlights } from './OverviewHighlights';
 import { CommunityNotices } from '../../shared/CommunityNotices';
+import { useSiteAuth } from '../../shared/site-auth';
+import { canAccessRoute } from '../../shared/route-access';
 export const apiVersion = 1;
 export const mount = (element: HTMLElement, context: MicroContext) =>
     mountReact(DashboardRouter, element, context);
@@ -20,6 +22,7 @@ function DashboardRouter({ context }: { context: MicroContext }) {
     );
 }
 function Dashboard({ context }: { context: MicroContext }) {
+    const account = useSiteAuth();
     const snapshot = useData(context.data);
     const { data } = snapshot;
     const [format, setFormat] = useState(''),
@@ -159,7 +162,7 @@ function Dashboard({ context }: { context: MicroContext }) {
                             {data.events.length} torneios cadastrados
                         </p>
                     </div>
-                    {context.route.name === 'tournaments' && (
+                    {context.route.name === 'tournaments' && canAccessRoute('manage', account) && (
                         <div className="section-heading">
                             <a
                                 className="button primary"

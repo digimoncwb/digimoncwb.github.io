@@ -5,7 +5,7 @@ O dashboard oferece dois links secundários no rodapé da barra lateral:
 - **Reportar bug** — assunto `[DigiStats - Bug Report]`
 - **Enviar sugestão** — assunto `[DigiStats - Sugestão]`
 
-As mensagens são registradas na tabela privada `feedback_submissions` e enviadas pela Edge Function `send-feedback`. O navegador não conhece o endereço destinatário nem a chave do Resend. O visitante pode informar um e-mail de contato opcional; quando preenchido, ele é salvo em `contact_email` e usado como `reply_to`.
+As opções de sugestão e relato de bug aparecem apenas para contas logadas. As mensagens são registradas na tabela privada `feedback_submissions` e enviadas pela Edge Function `send-feedback`. O navegador não conhece o endereço destinatário nem a chave do Resend. A função valida a sessão e usa o e-mail da conta autenticada em `contact_email` e `reply_to`, ignorando qualquer e-mail informado no corpo da requisição.
 
 ## Ativação
 
@@ -20,7 +20,7 @@ npx supabase secrets set RESEND_API_KEY="re_..." FEEDBACK_RECIPIENT_EMAIL="seu-e
 4. Publique a função:
 
 ```powershell
-npx supabase functions deploy send-feedback
+npx supabase functions deploy send-feedback --no-verify-jwt
 ```
 
 `FEEDBACK_RECIPIENT_EMAIL` é o endereço privado que recebe os relatos. `FEEDBACK_FROM_EMAIL` precisa utilizar um domínio autorizado no Resend.

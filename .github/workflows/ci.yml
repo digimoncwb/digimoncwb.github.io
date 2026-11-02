@@ -143,6 +143,8 @@ jobs:
                     database/migrations/20261102230000_community_minimum_four_players.sql \
                     database/migrations/20261102233000_admin_account_links.sql \
                     database/migrations/20261102234000_admin_account_role_consistency.sql \
+                    database/migrations/20261102235000_community_legal_contact.sql \
+                    supabase/functions/send-feedback \
                     supabase/config.toml \
                     supabase/functions/_shared \
                     supabase/functions/digilab-deck-catalog \
@@ -191,6 +193,7 @@ jobs:
                   node scripts/check-site-account-schema.js
                   supabase functions deploy import-digilab-tournament --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
                   supabase functions deploy community-pairings --project-ref "$SUPABASE_PROJECT_ID"
+                  supabase functions deploy send-feedback --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
                   supabase functions deploy preview-digilab-import --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
                   supabase functions deploy sync-new-digilab-tournaments --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
                   supabase functions deploy digilab-deck-catalog --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt

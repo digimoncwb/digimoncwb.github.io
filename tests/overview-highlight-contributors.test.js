@@ -82,6 +82,8 @@ test('highlight cards list every deck participant with counts and attribute titl
     const Component = vm.runInNewContext(code + '\nOverviewHighlights', {
         require,
         analyzeMeta,
+        useSiteAuth: () => ({ user: null, isAdmin: false }),
+        canAccessRoute: () => false,
         useData: () => ({ data: { events, formats: [] }, updatedAt: 1 }),
         useMetaResults: () => ({ records, loading: false, error: null }),
         currentFormat: () => '',

@@ -4,8 +4,12 @@ import { Portrait } from '../../shared/cards';
 import { analyzeMeta, currentFormat, overviewFourWeeks } from './metagame-model';
 import './overview-highlights.css';
 import { useMetaResults } from './useMetaResults';
+import { useSiteAuth } from '../../shared/site-auth';
+import { canAccessRoute } from '../../shared/route-access';
 
 export function OverviewHighlights({ context }: { context: MicroContext }) {
+    const account = useSiteAuth();
+    const DeckName = canAccessRoute('decks', account) ? 'a' : 'span';
     const { data, updatedAt } = useData(context.data);
     const { records, loading, error, retry } = useMetaResults(context, updatedAt);
     const format = currentFormat(data.formats, data.events),
@@ -154,17 +158,26 @@ export function OverviewHighlights({ context }: { context: MicroContext }) {
                                         </span>
                                         <Portrait image={row.image} />
                                         <div className="highlight-identity">
-                                            <a
-                                                href={context.href('decks', { deckId: row.id })}
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    context.navigate('decks', {
-                                                        deckId: row.id
-                                                    });
-                                                }}
+                                            <DeckName
+                                                className="highlight-deck-name"
+                                                href={
+                                                    canAccessRoute('decks', account)
+                                                        ? context.href('decks', { deckId: row.id })
+                                                        : undefined
+                                                }
+                                                onClick={
+                                                    canAccessRoute('decks', account)
+                                                        ? (e) => {
+                                                              e.preventDefault();
+                                                              context.navigate('decks', {
+                                                                  deckId: row.id
+                                                              });
+                                                          }
+                                                        : undefined
+                                                }
                                             >
                                                 {row.name}
-                                            </a>
+                                            </DeckName>
                                             {contributors.length > 0 && (
                                                 <ul
                                                     className="highlight-contributors"

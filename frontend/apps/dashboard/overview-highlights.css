@@ -82,7 +82,7 @@
 .overview-highlights .highlight-identity {
     min-width: 0;
 }
-.overview-highlights .highlight-identity a {
+.overview-highlights .highlight-identity .highlight-deck-name {
     display: inline-block;
     color: var(--rank-color);
     font-size: 18px;
@@ -228,7 +228,7 @@
     .overview-highlights .highlight-place {
         font-size: 21px;
     }
-    .overview-highlights .highlight-identity a {
+    .overview-highlights .highlight-identity .highlight-deck-name {
         grid-column: 3;
         grid-row: 1;
         font-size: 17px;
