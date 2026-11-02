@@ -9,6 +9,7 @@ export interface CommunityEvent {
     location: string;
     modality: 'presencial' | 'online';
     starts_at: string;
+    finished_at?: string | null;
     event_type: string;
     format_id: number;
     format_code: string;

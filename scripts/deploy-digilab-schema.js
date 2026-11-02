@@ -48,7 +48,8 @@ async function main() {
         '20261102235000_community_legal_contact.sql',
         '20261102235500_plain_language_privacy.sql',
         '20261102240000_community_admin_results.sql',
-        '20261102250000_community_self_withdrawal.sql'
+        '20261102250000_community_self_withdrawal.sql',
+        '20261102260000_community_finished_at.sql'
     ];
     const query = migrations
         .map((migration) =>

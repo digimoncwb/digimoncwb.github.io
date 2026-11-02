@@ -832,6 +832,43 @@ test('admins correct historical results without losing later rounds and must rev
     }
 });
 
+test('completion timestamps recover audit history, survive edits and reset when reopened', async () => {
+    const { db, rpc, create } = await setup();
+    try {
+        const id = await create();
+        const finished = '2026-11-01T12:00:00+00:00';
+        await db.exec('reset role');
+        await db.query("update public.community_events set status='finished' where id=$1", [id]);
+        await db.query(
+            "insert into public.community_audit(event_id,actor,action,details,created_at) values($1,$2,'finish','{}',$3)",
+            [id, uid(1), finished]
+        );
+        const migration = readFileSync(
+            'database/migrations/20261102260000_community_finished_at.sql',
+            'utf8'
+        );
+        await db.exec(migration);
+        await db.exec(migration);
+        await db.query(
+            "update public.community_events set name='Renamed',status='finished' where id=$1",
+            [id]
+        );
+        let snapshot = await rpc('community_snapshot', [id]);
+        assert.equal(Date.parse(snapshot.event.finished_at), Date.parse(finished));
+        assert.equal(
+            Date.parse((await rpc('community_list', [true]))[0].finished_at),
+            Date.parse(finished)
+        );
+        await db.query("update public.community_events set status='running' where id=$1", [id]);
+        assert.equal((await rpc('community_snapshot', [id])).event.finished_at, null);
+        await db.query("update public.community_events set status='finished' where id=$1", [id]);
+        snapshot = await rpc('community_snapshot', [id]);
+        assert.ok(Date.parse(snapshot.event.finished_at) > Date.parse(finished));
+    } finally {
+        await db.close();
+    }
+});
+
 test('players can withdraw only their own registration before starting and rejoin the freed seat', async () => {
     const { db, rpc, create, login } = await setup(true);
     try {
@@ -1249,7 +1286,10 @@ test('PLAY: enrollment, repeated counterproposals, score limits, server clock an
         await assert.rejects(() => command('finish'), /Confirme/);
         await command('finish', { reviewed: true, order: s.standings.map((e) => e.id) });
         assert.equal(s.event.status, 'finished');
+        const finishedAt = s.event.finished_at;
+        assert.ok(Number.isFinite(Date.parse(finishedAt)));
         await command('export');
+        assert.equal(s.event.finished_at, finishedAt, 'export does not restart the notice window');
         assert.equal(s.exports[0].body.split('\n').length, 4);
     } finally {
         await db.close();
@@ -1374,6 +1414,9 @@ async function setup(playFlow = false) {
         );
         await db.exec(
             readFileSync('database/migrations/20261102250000_community_self_withdrawal.sql', 'utf8')
+        );
+        await db.exec(
+            readFileSync('database/migrations/20261102260000_community_finished_at.sql', 'utf8')
         );
     }
     await db.exec(

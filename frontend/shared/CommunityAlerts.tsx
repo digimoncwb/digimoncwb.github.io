@@ -17,12 +17,35 @@ export function CommunityAlerts({
     const { events } = useCommunityList(false, active && !!auth.user, auth.user?.id || '');
     const [message, setMessage] = useState('');
     const [target, setTarget] = useState('');
+    const [expiresAt, setExpiresAt] = useState<number | null>(null);
+    const finishNoticeDuration = 10 * 60 * 1000;
+    useEffect(() => {
+        if (expiresAt === null) return;
+        const expire = () => {
+            if (Date.now() < expiresAt) return;
+            setMessage('');
+            setTarget('');
+            setExpiresAt(null);
+        };
+        const timer = window.setTimeout(expire, Math.max(0, expiresAt - Date.now()));
+        document.addEventListener('visibilitychange', expire);
+        return () => {
+            window.clearTimeout(timer);
+            document.removeEventListener('visibilitychange', expire);
+        };
+    }, [expiresAt]);
     useEffect(() => {
         if (!target) return;
         const event = events.find((event) => event.id === target);
-        if (!event || (event.status === 'running' && !event.active_participant)) {
+        if (
+            !event ||
+            (event.status === 'running' && !event.active_participant) ||
+            (event.status === 'finished' &&
+                !(Date.parse(event.finished_at || '') + finishNoticeDuration > Date.now()))
+        ) {
             setMessage('');
             setTarget('');
+            setExpiresAt(null);
         }
     }, [events, target]);
     const [permission, setPermission] = useState(() =>
@@ -37,12 +60,14 @@ export function CommunityAlerts({
             title: string,
             body: string,
             event: string,
-            notify = true
+            notify = true,
+            expires: number | null = null
         ) => {
             const storageKey = `community-alert:${auth.user?.id}:${key}`;
             // Keep current round navigation visible after reloads; only OS delivery is deduplicated.
             setMessage(`${title} · ${body}`);
             setTarget(event);
+            setExpiresAt(expires);
             try {
                 if (localStorage.getItem(storageKey)) return;
             } catch {
@@ -82,20 +107,10 @@ export function CommunityAlerts({
                 for (const event of events.filter(
                     (e) =>
                         e.enrolled &&
-                        (e.status === 'finished' ||
+                        ((e.status === 'finished' &&
+                            Date.parse(e.finished_at || '') + finishNoticeDuration > Date.now()) ||
                             (e.status === 'running' && e.active_participant))
                 )) {
-                    try {
-                        if (
-                            event.status === 'finished' &&
-                            localStorage.getItem(
-                                `community-alert:${auth.user?.id}:${event.id}:finish`
-                            )
-                        )
-                            continue;
-                    } catch {
-                        /* Continue without local storage. */
-                    }
                     const snapshot = await communityRpc<CommunitySnapshot>(
                         'community_snapshot',
                         { p_event: event.id },
@@ -108,13 +123,17 @@ export function CommunityAlerts({
                     if (!mine) continue;
                     if (mine.dropped && snapshot.event.status === 'running') continue;
                     if (snapshot.event.status === 'finished') {
+                        const expires =
+                            Date.parse(snapshot.event.finished_at || '') + finishNoticeDuration;
                         const rank = snapshot.event.final_order?.indexOf(mine.id) ?? -1;
-                        if (rank >= 0)
+                        if (rank >= 0 && expires > Date.now())
                             await announce(
                                 `${event.id}:finish`,
                                 `Fim do torneio: ${rank + 1}º lugar`,
                                 event.name,
-                                event.id
+                                event.id,
+                                true,
+                                expires
                             );
                         continue;
                     }

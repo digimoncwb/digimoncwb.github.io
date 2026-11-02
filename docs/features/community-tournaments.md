@@ -96,3 +96,4 @@ Ainda exigem validação externa: fórmulas contra o TCG+, aceitação do paste 
 
 - A migração `20261102240000_community_admin_results.sql` aplica a confirmação direta dos resultados enviados por admins, preservando a auditoria e o fechamento automático da rodada.
 - A migração `20261102250000_community_self_withdrawal.sql` permite cancelar a própria inscrição antes do início, com validação do jogador no servidor e auditoria.
+- O aviso de fim do torneio permanece visível até 10 minutos após `finished_at`, inclusive ao recarregar a página. A migração `20261102260000_community_finished_at.sql` registra a finalização no servidor e recupera os horários dos eventos anteriores pela auditoria. Exportar ou editar o evento não reinicia o prazo; reabrir e finalizar novamente registra uma nova finalização. A entrega ao sistema operacional continua deduplicada.
