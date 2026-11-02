@@ -262,6 +262,9 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
         : event?.status === 'running'
           ? 'pairings'
           : 'ranking';
+    useEffect(() => {
+        if (context.active && activeTab === 'history') void refresh();
+    }, [context.active, activeTab, refresh]);
     const AuditPanel = preparing ? 'details' : 'section';
     const activePlayers = snapshot?.entries.filter((e) => !e.dropped).length || 0;
     const current = snapshot?.rounds[snapshot.rounds.length - 1];
@@ -1061,8 +1064,9 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                         activeTab === 'ranking' && (
                             <section className="community-panel">
                                 <h2>
-                                    Classificação{' '}
-                                    {event.status === 'finished' ? 'final revisada' : 'provisória'}
+                                    {event.status === 'finished'
+                                        ? 'Classificação Final'
+                                        : 'Classificação provisória'}
                                 </h2>
                                 <div className="community-table-scroll">
                                     <table className="community-ranking-table">
@@ -1071,23 +1075,15 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                                                 <th>#</th>
                                                 <th>Jogador</th>
                                                 <th>Pontos</th>
-                                                {event.status !== 'finished' && (
-                                                    <>
-                                                        <th title="Vitórias, derrotas e empates">
-                                                            Record
-                                                        </th>
-                                                        <th title="Percentual de vitórias de partida dos oponentes">
-                                                            OMW%
-                                                        </th>
-                                                        <th title="Percentual de vitórias de jogo">
-                                                            GW%
-                                                        </th>
-                                                        <th title="Percentual de vitórias de jogo dos oponentes">
-                                                            OGW%
-                                                        </th>
-                                                        <th>Byes</th>
-                                                    </>
-                                                )}
+                                                <th title="Vitórias, derrotas e empates">Record</th>
+                                                <th title="Percentual de vitórias de partida dos oponentes">
+                                                    OMW%
+                                                </th>
+                                                <th title="Percentual de vitórias de jogo">GW%</th>
+                                                <th title="Percentual de vitórias de jogo dos oponentes">
+                                                    OGW%
+                                                </th>
+                                                <th>Byes</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1100,39 +1096,30 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                                                   )
                                                 : snapshot.standings
                                             ).map((s, index) => (
-                                                <tr key={s.id}>
+                                                <tr
+                                                    key={s.id}
+                                                    className={
+                                                        s.id === mine?.id
+                                                            ? 'community-ranking-self'
+                                                            : ''
+                                                    }
+                                                    aria-current={
+                                                        s.id === mine?.id ? 'true' : undefined
+                                                    }
+                                                >
                                                     <td>{index + 1}</td>
-                                                    <td
-                                                        className={
-                                                            s.id === mine?.id
-                                                                ? 'community-ranking-self'
-                                                                : ''
-                                                        }
-                                                    >
+                                                    <td>
                                                         {s.name}
                                                         {s.dropped ? ' (DROP)' : ''}
                                                     </td>
                                                     <td>{s.points}</td>
-                                                    {event.status !== 'finished' && (
-                                                        <>
-                                                            <td>
-                                                                {communityRecord(
-                                                                    snapshot.matches,
-                                                                    s.id
-                                                                )}
-                                                            </td>
-                                                            <td>
-                                                                {(Number(s.omw) * 100).toFixed(2)}%
-                                                            </td>
-                                                            <td>
-                                                                {(Number(s.gw) * 100).toFixed(2)}%
-                                                            </td>
-                                                            <td>
-                                                                {(Number(s.ogw) * 100).toFixed(2)}%
-                                                            </td>
-                                                            <td>{s.byes}</td>
-                                                        </>
-                                                    )}
+                                                    <td>
+                                                        {communityRecord(snapshot.matches, s.id)}
+                                                    </td>
+                                                    <td>{(Number(s.omw) * 100).toFixed(2)}%</td>
+                                                    <td>{(Number(s.gw) * 100).toFixed(2)}%</td>
+                                                    <td>{(Number(s.ogw) * 100).toFixed(2)}%</td>
+                                                    <td>{s.byes}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -1146,6 +1133,7 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                             mine={mine}
                             admin={auth.isAdmin}
                             busy={busy}
+                            onRefresh={() => void refresh()}
                             onOpen={(match) => {
                                 setHistoricalScore(true);
                                 setScore(match);

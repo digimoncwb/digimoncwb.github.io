@@ -774,9 +774,6 @@
     }
 }
 
-.community-pairing-mine td:first-child {
-    box-shadow: inset 3px 0 var(--accent);
-}
 .community-pairing-clickable {
     cursor: pointer;
 }
@@ -1223,8 +1220,11 @@
     padding: 0 6px;
     font-weight: 700;
 }
-.community-pairing-self,
-.community-ranking-self {
-    box-shadow: inset 0 0 0 2px var(--accent, #65b4ff);
-    border-radius: 4px;
+.community-ranking-table .community-ranking-self > td,
+.community-pairings-table .community-pairing-mine[aria-current='true'] > td {
+    background: var(--ds-red-soft);
+    color: var(--accent);
+}
+.community-pairing-mine .community-table-number {
+    color: inherit;
 }

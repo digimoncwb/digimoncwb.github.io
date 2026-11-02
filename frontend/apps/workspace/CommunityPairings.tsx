@@ -72,6 +72,7 @@ export function CommunityPairings({
                         return (
                             <tr
                                 key={match.id}
+                                aria-current={own ? 'true' : undefined}
                                 className={`${editable ? 'community-pairing-clickable' : ''} ${own ? 'community-pairing-mine' : ''} ${drawn ? 'community-pairing-draw' : ''}`}
                                 onClick={() => {
                                     if (editable) onOpen?.(match);
