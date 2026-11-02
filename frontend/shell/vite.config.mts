@@ -2,14 +2,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve, extname } from 'node:path';
 import fs from 'node:fs';
+import { updateAppVersion } from '../../scripts/update-app-version.mjs';
 const project = resolve(import.meta.dirname, '../..');
 export default defineConfig(({ command }) => ({
     root: resolve(project, 'frontend/shell'),
     base: command === 'build' ? './' : '/',
     define: {
-        __CWB_ASSET_VERSION__: JSON.stringify(
-            fs.readFileSync(resolve(project, 'config/app-version.js'), 'utf8').match(/2026\.\d+\.\d+\.\d+/)?.[0] || 'dev'
-        )
+        __CWB_ASSET_VERSION__: JSON.stringify(updateAppVersion(project).assetVersion)
     },
     plugins: [
         react(),
@@ -72,6 +71,8 @@ export default defineConfig(({ command }) => ({
         outDir: resolve(project, 'demo-v2/app-shell'),
         emptyOutDir: true,
         target: ['es2020', 'safari17.4'],
-        rolldownOptions: { external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime'] }
+        rolldownOptions: {
+            external: ['react', 'react-dom', 'react-dom/client', 'react/jsx-runtime']
+        }
     }
 }));

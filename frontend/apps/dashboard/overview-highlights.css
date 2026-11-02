@@ -142,6 +142,21 @@
     font-weight: 700;
     white-space: nowrap;
 }
+@media (min-width: 601px) {
+    .overview-highlights .highlight-contributors li {
+        display: flex;
+        gap: 6px;
+    }
+    .overview-highlights .highlight-player-name {
+        flex: 0 1 auto;
+    }
+    .overview-highlights .highlight-contributors .highlight-title-count {
+        flex: 0 0 auto;
+        padding: 1px 6px;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+}
 .overview-highlights .highlight-metric strong {
     color: var(--text, #f0f3f5);
     font-size: 26px;

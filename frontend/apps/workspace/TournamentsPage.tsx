@@ -27,6 +27,7 @@ export function TournamentsPage({
     onEditor(command: TournamentCommand): void;
 }) {
     const account = useSiteAuth();
+    const canManageTournaments = !!account.user && account.isAdmin;
     const snapshot = useData(context.data);
     const [query, setQuery] = useState(''),
         [period, setPeriod] = useState(''),
@@ -44,7 +45,7 @@ export function TournamentsPage({
         .sort()
         .reverse();
     const openEditor = (kind: 'create' | 'edit', id?: string, date?: string) => {
-        if (account.enabled && !account.isAdmin) {
+        if (!canManageTournaments) {
             window.digistatsAuth?.open(account.user ? 'profile' : 'login');
             return;
         }
@@ -96,19 +97,21 @@ export function TournamentsPage({
         <section className="catalog-app">
             <div className="catalog-heading">
                 <PageHeading title="Torneios" />
-                <div className="tournament-heading-actions">
-                    <button className="button primary" onClick={() => openEditor('create')}>
-                        Enviar Resultados
-                    </button>
-                    <button
-                        className="button primary"
-                        onClick={() => {
-                            context.navigate('tournaments', { community: '1' });
-                        }}
-                    >
-                        Organizar torneio
-                    </button>
-                </div>
+                {canManageTournaments && (
+                    <div className="tournament-heading-actions">
+                        <button className="button primary" onClick={() => openEditor('create')}>
+                            Enviar Resultados
+                        </button>
+                        <button
+                            className="button primary"
+                            onClick={() => {
+                                context.navigate('tournaments', { community: '1' });
+                            }}
+                        >
+                            Organizar torneio
+                        </button>
+                    </div>
+                )}
             </div>
             <ListToolbar
                 query={query}

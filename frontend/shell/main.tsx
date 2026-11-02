@@ -410,7 +410,9 @@ function Shell() {
                     {sections
                         .filter(
                             (section) =>
-                                section.key !== 'admin' || (!!account.user && account.isAdmin)
+                                (section.key !== 'decks' || !!account.user) &&
+                                (!['admin', 'players', 'posts'].includes(section.key) ||
+                                    (!!account.user && account.isAdmin))
                         )
                         .map((section) => (
                             <div

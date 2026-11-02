@@ -3,11 +3,9 @@ import path from 'node:path';
 import { build } from 'vite';
 import react from '@vitejs/plugin-react';
 import './generate-react-forms.mjs';
+import { updateAppVersion } from './update-app-version.mjs';
 const root = path.resolve(import.meta.dirname, '..');
-const assetVersion = fs
-    .readFileSync(path.join(root, 'config/app-version.js'), 'utf8')
-    .match(/2026\.\d+\.\d+\.\d+/)?.[0];
-if (!assetVersion) throw Error('Missing asset release version');
+const { assetVersion } = updateAppVersion(root);
 const target = process.argv.find((arg) => arg.startsWith('--app='))?.split('=')[1];
 const names = ['dashboard', 'workspace', 'studio', 'builder'];
 if (target && !['shell', 'shared', ...names].includes(target))
