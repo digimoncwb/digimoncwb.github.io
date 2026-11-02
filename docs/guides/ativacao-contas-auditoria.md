@@ -45,7 +45,7 @@ No Supabase Auth:
 
 1. Ative a confirmação de e-mail; configure SMTP de produção, remetente e modelos em português. Teste entrega real, expiração e utilização única dos links.
 2. Configure Site URL e uma lista explícita de URLs de retorno para o `index.html` do site publicado e para homologação. O shell usa PKCE e retorna a `index.html#overview`.
-3. Configure senha mínima de 12 caracteres no provedor, limites de tentativas, envio de e-mail e proteção contra abuso. A interface também verifica esse comprimento no cadastro e na troca.
+3. A interface não exige mais 12 caracteres no cadastro ou na troca. A política do provedor pode ser aplicada com `node scripts/configure-auth-signup.js` ou pelo workflow **Auth email configuration**, ação `signup`: mínimo de 6 caracteres, sem composição obrigatória. Esse comando também atualiza o e-mail de confirmação com o nome e o endereço da conta, preservando a ativação por e-mail. Exige as credenciais de gerenciamento do projeto; não envia mensagens de teste.
 4. Mantenha confirmação segura para alteração de e-mail. Teste recuperação, troca de e-mail, logout e sessão restaurada em outra aba.
 5. Avalie MFA para administradores no provedor. A interface desta entrega não inclui cadastro de fatores MFA.
 

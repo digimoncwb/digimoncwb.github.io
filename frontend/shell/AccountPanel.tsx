@@ -161,7 +161,6 @@ export function AccountPanel({
                             <input
                                 type="password"
                                 autoComplete="new-password"
-                                minLength={12}
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -511,7 +510,6 @@ export function AccountPanel({
                                                     : 'current-password'
                                             }
                                             required
-                                            minLength={view === 'signup' ? 12 : undefined}
                                             value={password}
                                             onChange={(e) => {
                                                 loginEdited.current = true;
@@ -550,7 +548,7 @@ export function AccountPanel({
                                 {view === 'recover'
                                     ? 'Enviaremos um link para redefinir sua senha. Confira também a pasta de spam.'
                                     : view === 'signup'
-                                      ? 'Use uma senha com pelo menos 12 caracteres. Confirme o e-mail para ativar sua conta.'
+                                      ? 'Confirme o e-mail para ativar sua conta.'
                                       : 'Use o e-mail e a senha da sua conta.'}
                             </p>
                             {view === 'login' && (
@@ -581,7 +579,7 @@ export function AccountPanel({
                                 />
                             )}
                             <button
-                                className="button primary"
+                                className={`button primary${view === 'login' || view === 'signup' ? ' site-account-submit' : ''}`}
                                 disabled={
                                     busy ||
                                     !state.available ||

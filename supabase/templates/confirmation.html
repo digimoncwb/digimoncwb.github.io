@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Confirme seu e-mail — DIGIMON CWB</title>
+        <title>Sua conta foi criada — DIGIMON CWB</title>
     </head>
     <body
         style="
@@ -33,11 +33,13 @@
                                     DIGIMON CWB
                                 </p>
                                 <h1 style="font-size: 25px; line-height: 1.3">
-                                    Confirme seu e-mail
+                                    Sua conta foi criada
                                 </h1>
                                 <p>
-                                    Recebemos uma solicitação para criar sua conta no DIGIMON CWB.
-                                    Confirme este endereço para continuar.
+                                    O usuário {{ if .Data.display_name }}{{ .Data.display_name |
+                                    html }}{{ else }}novo jogador{{ end }} foi criado no DIGIMON CWB
+                                    com o e-mail {{ .Email | html }}. Confirme este endereço para
+                                    ativar sua conta.
                                 </p>
                                 <p style="margin: 28px 0">
                                     <a

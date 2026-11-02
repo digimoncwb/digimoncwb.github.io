@@ -17,7 +17,6 @@ import { ActionMenu, Dialog } from '../../shared/ListPage';
 import {
     communityDate,
     communityEventDate,
-    communityRequest,
     communityRpc,
     pendingEnrollmentKey,
     useCommunityList,
@@ -51,6 +50,7 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
         [score, setScore] = useState<CommunityMatch | null>(null);
     const [notice, setNotice] = useState('');
     const [deleting, setDeleting] = useState(false);
+    const [starting, setStarting] = useState(false);
     const [tab, setTab] = useState('pairings');
     const [historicalScore, setHistoricalScore] = useState(false);
     const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 1000px)').matches);
@@ -137,7 +137,7 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
         let failed = false;
         try {
             let restartData: Record<string, unknown> = {};
-            if (action === 'restart_round') {
+            if (action === 'restart_round' || action === 'auto_pair') {
                 const seed = crypto.randomUUID();
                 restartData = {
                     seed,
@@ -179,9 +179,13 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                                   p_revision: snapshot.event.revision
                               })
                             : action === 'auto_pair'
-                              ? await communityRequest<CommunitySnapshot>(
-                                    '/functions/v1/community-pairings',
-                                    { event_id: eventId, revision: snapshot.event.revision }
+                              ? await communityRpc<CommunitySnapshot>(
+                                    'community_start_next_round',
+                                    {
+                                        p_event: eventId,
+                                        p_revision: snapshot.event.revision,
+                                        p_data: restartData
+                                    }
                                 )
                               : action === 'add_players'
                                 ? await communityRpc<CommunitySnapshot>('community_add_players', {
@@ -245,6 +249,12 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
     const event = snapshot?.event,
         mine = snapshot?.entries.find((e) => e.player_id === auth.profile?.player_id);
     const preparing = !!event && ['draft', 'published'].includes(event.status);
+    const scoreAsAdmin =
+        auth.isAdmin &&
+        (historicalScore ||
+            !mine ||
+            (!!score && score.p1 !== mine.id && score.p2 !== mine.id) ||
+            score?.status === 'confirmed');
     const SummaryPanel = desktop || preparing ? 'section' : 'details';
     const tournamentTabs = [
         ...(event?.status === 'running' ? [['pairings', 'Pairings']] : []),
@@ -350,18 +360,6 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
     const titleBlock = (
         <div className="community-title-row">
             <PageHeading title={event?.name || 'Organizar Torneio'} />
-            {event?.status === 'running' && mine && !mine.dropped && (
-                <button
-                    className="button community-danger-button"
-                    disabled={busy}
-                    onClick={() => {
-                        if (confirm('Desistir do torneio? Seus resultados serão preservados.'))
-                            void command('drop');
-                    }}
-                >
-                    Drop do Torneio
-                </button>
-            )}
         </div>
     );
     const roundActions =
@@ -387,7 +385,7 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                                 disabled={busy}
                                 onClick={() => void command('auto_pair')}
                             >
-                                Gerar pareamentos
+                                Iniciar próxima rodada
                             </button>
                         </>
                     )}
@@ -817,26 +815,19 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                                                         id="community-start-hint"
                                                         className="community-note"
                                                     >
-                                                        {activePlayers < 2
-                                                            ? `Inclua mais ${2 - activePlayers} ${activePlayers === 1 ? 'jogador' : 'jogadores'} para iniciar. Mínimo de 2 participantes.`
+                                                        {activePlayers < 4
+                                                            ? `Inclua mais ${4 - activePlayers} ${4 - activePlayers === 1 ? 'jogador' : 'jogadores'} para iniciar. Mínimo de 4 participantes.`
                                                             : `${activePlayers} jogadores prontos. As inscrições serão encerradas ao iniciar.`}
                                                     </p>
                                                     <button
                                                         className="button primary community-start-button"
                                                         disabled={
                                                             busy ||
-                                                            activePlayers < 2 ||
+                                                            activePlayers < 4 ||
                                                             activePlayers > 128
                                                         }
                                                         aria-describedby="community-start-hint"
-                                                        onClick={() => {
-                                                            if (
-                                                                confirm(
-                                                                    `Iniciar o torneio com ${activePlayers} jogadores? As inscrições serão encerradas.`
-                                                                )
-                                                            )
-                                                                void command('start');
-                                                        }}
+                                                        onClick={() => setStarting(true)}
                                                     >
                                                         Iniciar torneio
                                                     </button>
@@ -1003,14 +994,9 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                                         </button>
                                     </div>
                                 )}
-                                {roundActions &&
-                                    (desktop ? (
-                                        <div className="community-actions">{roundActions}</div>
-                                    ) : (
-                                        <ActionMenu label="Controles da rodada">
-                                            {roundActions}
-                                        </ActionMenu>
-                                    ))}
+                                {roundActions && desktop && (
+                                    <div className="community-actions">{roundActions}</div>
+                                )}
                             </div>
 
                             {current?.status === 'paused' && (
@@ -1070,6 +1056,9 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                                         setScore(match);
                                     }}
                                 />
+                            )}
+                            {roundActions && !desktop && (
+                                <div className="community-round-mobile-actions">{roundActions}</div>
                             )}
                         </section>
                     )}
@@ -1171,6 +1160,39 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                     {!preparing && activeTab === 'admin' && auditPanel}
                 </>
             )}
+            {starting && event && snapshot && auth.isAdmin && (
+                <Dialog title="Iniciar torneio" busy={busy} onClose={() => setStarting(false)}>
+                    <p>
+                        O torneio será iniciado com {activePlayers} jogadores. Os pairings serão
+                        sorteados e o tempo de {event.round_minutes ?? 45} minutos +{' '}
+                        {event.overtime_minutes ?? 5} minutos de overtime será iniciado. Confirma o
+                        início do torneio?
+                    </p>
+                    {error && (
+                        <p className="community-error" role="alert">
+                            {error}
+                        </p>
+                    )}
+                    <div className="community-actions">
+                        <button
+                            className="button secondary"
+                            disabled={busy}
+                            onClick={() => setStarting(false)}
+                        >
+                            Não
+                        </button>
+                        <button
+                            className="button primary"
+                            disabled={busy || activePlayers < 4 || !preparing}
+                            onClick={async () => {
+                                if (await command('start')) setStarting(false);
+                            }}
+                        >
+                            Sim
+                        </button>
+                    </div>
+                </Dialog>
+            )}
             {deleting && event && auth.isAdmin && (
                 <CommunityDeleteEvent
                     event={event}
@@ -1185,6 +1207,7 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                     event={event}
                     formats={data.formats}
                     stores={data.stores}
+                    schedule={data.schedule}
                     busy={busy}
                     error={error}
                     onClose={() => setCreating(false)}
@@ -1217,7 +1240,7 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                     match={score}
                     entries={snapshot.entries}
                     mine={mine}
-                    admin={auth.isAdmin}
+                    admin={scoreAsAdmin}
                     busy={busy}
                     requiresFinalReview={historicalScore && event?.status === 'finished'}
                     onClose={() => setScore(null)}
@@ -1229,7 +1252,7 @@ export function CommunityTournaments({ context }: { context: MicroContext }) {
                     }
                     onSave={(payload) =>
                         command(
-                            auth.isAdmin
+                            scoreAsAdmin
                                 ? historicalScore
                                     ? 'correct_result'
                                     : 'resolve'
@@ -1471,7 +1494,13 @@ function ScoreDialog({
     const valid = complete && total >= 1 && total <= 3;
     return (
         <Dialog
-            title={admin ? 'Lançar resultado pela organização' : 'Informar resultado'}
+            title={
+                reviewing && !refuting
+                    ? 'Confira o placar'
+                    : admin
+                      ? 'Lançar resultado pela organização'
+                      : 'Informar resultado'
+            }
             busy={busy}
             onClose={onClose}
         >
@@ -1501,14 +1530,14 @@ function ScoreDialog({
                                 disabled={busy}
                                 onClick={() => void onConfirm()}
                             >
-                                Aceitar resultado
+                                Confirmar o resultado
                             </button>
                             <button
                                 className="button secondary"
                                 disabled={busy}
                                 onClick={() => setRefuting(true)}
                             >
-                                Refutar e informar outro placar
+                                Refutar resultado
                             </button>
                         </div>
                     ) : (

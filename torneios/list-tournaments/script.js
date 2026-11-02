@@ -9784,13 +9784,16 @@ async function processCreateOcrFiles() {
 async function loadStoresToCreate() {
     try {
         let res = await fetch(
-            `${SUPABASE_URL}/rest/v1/stores?select=id,name,bandai_nick&order=name.asc`,
+            `${SUPABASE_URL}/rest/v1/stores?select=id,name,bandai_nick&is_active=eq.true&order=name.asc`,
             { headers }
         );
         if (!res.ok) {
-            res = await fetch(`${SUPABASE_URL}/rest/v1/stores?select=id,name&order=name.asc`, {
-                headers
-            });
+            res = await fetch(
+                `${SUPABASE_URL}/rest/v1/stores?select=id,name&is_active=eq.true&order=name.asc`,
+                {
+                    headers
+                }
+            );
         }
         if (!res.ok) throw new Error('Erro ao carregar lojas');
 

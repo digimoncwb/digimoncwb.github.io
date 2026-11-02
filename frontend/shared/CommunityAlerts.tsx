@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { communityRpc, useCommunityList, type CommunitySnapshot } from './community-service';
 import { useSiteAuth } from './site-auth';
+import { communityResultNotice } from './community-result-notice';
 
 // Server timestamps and persisted results remain authoritative when a device resumes.
 export function CommunityAlerts({
@@ -31,21 +32,29 @@ export function CommunityAlerts({
         if (!active || !auth.profile?.player_id) return;
         const controller = new AbortController();
         let fetching = false;
-        const announce = async (key: string, title: string, body: string, event: string) => {
+        const announce = async (
+            key: string,
+            title: string,
+            body: string,
+            event: string,
+            notify = true
+        ) => {
             const storageKey = `community-alert:${auth.user?.id}:${key}`;
+            // Keep current round navigation visible after reloads; only OS delivery is deduplicated.
+            setMessage(`${title} · ${body}`);
+            setTarget(event);
             try {
                 if (localStorage.getItem(storageKey)) return;
             } catch {
                 /* In-app alerts still work. */
             }
-            setMessage(`${title} · ${body}`);
-            setTarget(event);
             try {
                 localStorage.setItem(storageKey, '1');
             } catch {
                 /* Storage can be unavailable. */
             }
-            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            if (!notify || !('Notification' in window) || Notification.permission !== 'granted')
+                return;
             try {
                 const registration = await navigator.serviceWorker?.getRegistration();
                 if (registration)
@@ -118,15 +127,19 @@ export function CommunityAlerts({
                     const opponent = snapshot.entries.find(
                         (e) => e.id === (match.p1 === mine.id ? match.p2 : match.p1)
                     );
-                    if (round.status === 'running') {
+                    if (round.status === 'running' || round.status === 'closed') {
                         await announce(
                             `${round.id}:start`,
-                            `R${round.number}: ${opponent ? `vs ${opponent.name}` : 'BYE'}`,
+                            round.status === 'closed'
+                                ? `R${round.number}: Rodada concluída`
+                                : `R${round.number}: ${opponent ? `vs ${opponent.name}` : 'BYE'}`,
                             `${event.name} · Mesa ${match.table_number}`,
-                            event.id
+                            event.id,
+                            round.status === 'running'
                         );
                         const now = Date.parse(snapshot.server_now || new Date().toISOString());
                         if (
+                            round.status === 'running' &&
                             round.ends_at &&
                             now >= Date.parse(round.ends_at) &&
                             round.overtime_ends_at &&
@@ -149,8 +162,8 @@ export function CommunityAlerts({
                     if (match.status === 'proposed' && match.proposed_by !== mine.id)
                         await announce(
                             `${match.id}:proposal:${match.revision}`,
-                            'Confira o resultado',
-                            `${opponent?.name || 'Seu adversário'} enviou um placar. Aceite ou refute na mesa.`,
+                            communityResultNotice(match, mine.id, round.number),
+                            `${opponent?.name || 'Seu adversário'} enviou um placar. Confirme ou refute na mesa.`,
                             event.id
                         );
                 }
@@ -177,16 +190,9 @@ export function CommunityAlerts({
         <div className="community-alerts">
             {message && (
                 <p role="status" className="community-notice">
-                    {message}
+                    <span>{message}</span>
                     <button className="button primary" onClick={() => onOpen(target)}>
                         Ver torneio
-                    </button>
-                    <button
-                        className="button secondary"
-                        onClick={() => setMessage('')}
-                        aria-label="Dispensar aviso"
-                    >
-                        ×
                     </button>
                 </p>
             )}

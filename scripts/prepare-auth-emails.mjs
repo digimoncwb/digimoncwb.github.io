@@ -15,10 +15,10 @@ const escape = (value) =>
 const definitions = [
     {
         name: 'confirmation',
-        subject: 'Confirme seu e-mail — DIGIMON CWB',
-        title: 'Confirme seu e-mail',
+        subject: 'Sua conta foi criada — DIGIMON CWB',
+        title: 'Sua conta foi criada',
         message:
-            'Recebemos uma solicitação para criar sua conta no DIGIMON CWB. Confirme este endereço para continuar.',
+            'O usuário {{ if .Data.display_name }}{{ .Data.display_name | html }}{{ else }}novo jogador{{ end }} foi criado no DIGIMON CWB com o e-mail {{ .Email | html }}. Confirme este endereço para ativar sua conta.',
         button: 'Confirmar e-mail',
         ignore: 'Se você não solicitou esta conta, ignore a mensagem. Nenhuma ação é necessária.'
     },

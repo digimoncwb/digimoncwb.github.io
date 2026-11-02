@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import type { Format, Store } from '../../contracts';
+import type { Data, Format, Store } from '../../contracts';
 import type { CommunityEvent } from '../../shared/community-service';
 import { Dialog } from '../../shared/ListPage';
-import { communityFormDateTime, communityFormFormat } from './community-form';
+import { communityFormDateTime, communityFormFormat, communityFormStore } from './community-form';
 import { CommunityPlayerPicker, type PickedCommunityPlayer } from './CommunityPlayerPicker';
 
 export function CommunityEventForm({
     event,
     formats,
     stores,
+    schedule,
     busy,
     error,
     onClose,
@@ -17,6 +18,7 @@ export function CommunityEventForm({
     event?: CommunityEvent;
     formats: Format[];
     stores: Store[];
+    schedule: Data['schedule'];
     busy: boolean;
     error: string;
     onClose(): void;
@@ -29,6 +31,13 @@ export function CommunityEventForm({
     const [initialStart] = useState(() =>
         communityFormDateTime(event?.starts_at || new Date(Date.now() + 30 * 60 * 1000))
     );
+    const [start, setStart] = useState(initialStart);
+    const [storeChoice, setStoreChoice] = useState<string | null>(null);
+    const activeStores = stores.filter((store) => store.is_active !== false);
+    const defaultStore = event
+        ? String(event.store_id || '')
+        : communityFormStore(stores, schedule, start);
+    const selectedStore = storeChoice ?? defaultStore;
     useEffect(() => {
         if (!format) setFormat(communityFormFormat(formats));
     }, [formats, format]);
@@ -55,6 +64,7 @@ export function CommunityEventForm({
                         ...Object.fromEntries(fields),
                         starts_at: startsAt + ':00-03:00',
                         capacity: event?.capacity ?? 32,
+                        location: event?.location ?? '',
                         player_ids: players.map((player) => player.id)
                     });
                 }}
@@ -77,7 +87,11 @@ export function CommunityEventForm({
                             name="starts_at_local"
                             step={60}
                             required
-                            defaultValue={initialStart}
+                            value={start}
+                            onChange={(e) => {
+                                setStart(e.target.value);
+                                if (!event) setStoreChoice(null);
+                            }}
                         />
                     </label>
                     <label>
@@ -89,22 +103,22 @@ export function CommunityEventForm({
                     </label>
                     <label>
                         Loja (opcional)
-                        <select name="store_id" defaultValue={event?.store_id || ''}>
+                        <select
+                            name="store_id"
+                            value={
+                                activeStores.some((store) => String(store.id) === selectedStore)
+                                    ? selectedStore
+                                    : ''
+                            }
+                            onChange={(e) => setStoreChoice(e.target.value)}
+                        >
                             <option value="">Sem loja</option>
-                            {stores.map((store) => (
+                            {activeStores.map((store) => (
                                 <option key={store.id} value={store.id}>
                                     {store.name}
                                 </option>
                             ))}
                         </select>
-                    </label>
-                    <label>
-                        Local ou sala online
-                        <input
-                            name="location"
-                            maxLength={500}
-                            defaultValue={event?.location ?? 'Curitiba, Brazil'}
-                        />
                     </label>
                     <label>
                         Tipo

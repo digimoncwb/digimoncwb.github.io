@@ -178,7 +178,9 @@ export function OverviewHighlights({ context }: { context: MicroContext }) {
                                                 >
                                                     {contributors.map(([id, player]) => (
                                                         <li key={id}>
-                                                            {player.name}
+                                                            <span className="highlight-player-name">
+                                                                {player.name}
+                                                            </span>
                                                             {column.key !== 'top4' && (
                                                                 <span
                                                                     className="highlight-title-count"

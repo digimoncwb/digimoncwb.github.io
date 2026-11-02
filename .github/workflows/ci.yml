@@ -138,6 +138,9 @@ jobs:
                     database/migrations/20261101180000_community_restart_round.sql \
                     database/migrations/20261101190000_community_round_durations.sql \
                     database/migrations/20261101200000_community_resume_round.sql \
+                    database/migrations/20261102210000_community_organizer_round_controls.sql \
+                    database/migrations/20261102220000_community_player_score_perspective.sql \
+                    database/migrations/20261102230000_community_minimum_four_players.sql \
                     supabase/config.toml \
                     supabase/functions/_shared \
                     supabase/functions/digilab-deck-catalog \

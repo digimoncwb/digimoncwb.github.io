@@ -306,6 +306,24 @@ dialog.list-dialog:has(.site-account) > header h2 {
     min-height: 40px;
     cursor: pointer;
 }
+.site-account .site-account-submit,
+.site-account .site-account-submit:hover:not(:disabled) {
+    background: transparent;
+    color: var(--accent);
+    border-color: var(--accent);
+}
+@media (min-width: 781px) {
+    .site-account .site-account-submit {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        justify-self: center;
+        width: auto;
+        min-width: 160px;
+        padding-inline: 28px;
+        text-align: center;
+    }
+}
 .site-account .button[aria-pressed='true'] {
     border-color: var(--ds-accent);
 }

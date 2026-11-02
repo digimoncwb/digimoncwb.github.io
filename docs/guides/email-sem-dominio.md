@@ -37,7 +37,7 @@ O repositório aponta para `digimoncwb/digimoncwb.github.io`. Confira a URL efet
 - Redirect de produção usado pelo shell: `https://digimoncwb.github.io/index.html` (o cliente acrescenta `#overview`).
 - Se `demo-v2` também for usado como entrada de teste, inclua explicitamente `https://digimoncwb.github.io/demo-v2/index.html`.
 - Endereços locais devem ser específicos de homologação; não use wildcard de qualquer domínio em produção.
-- Exigir confirmação de e-mail, troca segura de e-mail e senha de no mínimo 12 caracteres.
+- Exigir confirmação de e-mail e troca segura de e-mail. A exigência de 12 caracteres foi removida do site em 02/11/2026. A política de **6 caracteres ou mais**, sem composição obrigatória, e o novo texto de confirmação com nome/e-mail foram aplicados e relidos no Supabase pelo workflow [41386908312](https://github.com/digimoncwb/digimoncwb.github.io/actions/runs/41386908312). A validação de tamanho fica apenas no provedor. A execução usou uma branch temporária já removida e não alterou `main`; não foram criadas contas nem enviados e-mails de teste. Para reaplicar, use `node scripts/configure-auth-signup.js` com as credenciais de gerenciamento ou o workflow **Auth email configuration**, ação `signup`, depois de publicar sua versão atualizada.
 
 Esses valores foram aplicados e conferidos pela Management API. Alterar os requisitos de senha afeta também contas administrativas antigas; teste a migração para e-mail real antes de ativar o controle de contas.
 
@@ -53,7 +53,7 @@ Em **Authentication → Email Templates**, copie os modelos correspondentes de `
 
 | Template         | Arquivo                 | Assunto                                      |
 | ---------------- | ----------------------- | -------------------------------------------- |
-| Confirm sign up  | `confirmation.html`     | Confirme seu e-mail — DIGIMON CWB            |
+| Confirm sign up  | `confirmation.html`     | Sua conta foi criada — DIGIMON CWB          |
 | Reset password   | `recovery.html`         | Redefina sua senha — DIGIMON CWB             |
 | Change email     | `email_change.html`     | Confirme a alteração de e-mail — DIGIMON CWB |
 | Invite user      | `invite.html`           | Convite para o DIGIMON CWB                   |

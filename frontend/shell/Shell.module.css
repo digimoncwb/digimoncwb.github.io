@@ -172,7 +172,7 @@
     .root :global(.site-account-menu .site-account-login) {
         color: var(--accent);
         border-color: var(--accent);
-        background: var(--ds-red-soft);
+        background: transparent;
     }
     .root :global(.site-account-menu .site-account-avatar) {
         flex-basis: 24px;
@@ -294,7 +294,7 @@
     .root :global(.site-account-menu .site-account-signup) {
         color: var(--accent);
         border: 1px solid var(--accent);
-        background: var(--ds-red-soft);
+        background: transparent;
     }
     .root :global(.site-account-menu .site-account-avatar) {
         flex-basis: 24px;
@@ -367,4 +367,10 @@
         width: 20px;
         height: 20px;
     }
+}
+.root :global(.site-account-menu .site-account-login:hover:not(:disabled)),
+.root :global(.site-account-menu .site-account-signup:hover:not(:disabled)) {
+    background: transparent;
+    color: var(--accent);
+    border-color: var(--accent);
 }

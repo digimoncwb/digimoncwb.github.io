@@ -6,7 +6,7 @@ on:
             action:
                 description: Inspect, prepare, or send one explicitly authorized invitation to the community Gmail
                 type: choice
-                options: [inspect, prepare, test_invite]
+                options: [inspect, prepare, test_invite, signup]
                 default: inspect
                 required: true
             authorize_test_invite:
@@ -36,4 +36,9 @@ jobs:
                   SUPABASE_PROJECT_ID: vllqakohumoinpdwnsqa
                   EMAIL_CONFIG_ACTION: ${{ inputs.action }}
                   AUTHORIZE_TEST_INVITE: ${{ inputs.authorize_test_invite }}
-              run: node scripts/configure-auth-emails.js
+              run: |
+                  if [ "$EMAIL_CONFIG_ACTION" = "signup" ]; then
+                      node scripts/configure-auth-signup.js
+                  else
+                      node scripts/configure-auth-emails.js
+                  fi

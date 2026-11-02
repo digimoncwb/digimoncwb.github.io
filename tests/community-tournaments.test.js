@@ -6,6 +6,154 @@ const { Buffer } = require('node:buffer');
 const uid = (n) => `10000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 const pid = (n) => `20000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
+test('an admin playing as Player 2 can refute with their own score and the opponent confirms it', async () => {
+    const { db, rpc, create, login } = await setup(true);
+    try {
+        const id = await create();
+        let state = await rpc('community_snapshot', [id]);
+        state = await rpc('community_add_players', [
+            id,
+            JSON.stringify([pid(1), pid(2), pid(3), pid(4)]),
+            state.event.revision
+        ]);
+        const admin = state.entries.find((entry) => entry.player_id === pid(1));
+        const player = state.entries.find((entry) => entry.player_id === pid(2));
+        const command = async (action, data = {}) => {
+            if (data.match_id)
+                data.match_revision = state.matches.find(
+                    (match) => match.id === data.match_id
+                ).revision;
+            state = await rpc('community_command', [
+                id,
+                action,
+                JSON.stringify(data),
+                state.event.revision
+            ]);
+        };
+        await command('start');
+        await command('pair', {
+            seed: 'perspective',
+            pairs: [
+                { p1: player.id, p2: admin.id },
+                {
+                    p1: state.entries.find((entry) => entry.player_id === pid(3)).id,
+                    p2: state.entries.find((entry) => entry.player_id === pid(4)).id
+                }
+            ]
+        });
+        await command('start_round');
+        const match_id = state.matches[0].id;
+        await login(2);
+        await command('propose', { match_id, wins: 2, losses: 0, draws: 0 });
+        await login(1);
+        await command('contest', { match_id, wins: 2, losses: 1, draws: 0 });
+        assert.equal(state.matches[0].wins, 1);
+        assert.equal(state.matches[0].losses, 2);
+        assert.equal(state.matches[0].status, 'proposed');
+        assert.equal(state.matches[0].proposed_by, admin.id);
+        await login(2);
+        await command('confirm', { match_id });
+        assert.equal(state.matches[0].status, 'confirmed');
+        assert.equal(state.standings[0].id, admin.id);
+    } finally {
+        await db.close();
+    }
+});
+
+test('an admin playing in the event can generate the next round through the authenticated pairing command', async () => {
+    const { db, rpc, create, login } = await setup(true);
+    const { buildPairings } = await import('../supabase/functions/_shared/community-engine.mjs');
+    try {
+        const id = await create();
+        let state = await rpc('community_snapshot', [id]);
+        state = await rpc('community_add_players', [
+            id,
+            JSON.stringify([pid(1), pid(2), pid(3), pid(4), pid(5), pid(6)]),
+            state.event.revision
+        ]);
+        state = await rpc('community_start_event', [id, state.event.revision]);
+        assert.ok(
+            state.matches.some((match) =>
+                [match.p1, match.p2].includes(
+                    state.entries.find((entry) => entry.player_id === pid(1)).id
+                )
+            )
+        );
+        for (const match of state.matches)
+            state = await rpc('community_command', [
+                id,
+                'resolve',
+                JSON.stringify({
+                    match_id: match.id,
+                    match_revision: match.revision,
+                    wins: 2,
+                    losses: 1,
+                    draws: 0
+                }),
+                state.event.revision
+            ]);
+        assert.equal(state.rounds[0].status, 'closed');
+        const pairs = buildPairings(state.standings, state.matches, 'admin-playing');
+        await login(2);
+        await assert.rejects(
+            () =>
+                rpc('community_command', [
+                    id,
+                    'pair',
+                    JSON.stringify({ pairs, seed: 'admin-playing' }),
+                    state.event.revision
+                ]),
+            /administrativo/
+        );
+        await login(1);
+        await assert.rejects(
+            () =>
+                rpc('community_start_next_round', [
+                    id,
+                    JSON.stringify({ pairs: [], seed: 'invalid' }),
+                    state.event.revision
+                ]),
+            /mesas/
+        );
+        assert.equal((await rpc('community_snapshot', [id])).rounds.length, 1);
+        state = await rpc('community_start_next_round', [
+            id,
+            JSON.stringify({ pairs, seed: 'admin-playing' }),
+            state.event.revision
+        ]);
+        assert.equal(state.rounds[1].number, 2);
+        assert.equal(
+            state.matches.filter((match) => match.round_id === state.rounds[1].id).length,
+            3
+        );
+        assert.equal(state.rounds[1].status, 'running');
+        assert.equal(
+            Date.parse(state.rounds[1].ends_at) - Date.parse(state.rounds[1].started_at),
+            45 * 60000
+        );
+        await assert.rejects(
+            () => rpc('community_delete_event', [id, state.event.revision, 'CWB Teste']),
+            /deletar/
+        );
+        await assert.rejects(
+            () => rpc('community_delete_event', [id, state.event.revision, '']),
+            /deletar/
+        );
+        await login(2);
+        await assert.rejects(
+            () => rpc('community_delete_event', [id, state.event.revision, 'deletar']),
+            /administrativo/
+        );
+        await login(1);
+        assert.equal(
+            await rpc('community_delete_event', [id, state.event.revision, 'deletar']),
+            id
+        );
+    } finally {
+        await db.close();
+    }
+});
+
 test('resume restores the same tables, confirmed scores and proposals, freezing normal and overtime clocks during pauses', async () => {
     const { db, rpc, create, login } = await setup(true);
     try {
@@ -120,7 +268,7 @@ test('configured round durations preserve live deadlines and apply when restarti
         assert.equal(state.event.overtime_minutes, 5);
         state = await rpc('community_add_players', [
             id,
-            JSON.stringify([pid(1), pid(2)]),
+            JSON.stringify([pid(1), pid(2), pid(3), pid(4)]),
             state.event.revision
         ]);
         state = await rpc('community_start_event', [id, state.event.revision]);
@@ -179,54 +327,41 @@ test('configured round durations preserve live deadlines and apply when restarti
     }
 });
 
-test('two-player events start with one pairing and finish after one round', async () => {
+test('tournaments reject two or three players and start with four players and three rounds', async () => {
     const { db, rpc, create } = await setup(true);
     try {
         const id = await create();
         let state = await rpc('community_snapshot', [id]);
+        for (const count of [2, 3]) {
+            const ids = count === 2 ? [pid(1), pid(2)] : [pid(3)];
+            state = await rpc('community_add_players', [
+                id,
+                JSON.stringify(ids),
+                state.event.revision
+            ]);
+            await assert.rejects(
+                () => rpc('community_start_event', [id, state.event.revision]),
+                /4 a 128/
+            );
+            await assert.rejects(
+                () => rpc('community_command', [id, 'start', '{}', state.event.revision]),
+                /4 a 128/
+            );
+            const after = await rpc('community_snapshot', [id]);
+            assert.equal(after.rounds.length, 0);
+            assert.equal(after.event.status, 'published');
+            assert.equal(after.event.revision, state.event.revision);
+        }
         state = await rpc('community_add_players', [
             id,
-            JSON.stringify([pid(1), pid(2)]),
+            JSON.stringify([pid(4)]),
             state.event.revision
         ]);
         state = await rpc('community_start_event', [id, state.event.revision]);
-        assert.equal(state.event.initial_players, 2);
-        assert.equal(state.event.rounds, 1);
-        assert.equal(state.matches.length, 1);
+        assert.equal(state.event.initial_players, 4);
+        assert.equal(state.event.rounds, 3);
+        assert.equal(state.matches.length, 2);
         assert.equal(state.rounds[0].status, 'running');
-        const match = state.matches[0];
-        state = await rpc('community_command', [
-            id,
-            'resolve',
-            JSON.stringify({
-                match_id: match.id,
-                match_revision: match.revision,
-                wins: 2,
-                losses: 1,
-                draws: 0
-            }),
-            state.event.revision
-        ]);
-        assert.equal(state.rounds[0].status, 'closed');
-        await assert.rejects(
-            () =>
-                rpc('community_command', [
-                    id,
-                    'pair',
-                    JSON.stringify({ pairs: [{ p1: match.p1, p2: match.p2 }], seed: 'extra' }),
-                    state.event.revision
-                ]),
-            /Todas as rodadas/
-        );
-        state = await rpc('community_command', [
-            id,
-            'finish',
-            '{"reviewed":true}',
-            state.event.revision
-        ]);
-        assert.equal(state.event.status, 'finished');
-        state = await rpc('community_command', [id, 'export', '{}', state.event.revision]);
-        assert.equal(state.exports[0].body.split('\n').length, 2);
     } finally {
         await db.close();
     }
@@ -670,7 +805,20 @@ test('overview only shows a running event to players who have not dropped', asyn
             ]);
         }
         await login(2);
-        state = await rpc('community_command', [id, 'drop', '{}', state.event.revision]);
+        await assert.rejects(
+            () => rpc('community_command', [id, 'drop', '{}', state.event.revision]),
+            /administrativo/
+        );
+        await login(1);
+        state = await rpc('community_command', [
+            id,
+            'drop',
+            JSON.stringify({
+                entry_id: state.entries.find((entry) => entry.player_id === pid(2)).id
+            }),
+            state.event.revision
+        ]);
+        await login(2);
         assert.ok(state.entries.find((entry) => entry.player_id === pid(2)).dropped);
         assert.equal(
             (await rpc('community_list', [false])).length,
@@ -708,7 +856,7 @@ test('start publishes a complete first round and starts its clock atomically for
             await login(1);
             await assert.rejects(
                 () => rpc('community_start_event', [id, snapshot.event.revision]),
-                /2 a 128/
+                /4 a 128/
             );
             const unchanged = await rpc('community_snapshot', [id]);
             assert.equal(unchanged.event.status, 'published');
@@ -1087,6 +1235,24 @@ async function setup(playFlow = false) {
         );
         await db.exec(
             readFileSync('database/migrations/20261101200000_community_resume_round.sql', 'utf8')
+        );
+        await db.exec(
+            readFileSync(
+                'database/migrations/20261102210000_community_organizer_round_controls.sql',
+                'utf8'
+            )
+        );
+        await db.exec(
+            readFileSync(
+                'database/migrations/20261102220000_community_player_score_perspective.sql',
+                'utf8'
+            )
+        );
+        await db.exec(
+            readFileSync(
+                'database/migrations/20261102230000_community_minimum_four_players.sql',
+                'utf8'
+            )
         );
     }
     await db.exec(

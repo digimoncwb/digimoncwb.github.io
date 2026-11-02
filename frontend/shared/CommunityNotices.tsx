@@ -23,8 +23,7 @@ export function CommunityNotices({ context }: { context: MicroContext }) {
         }
     }, [auth.user?.id, auth.profile?.player_id, auth.isMember, context.active]);
     const visibleEvents = events.filter(
-        (event) =>
-            event.status !== 'finished' && (event.status !== 'running' || event.active_participant)
+        (event) => event.status === 'published' && event.registration_open
     );
     if (!visibleEvents.length) return null;
     return (

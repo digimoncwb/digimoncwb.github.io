@@ -27,7 +27,7 @@ export function CommunityDeleteEvent({
                 className="community-form"
                 onSubmit={(submission) => {
                     submission.preventDefault();
-                    if (!busy && name.trim() === event.name) void onDelete(name.trim());
+                    if (!busy && name.trim() === 'deletar') void onDelete(name.trim());
                 }}
             >
                 <p>
@@ -41,11 +41,13 @@ export function CommunityDeleteEvent({
                     </p>
                 )}
                 <label>
-                    Digite o nome do torneio para confirmar
+                    Digite "deletar" para confirmar
                     <input
                         value={name}
                         onChange={(event) => setName(event.target.value)}
                         autoComplete="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         required
                         disabled={busy}
                     />
@@ -57,7 +59,7 @@ export function CommunityDeleteEvent({
                 )}
                 <button
                     className="button secondary community-delete-button"
-                    disabled={busy || name.trim() !== event.name}
+                    disabled={busy || name.trim() !== 'deletar'}
                 >
                     Excluir definitivamente
                 </button>

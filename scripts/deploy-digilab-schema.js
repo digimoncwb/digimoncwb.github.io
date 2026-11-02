@@ -39,7 +39,10 @@ async function main() {
         '20261101170000_community_two_player_events.sql',
         '20261101180000_community_restart_round.sql',
         '20261101190000_community_round_durations.sql',
-        '20261101200000_community_resume_round.sql'
+        '20261101200000_community_resume_round.sql',
+        '20261102210000_community_organizer_round_controls.sql',
+        '20261102220000_community_player_score_perspective.sql',
+        '20261102230000_community_minimum_four_players.sql'
     ];
     const query = migrations
         .map((migration) =>

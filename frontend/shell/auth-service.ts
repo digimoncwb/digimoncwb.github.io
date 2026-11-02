@@ -431,8 +431,6 @@ export function createSiteAuth(): SiteAuth {
             }
         },
         async signup(email, password, displayName, declarations) {
-            if (password.length < 12)
-                throw new Error('Use uma senha com pelo menos 12 caracteres.');
             if (!state.config?.legal_ready || !state.config.terms_url || !state.config.privacy_url)
                 throw new Error(
                     'O cadastro será liberado após a publicação dos termos e do aviso de privacidade.'
@@ -525,8 +523,6 @@ export function createSiteAuth(): SiteAuth {
             if (error) throw new Error(message(error));
         },
         async changePassword(password) {
-            if (password.length < 12)
-                throw new Error('Use uma senha com pelo menos 12 caracteres.');
             const { error } = await client.auth.updateUser({ password });
             if (error) throw new Error(message(error));
             publish({ recoveryRequired: false });

@@ -45,7 +45,7 @@ function makePatch(current, templates, smtp) {
         uri_allow_list: [...redirects].join(','),
         mailer_autoconfirm: false,
         mailer_secure_email_change_enabled: true,
-        password_min_length: Math.max(12, Number(current.password_min_length) || 0)
+        password_min_length: Math.max(6, Number(current.password_min_length) || 0)
     };
 }
 function summarize(config, templates) {

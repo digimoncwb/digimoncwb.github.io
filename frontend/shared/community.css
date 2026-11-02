@@ -154,6 +154,17 @@
 .community-alerts {
     margin-bottom: 12px;
 }
+.community-alerts .community-notice {
+    flex-direction: row;
+    align-items: center;
+}
+.community-alerts .community-notice > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.community-alerts .community-notice .button {
+    width: auto;
+}
 @media (min-width: 900px) {
     .community-round-panel .community-grid {
         grid-template-columns: 1fr;
@@ -979,6 +990,16 @@
     justify-items: center;
     text-align: center;
     padding: 24px 0 32px;
+}
+.community-round-mobile-actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+.community-round-mobile-actions > .button {
+    width: 100%;
 }
 .community-round-clock > p {
     margin: 0 0 8px;

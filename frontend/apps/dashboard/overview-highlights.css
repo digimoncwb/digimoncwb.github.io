@@ -110,6 +110,19 @@
     line-height: 1.5;
     overflow-wrap: anywhere;
 }
+.overview-highlights .highlight-contributors li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 6px;
+}
+.overview-highlights .highlight-player-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.overview-highlights .highlight-contributors .highlight-title-count {
+    margin-left: 0;
+}
 .overview-highlights .highlight-metric {
     display: grid;
     justify-items: center;
@@ -187,9 +200,10 @@
         margin-bottom: 12px;
     }
     .overview-highlights .highlight-row {
-        grid-template-columns: 24px 48px minmax(0, 1fr) auto;
+        grid-template-columns: 24px 48px minmax(0, 1fr);
         gap: 8px;
         padding: 12px 8px;
+        min-height: 0;
     }
     .overview-highlights .highlight-row .art {
         width: 48px;
@@ -200,26 +214,40 @@
         font-size: 21px;
     }
     .overview-highlights .highlight-identity a {
+        grid-column: 3;
+        grid-row: 1;
         font-size: 17px;
+        overflow-wrap: break-word;
+        word-break: normal;
+    }
+    .overview-highlights .highlight-identity {
+        display: contents;
+    }
+    .overview-highlights .highlight-place,
+    .overview-highlights .highlight-row .art {
+        grid-row: 1;
     }
     .overview-highlights .highlight-contributors {
+        grid-column: 1 / -1;
         font-size: 14px;
+        margin: 4px 0 0;
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+        display: grid;
+        row-gap: 6px;
     }
     .overview-highlights .highlight-metric strong {
         font-size: 24px;
     }
-}
-@media (max-width: 390px) {
-    .overview-highlights .highlight-row {
-        grid-template-columns: 24px 48px minmax(0, 1fr);
-    }
     .overview-highlights .highlight-metric {
-        grid-column: 3;
+        grid-column: 1 / -1;
         display: flex;
+        flex-wrap: wrap;
         align-items: baseline;
         justify-content: center;
         gap: 8px;
-        padding: 0;
+        margin-top: 4px;
+        padding: 8px 0 0;
         text-align: center;
     }
 }

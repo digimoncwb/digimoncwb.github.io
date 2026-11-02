@@ -6,6 +6,16 @@ const templates = JSON.parse(
     fs.readFileSync('supabase/templates/email-templates.patch.json', 'utf8')
 );
 const smtp = JSON.parse(fs.readFileSync('supabase/templates/smtp-public-settings.json', 'utf8'));
+
+test('signup confirmation identifies the account and email while retaining activation and escaping metadata', () => {
+    const html = templates.mailer_templates_confirmation_content;
+    assert.match(html, /\.Data\.display_name \| html/);
+    assert.match(html, /\.Email \| html/);
+    assert.match(html, /\.ConfirmationURL/);
+    assert.match(html, /foi criado no DIGIMON CWB/);
+    assert.match(html, /ativar sua conta/);
+    assert.doesNotMatch(html, /\.Password/);
+});
 test('Auth email patch preserves SMTP secret and existing redirects while requiring verification', () => {
     const current = {
         smtp_pass: 'private-not-to-copy',
@@ -18,6 +28,7 @@ test('Auth email patch preserves SMTP secret and existing redirects while requir
     assert.equal(patch.mailer_autoconfirm, false);
     assert.equal(patch.mailer_secure_email_change_enabled, true);
     assert.equal(patch.password_min_length, 16);
+    assert.equal(makePatch({ password_min_length: 6 }, templates, smtp).password_min_length, 6);
     assert.ok(patch.uri_allow_list.includes('http://localhost:5199/index.html'));
     assert.ok(patch.uri_allow_list.includes('https://digimoncwb.github.io/index.html#overview'));
     assert.equal(

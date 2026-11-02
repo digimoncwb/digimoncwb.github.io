@@ -1,4 +1,24 @@
-import type { Format } from '../../contracts';
+import type { Data, Format, Store } from '../../contracts';
+
+export function communityFormStore(
+    stores: Store[],
+    schedule: Data['schedule'],
+    localStart: string
+) {
+    const date = localStart.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return '';
+    const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+    const active = new Set(
+        stores.filter((store) => store.is_active !== false).map((store) => String(store.id))
+    );
+    const entry = schedule.find(
+        (slot) =>
+            slot.weekday === weekday &&
+            slot.is_active !== false &&
+            active.has(String(slot.store_id))
+    );
+    return entry ? String(entry.store_id) : '';
+}
 
 export function communityFormDate(instant: Date | string = new Date()) {
     const parts = new Intl.DateTimeFormat('en-CA', {
