@@ -22,6 +22,7 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
         href: browser.callbackUrl || 'https://site.example/index.html#decks'
     };
     let oauthError = null;
+    let passwordUpdateError = null;
     let signupResult = {
         data: { user: { id: 'new-user', identities: [{ id: 'new-identity' }] } },
         error: null
@@ -89,7 +90,7 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
             },
             async updateUser(input) {
                 calls.push(input);
-                return { error: null };
+                return { error: passwordUpdateError };
             }
         },
         async rpc(name, parameters) {
@@ -197,6 +198,9 @@ function setup(persistent = memoryStorage(), temporary = memoryStorage(), browse
         rpcCalls,
         setSignupResult: (value) => {
             signupResult = value;
+        },
+        setPasswordUpdateError: (value) => {
+            passwordUpdateError = value;
         },
         getClientOptions: () => clientOptions,
         getLocation: () => browserLocation.href,
@@ -490,13 +494,14 @@ test('Email admin identity is published during preparation while general account
 test('Signup sends no role metadata and recovery returns to the shared shell', async () => {
     const { api, calls, config } = setup();
     await api.initialize();
-    await api.signup(' test@example.test ', 'long-secret-password', ' Display Name ', {
+    await api.signup(' test@example.test ', '123456', ' Display Name ', {
         termsAccepted: true,
         privacyRead: true,
         adultDeclared: true
     });
     const input = calls.at(-1);
     assert.equal(input.email, 'test@example.test');
+    assert.equal(input.password, '123456');
     assert.equal(Object.keys(input.options.data).join(','), 'display_name');
     assert.equal(input.options.emailRedirectTo, 'https://site.example/index.html');
     config.privacy_url = null;
@@ -509,7 +514,27 @@ test('Signup sends no role metadata and recovery returns to the shared shell', a
         }),
         /aviso/
     );
-    await assert.rejects(api.changePassword('short'), /12/);
+    await api.changePassword('123456');
+    assert.equal(calls.at(-1).password, '123456');
+});
+
+test('Signup and password changes delegate password validation to Supabase and surface its errors', async () => {
+    const { api, calls, setSignupResult, setPasswordUpdateError } = setup();
+    await api.initialize();
+    const error = { code: 'weak_password', message: 'Password should be at least 6 characters.' };
+    setSignupResult({ data: null, error });
+    await assert.rejects(
+        api.signup('user@example.test', 'short', 'Name', {
+            termsAccepted: true,
+            privacyRead: true,
+            adultDeclared: true
+        }),
+        /Password should be at least 6 characters/
+    );
+    assert.equal(calls.at(-1).password, 'short', 'The signup request must reach the provider');
+    setPasswordUpdateError(error);
+    await assert.rejects(api.changePassword('short'), /Password should be at least 6 characters/);
+    assert.equal(calls.at(-1).password, 'short', 'The password update must reach the provider');
 });
 test('An account with revoked membership loses admin and member access on refresh', async () => {
     const { api, setAccount } = setup();
