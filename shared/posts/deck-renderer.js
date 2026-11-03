@@ -4,7 +4,8 @@ import {
     loadPostCardImage,
     fitPostText,
     paintHazard,
-    postFooter
+    postFooter,
+    postEventTitle
 } from './renderer.js';
 
 export const DECK_IMAGE_PAGE_SIZE = 24;
@@ -258,7 +259,7 @@ export async function renderDeckPost(
     ctx.fillText(byline, 64, 175, titleWidth);
     ctx.font = '500 21px Arial';
     ctx.fillStyle = '#aeb8c2';
-    const details = metadata.tournament || '';
+    const details = postEventTitle({ title: metadata.tournament });
     ctx.fillText([metadata.date, details].filter(Boolean).join(' · '), 64, 204, titleWidth);
     if (showDistribution) paintDeckDistribution(ctx, deckLevelDistribution(cards), accent);
     ctx.fillStyle = accent;

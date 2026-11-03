@@ -2,6 +2,10 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const { postEventTitle } = vm.runInNewContext(
+    fs.readFileSync('shared/posts/renderer.js', 'utf8').replace(/export /g, '') +
+        '\n({ postEventTitle })'
+);
 function renderer(imagesAvailable = true, loadCardImage) {
     const draws = [],
         labels = [],
@@ -46,7 +50,8 @@ function renderer(imagesAvailable = true, loadCardImage) {
                 (async (code, src) => (imagesAvailable ? { width: 630, height: 880, src } : null)),
             fitPostText() {},
             paintHazard: (...args) => backgrounds.push(args),
-            postFooter() {}
+            postFooter() {},
+            postEventTitle
         }
     );
     return { api, draws, labels, styledLabels, backgrounds, canvas: { getContext: () => ctx } };
@@ -171,7 +176,7 @@ test('Deck images omit the default format and card/page footer but retain custom
         {},
         ''
     );
-    assert.ok(labels.includes('21/10/2026 · Semanal'));
+    assert.ok(labels.includes('21/10/2026 · Locals'));
     assert.equal(
         labels.some((text) => /Padrão|^54 cartas|^1\/1$/.test(text)),
         false
