@@ -29,25 +29,30 @@ export function postEventTitle(event) {
     };
     return types[key] || title;
 }
+export function postDisplayDate(value) {
+    const date = String(value || '');
+    const local = date.match(/^(\d{2})\/(\d{2})\/\d{4}$/);
+    const normalized = local ? `2000-${local[2]}-${local[1]}` : date;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return date;
+    const [, month, day] = normalized.split('-');
+    const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+    ];
+    return months[Number(month) - 1] ? `${day}/${months[Number(month) - 1]}` : date;
+}
 const liveData = {
-    displayDate: (date) => {
-        const [, month, day] = date.split('-');
-        const months = [
-            'Jan',
-            'Feb',
-            'Mar',
-            'Apr',
-            'May',
-            'Jun',
-            'Jul',
-            'Aug',
-            'Sep',
-            'Oct',
-            'Nov',
-            'Dec'
-        ];
-        return `${day}/${months[Number(month) - 1]}`;
-    },
+    displayDate: postDisplayDate,
     weekEnd: (start) => {
         const date = new Date(start + 'T12:00:00Z');
         date.setUTCDate(date.getUTCDate() + 6);

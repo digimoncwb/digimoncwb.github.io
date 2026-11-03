@@ -147,7 +147,7 @@
 :root.v2-tools #v2Tools :is(p, label, small, .subtitle) {
     color: var(--v2-muted);
 }
-:root.v2-tools #v2Tools :is(input, select, textarea) {
+:root.v2-tools #v2Tools :is(input:not([type='checkbox']):not([type='radio']), select, textarea) {
     background: #0b0f10 !important;
     color: var(--v2-text) !important;
     border-color: var(--v2-line) !important;

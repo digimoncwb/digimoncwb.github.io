@@ -117,7 +117,7 @@ export async function loadDeck(
     if (resultId) {
         result = (
             await request<Record<string, unknown>[]>(
-                `/rest/v1/tournament_results?id=eq.${encodeURIComponent(resultId)}&select=id,tournament_id,store_id,tournament_date,decklist,deck_id,player:players(name),deck:decks(name),store:stores(name)`,
+                `/rest/v1/tournament_results?id=eq.${encodeURIComponent(resultId)}&select=id,tournament_id,store_id,tournament_date,placement,decklist,deck_id,player:players(name),deck:decks(name),store:stores(name)`,
                 { signal }
             )
         )[0];

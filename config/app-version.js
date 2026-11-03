@@ -1,6 +1,6 @@
 ﻿(function setAppVersion() {
-    window.APP_VERSION = '2026.11.02';
-    window.APP_ASSET_VERSION = '2026.11.02-8f64299';
+    window.APP_VERSION = '2026.11.03';
+    window.APP_ASSET_VERSION = '2026.11.03-9afc59b';
 })();
 
 (function initThemeToggle() {

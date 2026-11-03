@@ -5,6 +5,7 @@ import { Loader } from '../../shared/runtime';
 import { POST_FORMAT } from '../../../shared/posts/renderer.js';
 import { deckImagePages, renderDeckPost } from '../../../shared/posts/deck-renderer.js';
 import type { Card, Entry } from './editor-model';
+import { buildDeckCaption } from './deck-caption';
 
 export function DeckImageDialog({
     context,
@@ -20,6 +21,7 @@ export function DeckImageDialog({
     scoring?: { limit: number; points: Record<string, number> };
     metadata: {
         name: string;
+        placement?: number;
         player: string;
         store: string;
         date: string;
@@ -30,6 +32,9 @@ export function DeckImageDialog({
     onClose(): void;
 }) {
     const canvas = useRef<HTMLCanvasElement>(null);
+    const captionField = useRef<HTMLTextAreaElement>(null);
+    const [caption, setCaption] = useState(() => buildDeckCaption(metadata));
+    const [copyStatus, setCopyStatus] = useState('');
     const [accent, setAccent] = useState(
         () =>
             getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() ||
@@ -100,6 +105,16 @@ export function DeckImageDialog({
             current = false;
         };
     }, [accent, page, showCodes, showBackgroundIcon, showLevelDistribution, opacity, retry]);
+    async function copyCaption() {
+        try {
+            await navigator.clipboard.writeText(caption);
+            setCopyStatus('Legenda copiada.');
+        } catch {
+            captionField.current?.focus();
+            captionField.current?.select();
+            setCopyStatus('Selecionei a legenda. Use Ctrl+C ou copie pelo menu do dispositivo.');
+        }
+    }
     async function download() {
         if (!canvas.current || !ready) return;
         setDownloading(true);
@@ -218,6 +233,33 @@ export function DeckImageDialog({
                                     Tentar novamente
                                 </button>
                             </div>
+                        )}
+                    </section>
+                    <section className="ed-image-caption" aria-label="Legenda do post">
+                        <h3>Legenda</h3>
+                        <label>
+                            Edite antes de copiar
+                            <textarea
+                                ref={captionField}
+                                rows={10}
+                                value={caption}
+                                onChange={(event) => {
+                                    setCaption(event.target.value);
+                                    setCopyStatus('');
+                                }}
+                            />
+                        </label>
+                        <button
+                            className="ed-button"
+                            disabled={!caption.trim()}
+                            onClick={() => void copyCaption()}
+                        >
+                            Copiar legenda
+                        </button>
+                        {copyStatus && (
+                            <p role="status" className="ed-muted">
+                                {copyStatus}
+                            </p>
                         )}
                     </section>
                 </aside>

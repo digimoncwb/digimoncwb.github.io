@@ -5,10 +5,12 @@ import {
     fitPostText,
     paintHazard,
     postFooter,
-    postEventTitle
+    postEventTitle,
+    postDisplayDate
 } from './renderer.js';
 
 export const DECK_IMAGE_PAGE_SIZE = 24;
+const DECK_HEADER_BASELINE = 78;
 export function deckPointsColor(points, limit) {
     return points < limit
         ? '#79adff'
@@ -47,7 +49,7 @@ export function deckLevelDistribution(cards) {
             : { tamer: 100, option: 101, unknown: 0 }[key];
     return [...groups.values()].sort((a, b) => rank(a.key) - rank(b.key));
 }
-export function paintDeckDistribution(ctx, groups, accent) {
+export function paintDeckDistribution(ctx, groups, accent, headingTop = DECK_HEADER_BASELINE - 20) {
     const palette = {
         red: '#e60012',
         blue: '#328bd6',
@@ -59,18 +61,20 @@ export function paintDeckDistribution(ctx, groups, accent) {
         multi: '#ed3b98'
     };
     const colorOrder = ['red', 'blue', 'yellow', 'green', 'black', 'purple', 'white', 'multi'];
+    const step = Math.min(21, 126 / Math.max(1, groups.length - 1));
     ctx.save();
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = accent;
     ctx.font = '700 17px Arial';
+    const distributionBaseline =
+        headingTop + ctx.measureText('LEVEL DISTRIBUTION').actualBoundingBoxAscent;
     const titleX = 724 - ctx.measureText('OPTION').width / 2;
-    ctx.fillText('LEVEL DISTRIBUTION', titleX, 65, 320);
+    ctx.fillText('LEVEL DISTRIBUTION', titleX, distributionBaseline, 320);
     const max = Math.max(1, ...groups.map((group) => group.total));
-    const step = Math.min(21, 152 / Math.max(1, groups.length));
     const tile = Math.min(12, 194 / max - 2);
     groups.forEach((group, index) => {
-        const y = 80 + index * step;
+        const y = distributionBaseline + 16 + index * step;
         ctx.font = '700 17px Arial';
         ctx.fillStyle = '#b4c1d2';
         ctx.textAlign = 'center';
@@ -206,9 +210,9 @@ export async function renderDeckPost(
         );
     }
     ctx.textAlign = 'left';
-    ctx.font = '700 17px Arial';
+    ctx.font = '700 27px Arial';
     const showDistribution = settings.showLevelDistribution !== false;
-    const titleWidth = showDistribution ? 604 : 892;
+    const titleWidth = showDistribution ? 596 : 952;
     const formatKey = String(metadata.format || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -217,8 +221,19 @@ export async function renderDeckPost(
     const format = ['padrao', 'standard'].includes(formatKey) ? '' : metadata.format;
     const total = cards.reduce((sum, card) => sum + card.qty * (card.points || 0), 0);
     const pointsLabel = settings.pointsLimit != null ? `${total}pts` : '';
-    const gameLabel = ['DECKLIST', metadata.collection].filter(Boolean).join(' · ');
-    const gameWidth = ctx.measureText(gameLabel).width;
+    const dateLabel = postDisplayDate(metadata.date);
+    const eventLabel = postEventTitle({ title: metadata.tournament }).toUpperCase();
+    const gameLabel = [eventLabel, metadata.collection, 'DECKLIST'].filter(Boolean).join(' · ');
+    const datePrefix = dateLabel ? `${dateLabel} · ` : '';
+    const headingTop =
+        DECK_HEADER_BASELINE -
+        Math.max(
+            ctx.measureText(datePrefix).actualBoundingBoxAscent,
+            ctx.measureText(gameLabel).actualBoundingBoxAscent
+        );
+    const dateWidth = ctx.measureText(datePrefix).width;
+    const gameWidth = dateWidth + ctx.measureText(gameLabel).width;
+    const medal = { 1: '🥇', 2: '🥈', 3: '🥉' }[Number(metadata.placement)] || '';
     const formatLabel = String(format || '').toUpperCase();
     const prefixWidth = ctx.measureText('FORMATO ').width;
     const separatorWidth = ctx.measureText(' · ').width;
@@ -227,15 +242,17 @@ export async function renderDeckPost(
     const headingWidth =
         formatEnd + (pointsLabel ? separatorWidth + ctx.measureText(pointsLabel).width : 0);
     ctx.save();
-    ctx.translate(64, 65);
+    ctx.translate(64, DECK_HEADER_BASELINE);
     ctx.scale(Math.min(1, titleWidth / (headingWidth || 1)), 1);
-    ctx.font = '700 17px Arial';
-    ctx.fillStyle = '#b4c1d2';
-    ctx.fillText(gameLabel, 0, 0);
+    ctx.font = '700 27px Arial';
+    ctx.fillStyle = '#ffffff';
+    if (datePrefix) ctx.fillText(datePrefix, 0, 0);
+    ctx.fillStyle = accent;
+    ctx.fillText(gameLabel, dateWidth, 0);
     if (format) {
         const badgeX = gameWidth + separatorWidth;
-        ctx.font = '700 17px Arial';
-        ctx.fillStyle = '#b4c1d2';
+        ctx.font = '700 27px Arial';
+        ctx.fillStyle = accent;
         ctx.fillText(' · ', gameWidth, 0);
         ctx.fillText('FORMATO ', badgeX, 0);
         ctx.fillStyle = accent;
@@ -249,19 +266,15 @@ export async function renderDeckPost(
     }
     ctx.restore();
     ctx.fillStyle = '#ffffff';
-    fitPostText(ctx, metadata.name, titleWidth, 64, 800, 26);
-    ctx.fillText(metadata.name, 64, 131, titleWidth);
-    ctx.fillStyle = '#c0c9d1';
-    const byline = [metadata.player ? `by ${metadata.player}` : '', metadata.store]
-        .filter(Boolean)
-        .join(' · ');
-    fitPostText(ctx, byline, titleWidth, 30, 500, 20);
-    ctx.fillText(byline, 64, 175, titleWidth);
-    ctx.font = '500 21px Arial';
-    ctx.fillStyle = '#aeb8c2';
-    const details = postEventTitle({ title: metadata.tournament });
-    ctx.fillText([metadata.date, details].filter(Boolean).join(' · '), 64, 204, titleWidth);
-    if (showDistribution) paintDeckDistribution(ctx, deckLevelDistribution(cards), accent);
+    fitPostText(ctx, metadata.name, titleWidth, 56, 900, 28);
+    ctx.fillText(metadata.name, 64, 148, titleWidth);
+    ctx.fillStyle = '#ffffff';
+    if (metadata.player) {
+        const playerLabel = [`by ${metadata.player}`, medal].filter(Boolean).join(' ');
+        fitPostText(ctx, playerLabel, titleWidth, 27, 600, 22);
+        ctx.fillText(playerLabel, 64, 198, titleWidth);
+    }
+    if (showDistribution) paintDeckDistribution(ctx, deckLevelDistribution(cards), accent, headingTop);
     ctx.fillStyle = accent;
     ctx.fillRect(64, 242, 952, 2);
     const columns = 6,

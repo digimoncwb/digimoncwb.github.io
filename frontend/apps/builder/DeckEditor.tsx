@@ -1275,6 +1275,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                     }
                     metadata={{
                         name,
+                        placement: Number(result?.placement) || undefined,
                         format: format?.name || '',
                         collection:
                             sets.find((set) => set.is_default)?.code ||

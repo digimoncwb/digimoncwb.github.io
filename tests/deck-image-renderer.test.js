@@ -2,9 +2,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const { postEventTitle } = vm.runInNewContext(
+const { postEventTitle, postDisplayDate } = vm.runInNewContext(
     fs.readFileSync('shared/posts/renderer.js', 'utf8').replace(/export /g, '') +
-        '\n({ postEventTitle })'
+        '\n({ postEventTitle, postDisplayDate })'
 );
 function renderer(imagesAvailable = true, loadCardImage) {
     const draws = [],
@@ -51,7 +51,8 @@ function renderer(imagesAvailable = true, loadCardImage) {
             fitPostText() {},
             paintHazard: (...args) => backgrounds.push(args),
             postFooter() {},
-            postEventTitle
+            postEventTitle,
+            postDisplayDate
         }
     );
     return { api, draws, labels, styledLabels, backgrounds, canvas: { getContext: () => ctx } };
@@ -167,7 +168,7 @@ test('Deck watermark centers its ring between header and footer and fits the con
     assert.equal(backgrounds.length, 1);
 });
 test('Deck images omit the default format and card/page footer but retain custom formats', async () => {
-    const { api, canvas, labels } = renderer();
+    const { api, canvas, labels, styledLabels } = renderer();
     const cards = [{ code: 'BT1-010', qty: 54, image: 'https://example.com/card.png' }];
     await api.renderDeckPost(
         canvas,
@@ -176,7 +177,12 @@ test('Deck images omit the default format and card/page footer but retain custom
         {},
         ''
     );
-    assert.ok(labels.includes('21/10/2026 · Locals'));
+    assert.ok(labels.includes('21/Oct · '));
+    assert.ok(labels.includes('LOCALS · DECKLIST'));
+    assert.ok(styledLabels.some(({ text, color }) => text === '21/Oct · ' && color === '#ffffff'));
+    assert.ok(
+        styledLabels.some(({ text, color }) => text === 'LOCALS · DECKLIST' && color === '#ef646b')
+    );
     assert.equal(
         labels.some((text) => /Padrão|^54 cartas|^1\/1$/.test(text)),
         false
@@ -185,7 +191,32 @@ test('Deck images omit the default format and card/page footer but retain custom
     assert.ok(labels.includes('CUSTOM'));
 });
 
-test('Deck format has a label and only its name uses the accent color', async () => {
+test('Tournament deck authors show a medal only for podium placements', async () => {
+    for (const [placement, expected] of [
+        [1, '🥇'],
+        [2, '🥈'],
+        [3, '🥉'],
+        [4, ''],
+        [undefined, '']
+    ]) {
+        const { api, canvas, labels, styledLabels } = renderer();
+        await api.renderDeckPost(
+            canvas,
+            [{ code: 'BT1-001', qty: 4 }],
+            { name: 'JUPITERMON', player: 'Gustavo Bonfim', placement },
+            {},
+            ''
+        );
+        assert.ok(labels.includes('JUPITERMON'));
+        assert.ok(labels.includes(['by Gustavo Bonfim', expected].filter(Boolean).join(' ')));
+        assert.equal(
+            styledLabels.filter(({ text }) => /🥇|🥈|🥉/u.test(text)).length,
+            expected ? 1 : 0
+        );
+    }
+});
+
+test('Deck heading and format use the appearance accent color', async () => {
     const { api, canvas, styledLabels } = renderer();
     await api.renderDeckPost(
         canvas,
@@ -194,8 +225,10 @@ test('Deck format has a label and only its name uses the accent color', async ()
         { accent: '#66a7f5', pointsLimit: 100 },
         'hazard.svg'
     );
-    assert.ok(styledLabels.some(({ text, color }) => text === 'FORMATO ' && color === '#b4c1d2'));
-    assert.ok(styledLabels.some(({ text }) => text === 'DECKLIST · BT24'));
+    assert.ok(styledLabels.some(({ text, color }) => text === 'FORMATO ' && color === '#66a7f5'));
+    assert.ok(
+        styledLabels.some(({ text, color }) => text === 'BT24 · DECKLIST' && color === '#66a7f5')
+    );
     assert.equal(
         styledLabels.some(({ text }) => text.includes('DIGIMON CARD GAME')),
         false
@@ -207,10 +240,7 @@ test('Deck format has a label and only its name uses the accent color', async ()
     assert.equal(points.y, formatName.y);
     assert.ok(points.x > formatName.x);
     const format = styledLabels.find(({ text }) => text === 'FORMATO ');
-    assert.equal(
-        styledLabels.find(({ text }) => text === 'LEVEL DISTRIBUTION').font,
-        format.font
-    );
+    assert.equal(format.font, '700 27px Arial');
 });
 
 test('Exported points use the deckbuilder color thresholds including the 130 percent boundary', () => {

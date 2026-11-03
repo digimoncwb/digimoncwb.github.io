@@ -266,21 +266,29 @@
     accent-color: var(--accent);
     border: 0 !important;
 }
-.ed-image-export {
+.ed-image-export,
+.ed-image-caption {
     border-top: 1px solid var(--ed-border, #293139);
     padding-top: 16px;
 }
-.ed-image-export h3 {
+.ed-image-export h3,
+.ed-image-caption h3 {
     font-size: 16px;
     margin: 0 0 12px;
 }
-.ed-image-export p {
+.ed-image-export p,
+.ed-image-caption p {
     font-size: 12px;
     line-height: 1.7;
     margin: 12px 0;
 }
-.ed-image-export .ed-button {
+.ed-image-export .ed-button,
+.ed-image-caption .ed-button {
     width: 100%;
+}
+.ed-image-caption textarea {
+    line-height: 1.6;
+    margin-bottom: 12px;
 }
 .ed-image-preview {
     min-width: 0;
