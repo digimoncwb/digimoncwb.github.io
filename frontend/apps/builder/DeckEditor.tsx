@@ -11,6 +11,8 @@ import {
     orderCatalog,
     normalizeRarity,
     cardEligibility,
+    hasRarityAnomalies,
+    textKey,
     colorHex,
     colorLabels,
     effectiveRules,
@@ -265,8 +267,8 @@ const labels: Record<string, string> = {
     option: 'Option',
     dual: 'Dual'
 };
-const signature = (name: string, format: string, entries: Entry[], archetype = '') =>
-    JSON.stringify([name.trim(), format, entries, archetype]);
+const signature = (name: string, format: string, entries: Entry[], archetype = '', partner = '') =>
+    JSON.stringify([name.trim(), format, entries, archetype, partner]);
 const safeLink = (value?: string | null) => {
     try {
         const url = new URL(value || '');
@@ -415,7 +417,11 @@ function RulesPanel({
                     <ValidationMark />
                     <div>
                         <strong>Raridades permitidas</strong>
-                        <p>Todas as cartas têm raridade {rules.allowed_rarities.join(' ou ')}.</p>
+                        <p>
+                            {hasRarityAnomalies(rules)
+                                ? `Cartas ${rules.allowed_rarities.join(' ou ')}${rules.digi_egg_any_rarity ? ', Digi-Eggs de qualquer raridade' : ''}${rules.rarity_exceptions.length ? ` e ${validation.exceptions} / ${rules.rarity_exception_limit} exceções de raridade` : ''}.`
+                                : `Todas as cartas têm raridade ${rules.allowed_rarities.join(' ou ')}.`}
+                        </p>
                     </div>
                 </article>
             )}
@@ -514,6 +520,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const [formats, setFormats] = useState<Format[]>([]);
     const [archetypes, setArchetypes] = useState<ArchetypeRecord[]>([]);
     const [archetypeId, setArchetypeId] = useState('');
+    const [partner, setPartner] = useState('');
     const [entries, setEntries] = useState<Entry[]>([]);
     const [catalog, setCatalog] = useState<Card[]>([]);
     const [catalogBusy, setCatalogBusy] = useState(true);
@@ -562,7 +569,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
         catalogScroll.current?.scrollTo({ top: 0 });
     }, [deferredFilters]);
     const alive = useRef(true);
-    const currentSignature = signature(name, formatId, entries, archetypeId);
+    const currentSignature = signature(name, formatId, entries, archetypeId, partner);
     const dirty = !loading && !error && currentSignature !== savedSignature;
     const dirtyRef = useRef(dirty);
     dirtyRef.current = dirty;
@@ -576,13 +583,17 @@ export function DeckEditor({ context }: { context: MicroContext }) {
         [baseRules, format]
     );
     const formatRarities = rules.allowed_rarities.map(normalizeRarity);
-    const formatRarityKey = formatRarities.join('|');
+    // Rarity exceptions cannot be expressed by a rarity filter; show eligible cards instead.
+    const anomalies = hasRarityAnomalies(rules);
+    const defaultRarities = anomalies ? [] : formatRarities;
+    const formatRarityKey = defaultRarities.join('|');
     useEffect(() => {
         setFilters((old) => ({
             ...old,
-            rarities: formatRarityKey ? formatRarityKey.split('|') : []
+            rarities: formatRarityKey ? formatRarityKey.split('|') : [],
+            permitted: anomalies
         }));
-    }, [formatId, formatRarityKey]);
+    }, [formatId, formatRarityKey, anomalies]);
     const rarityOptions = useMemo(
         () => [
             ...new Set([
@@ -602,10 +613,12 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const filtersActive = Object.entries(filters).some(([key, value]) =>
         key === 'rarities'
             ? [...((value as string[]) || [])].sort().join('|') !==
-              [...formatRarities].sort().join('|')
-            : Array.isArray(value)
-              ? value.length > 0
-              : Boolean(value)
+              [...defaultRarities].sort().join('|')
+            : key === 'permitted'
+              ? value !== anomalies
+              : Array.isArray(value)
+                ? value.length > 0
+                : Boolean(value)
     );
     const cards = useMemo(() => new Map(catalog.map((card) => [card.code, card])), [catalog]);
     const pendingMetadata = entries
@@ -621,10 +634,30 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                 entries,
                 cards,
                 rules,
-                rulesAvailable && !!format && pendingFormatRules(format).length === 0
+                rulesAvailable && !!format && pendingFormatRules(format).length === 0,
+                partner
             ),
-        [entries, cards, rules, rulesAvailable, format]
+        [entries, cards, rules, rulesAvailable, format, partner]
     );
+    const partnerOptions = useMemo(() => {
+        const deckNames = new Set(
+            entries.map((entry) => textKey(cards.get(entry.code)?.name || entry.code))
+        );
+        return [
+            { value: '', label: 'Sem partner' },
+            ...catalog
+                .filter(
+                    (card) =>
+                        card.code === partner ||
+                        (rules.partner_level != null &&
+                            card.type === 'digimon' &&
+                            card.level === rules.partner_level &&
+                            !rules.banned_codes.includes(card.code) &&
+                            !deckNames.has(textKey(card.name)))
+                )
+                .map((card) => ({ value: card.code, label: `${card.name} · ${card.code}` }))
+        ];
+    }, [catalog, cards, entries, partner, rules]);
     const getCard = (code: string): Card =>
         cards.get(code) || {
             code,
@@ -714,7 +747,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                 setArchetypes(types);
                 setArchetypeId(typeId);
                 setEntries(loaded.entries);
-                setSavedSignature(signature(loaded.deck.name, selected, loaded.entries, typeId));
+                const partnerCode = loaded.deck.partner_card_code || '';
+                setPartner(partnerCode);
+                setSavedSignature(
+                    signature(loaded.deck.name, selected, loaded.entries, typeId, partnerCode)
+                );
                 setLoading(false);
                 urlRef.current = location.href;
                 if (p.get('openImport') === '1') {
@@ -858,15 +895,17 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     );
     const counts = new Map(entries.map((e) => [e.code, e.qty]));
     const cannotAdd = (code: string) =>
-        rulesBusy || !rulesAvailable || (counts.get(code) || 0) >= copyLimit(code, rules);
+        rulesBusy ||
+        !rulesAvailable ||
+        (counts.get(code) || 0) >= copyLimit(code, rules, cards.get(code));
     const changeQty = (code: string, delta: number) => {
         if (delta > 0 && cannotAdd(code)) {
             setAnnouncement(
-                `Limite de ${copyLimit(code, rules)} cópias para ${getCard(code).name}.`
+                `Limite de ${copyLimit(code, rules, cards.get(code))} cópias para ${getCard(code).name}.`
             );
             return;
         }
-        setEntries((old) => adjustCopies(old, code, delta, rules));
+        setEntries((old) => adjustCopies(old, code, delta, rules, cards.get(code)));
 
         setAnnouncement(
             `${getCard(code).name}: ${Math.max(0, (counts.get(code) || 0) + delta)} cópias no deck.`
@@ -917,7 +956,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
         setSaving(true);
         setSaveError('');
 
-        const snapshot = signature(name, formatId, entries, archetypeId);
+        const snapshot = signature(name, formatId, entries, archetypeId, partner);
         try {
             const saved = await saveDraft({
                 id: record.id,
@@ -927,7 +966,8 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                 entries,
                 revision: record.draft_revision,
                 archetypeId,
-                creatorPlayerId: record.creator_player_id
+                creatorPlayerId: record.creator_player_id,
+                partnerCode: partner
             });
             if (!alive.current) return;
             setRecord((old) =>
@@ -985,7 +1025,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
     const unknownImport = importPreview?.entries.filter((e) => !cards.get(e.code)?.known) || [];
     const importCopyIssues = importPreview
         ? aggregate([...(importMode === 'add' ? entries : []), ...importPreview.entries]).filter(
-              (entry) => entry.qty > copyLimit(entry.code, rules)
+              (entry) => entry.qty > copyLimit(entry.code, rules, cards.get(entry.code))
           )
         : [];
     const displayed = sortEntries(entries, cards, 'level');
@@ -1168,6 +1208,25 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         {resultId && format && !standardFormat && (
                             <li title="Formato" className="ed-context-pill ed-format-pill">
                                 <FormatRulesButton format={format} rules={rules} pill />
+                            </li>
+                        )}
+                        {(rules.partner_level != null || !!partner) && (
+                            <li title="Partner" className="ed-archetype-tag ed-partner-tag">
+                                <Portrait image={partner ? getCard(partner).image : undefined} />
+                                <SearchSelect
+                                    id="editor-partner"
+                                    label={
+                                        rules.partner_level != null
+                                            ? `Partner (Digimon nível ${rules.partner_level}, fora do deck)`
+                                            : 'Partner (não usado neste formato)'
+                                    }
+                                    placeholder="Buscar partner"
+                                    emptyMessage="Nenhum Digimon elegível encontrado."
+                                    value={partner}
+                                    commitOnly
+                                    options={partnerOptions}
+                                    onChange={setPartner}
+                                />
                             </li>
                         )}
                     </ul>
@@ -1403,7 +1462,8 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                         onClick={() => {
                             setFilters({
                                 ...emptyFilters,
-                                rarities: rules.allowed_rarities.map(normalizeRarity)
+                                rarities: defaultRarities,
+                                permitted: anomalies
                             });
                         }}
                     >
@@ -1997,7 +2057,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                         {importCopyIssues
                                             .map(
                                                 (entry) =>
-                                                    `${entry.code}: máximo de ${copyLimit(entry.code, rules)} cópias`
+                                                    `${entry.code}: máximo de ${copyLimit(entry.code, rules, cards.get(entry.code))} cópias`
                                             )
                                             .join('; ')}
                                         .

@@ -51,6 +51,7 @@ export interface DeckRecord {
     tournament_result_id?: string | null;
     archetype_id?: string | null;
     creator_player_id?: string | null;
+    partner_card_code?: string | null;
     owner_user_id?: string | null;
     creator?: { name: string } | null;
 }
@@ -138,7 +139,7 @@ export async function loadDeck(
     const rows =
         resultId || id
             ? await request<DeckRecord[]>(
-                  `/rest/v1/decklists?${resultId ? `tournament_result_id=eq.${encodeURIComponent(resultId)}` : `id=eq.${encodeURIComponent(id!)}&tournament_result_id=is.null`}&select=id,name,deck_format_id,draft_cards,draft_revision,tournament_result_id,archetype_id,creator_player_id,creator:players(name)${window.digistatsAuth?.getSnapshot().available ? ',owner_user_id' : ''}`,
+                  `/rest/v1/decklists?${resultId ? `tournament_result_id=eq.${encodeURIComponent(resultId)}` : `id=eq.${encodeURIComponent(id!)}&tournament_result_id=is.null`}&select=id,name,deck_format_id,draft_cards,draft_revision,tournament_result_id,archetype_id,creator_player_id,partner_card_code,creator:players(name)${window.digistatsAuth?.getSnapshot().available ? ',owner_user_id' : ''}`,
                   { signal }
               )
             : [];
@@ -181,6 +182,7 @@ export async function saveDraft(input: {
     revision: number;
     archetypeId?: string | null;
     creatorPlayerId?: string | null;
+    partnerCode?: string | null;
 }) {
     if (window.digistatsAuth?.getSnapshot().enabled) await window.digistatsAuth.requireMember();
     const response = await fetch(window.APP_CONFIG.SUPABASE_URL + '/rest/v1/rpc/save_deck_draft', {
@@ -194,7 +196,8 @@ export async function saveDraft(input: {
             p_cards: input.entries,
             p_expected_revision: input.revision,
             p_archetype_id: input.archetypeId || null,
-            p_creator_player_id: input.creatorPlayerId || null
+            p_creator_player_id: input.creatorPlayerId || null,
+            p_partner_card_code: input.partnerCode || null
         })
     });
     if (!response.ok) {

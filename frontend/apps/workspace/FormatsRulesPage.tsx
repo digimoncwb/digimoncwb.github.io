@@ -257,6 +257,29 @@ export function FormatsRulesPage({
                                                 Raridades · {rules.allowed_rarities.join(' / ')}
                                             </span>
                                         )}
+                                        {rules.allowed_rarities.length > 0 &&
+                                            rules.digi_egg_any_rarity && (
+                                                <span>Digi-Eggs · qualquer raridade</span>
+                                            )}
+                                        {rules.egg_copies != null && (
+                                            <span>Cópias de Digi-Egg · até {rules.egg_copies}</span>
+                                        )}
+                                        {rules.use_official_banlist &&
+                                            !rules.use_official_limits && (
+                                                <span>Banlist oficial · só banidas e pares</span>
+                                            )}
+                                        {rules.partner_level != null && (
+                                            <span>
+                                                Partner · Digimon nível {rules.partner_level} fora
+                                                do deck
+                                            </span>
+                                        )}
+                                        {rules.rarity_exceptions.length > 0 && (
+                                            <span>
+                                                Exceções de raridade · até{' '}
+                                                {rules.rarity_exception_limit}
+                                            </span>
+                                        )}
                                         {rules.allowed_colors.length > 0 && (
                                             <span>
                                                 Cores ·{' '}

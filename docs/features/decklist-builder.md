@@ -157,6 +157,25 @@ four copies unless the banlist specifies a lower limit. Unknown rarity is a
 validation issue; run `npm run cards:sync-builder -- --rarities --apply` to repair
 missing rarities from verified metadata.
 
+EDEN (`20261116000000_eden_format.sql`, rules v1.1.1) is Pauper plus the
+"Anomaly Protocol": `digi_egg_any_rarity` admits Digi-Eggs of any rarity, and
+`rarity_exceptions` admits cards outside `allowed_rarities` by type, optional
+name fragment and rarity (rare/promo Tamers, R/P/SR Memory Boost, P Training and
+P Scramble options). `rarity_exception_limit` caps the total copies of those
+cards per deck (4). C/U Tamers do not count. When a format has these anomalies
+the catalog starts filtered by eligible cards instead of by rarity. The format's
+own banlist lives in `banned_codes`, `limited_cards` and `choice_groups`; codes
+mistyped in the source document were corrected by card name.
+
+Digimon Partners (`20261116010000_digimon_partners_format.sql`) uses 80 main cards
+at 2 copies and 8 Digi-Eggs at `egg_copies` 4. `use_official_limits: false` keeps
+Bandai bans and pairs but drops Bandai limits; the format lists its own limited
+cards. `partner_level` (6) enables an optional partner stored in
+`decklists.partner_card_code` and saved by `save_deck_draft`'s last argument. The
+editor shows a partner picker restricted to Digimon of that level whose name is not
+in the deck, and reports an invalid partner as a validation issue; drafts stay
+savable.
+
 DigiCrest uses the same construction limits and a budget of 100 points inclusive,
 without the official banlist.
 Each copy, including Digi-Eggs, contributes its registered score; unlisted cards

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160">
+<defs>
+ <linearGradient id="red" gradientUnits="userSpaceOnUse" x1="0" y1="2400" x2="0" y2="300"><stop stop-color="#ff8085"/><stop offset="1" stop-color="#d23a4a"/></linearGradient>
+ <linearGradient id="redv" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ff8085"/><stop offset="1" stop-color="#d23a4a"/></linearGradient>
+ <radialGradient id="bg" cx="1920" cy="1080" r="2100" gradientUnits="userSpaceOnUse">
+  <stop stop-color="#2a1418"/><stop offset=".45" stop-color="#170f11"/><stop offset="1" stop-color="#0b0e0f"/></radialGradient>
+ <radialGradient id="vig" cx="50%" cy="50%" r="75%"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient>
+ <pattern id="dots" width="48" height="48" patternUnits="userSpaceOnUse"><circle cx="24" cy="24" r="1.6" fill="#ffffff" fill-opacity=".05"/></pattern>
+ <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="3840" height="2160" fill="#0b0e0f"/>
+<rect width="3840" height="2160" fill="url(#dots)"/>
+<g transform="translate(122.40000000000009 480) scale(2.4)">
+ <defs><linearGradient id="redv2" gradientUnits="userSpaceOnUse" x1="0" y1="173" x2="0" y2="328"><stop stop-color="#ff8085"/><stop offset="1" stop-color="#d23a4a"/></linearGradient>
+ <filter id="mg" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter></defs>
+ <g fill="#ff3a4c" opacity=".55" filter="url(#mg)"><g transform="translate(276 241)">
+ <polygon points="-90,-16.5 -30,-16.5 -60,-68.5"/><polygon points="90,-16.5 30,-16.5 60,-68.5"/>
+ <polygon points="-30,-16.5 30,-16.5 0,35.5"/><polygon points="0,35.5 -30,87.5 30,87.5"/>
+ <circle r="34" fill="none" stroke="#ff3a4c" stroke-width="3"/></g></g>
+ <g fill="url(#redv2)"><g transform="translate(276 241)">
+ <polygon points="-90,-16.5 -30,-16.5 -60,-68.5"/><polygon points="90,-16.5 30,-16.5 60,-68.5"/>
+ <polygon points="-30,-16.5 30,-16.5 0,35.5"/><polygon points="0,35.5 -30,87.5 30,87.5"/>
+ <circle r="34" fill="none" stroke="url(#redv2)" stroke-width="3"/></g></g>
+ <text x="448" y="252" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="104" fill="#ffffff" textLength="862" lengthAdjust="spacingAndGlyphs">DIGIMON CWB</text>
+ <text x="448" y="316" font-family="Arial, Helvetica, sans-serif" font-size="52" fill="#b9bdc0" textLength="862" lengthAdjust="spacing">Digimon Card Game Community</text>
+</g>
+<rect width="3840" height="2160" fill="url(#vig)"/>
+</svg>
