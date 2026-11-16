@@ -41,7 +41,7 @@ function renderer(imagesAvailable = true, loadCardImage) {
             .readFileSync('shared/posts/deck-renderer.js', 'utf8')
             .replace(/import .*?from .*?;\s*/s, '')
             .replace(/export /g, '') +
-            '\n({deckImagePages,renderDeckPost,deckLevelDistribution,deckPointsColor,paintDeckDistribution})',
+            '\n({deckImagePages,deckImageLayout,renderDeckPost,deckLevelDistribution,deckPointsColor,paintDeckDistribution})',
         {
             POST_FORMAT: { width: 1080, height: 1350 },
             loadPostImage: async (src) => (src ? { width: 630, height: 880, src } : null),
@@ -488,4 +488,32 @@ test('Closing or changing the preview stops queued image requests and progress u
     assert.equal(requests, 8);
     assert.equal(progress.length, 0);
     assert.equal(draws.length, 0);
+});
+
+test('Fit-all layout keeps large decklists on one image inside the content area and marks the partner', async () => {
+    const { api, canvas, draws, labels } = renderer();
+    assert.equal(api.deckImageLayout(20, true).columns, 6);
+    assert.equal(api.deckImageLayout(30, false).columns, 6);
+    for (const count of [25, 40, 60, 81, 96]) {
+        const layout = api.deckImageLayout(count, true);
+        assert.ok(layout.pageSize >= count, `${count} cards`);
+        const rows = Math.ceil(count / layout.columns);
+        assert.ok(273 + rows * layout.rowHeight <= 1240, `${count} cards stay above the footer`);
+        assert.equal(
+            Math.round(layout.columns * layout.width + (layout.columns - 1) * layout.gap),
+            952
+        );
+    }
+    assert.equal(api.deckImagePages(Array(120).fill({}), true).length, 2);
+    const cards = Array.from({ length: 61 }, (_, i) => ({
+        code: `BT1-${String(i + 1).padStart(3, '0')}`,
+        qty: 1,
+        partner: i === 5
+    }));
+    const result = await api.renderDeckPost(canvas, cards, { name: 'Deck' }, { fitAll: true }, '');
+    assert.equal(result.ready, true);
+    assert.equal(draws.length, 61);
+    assert.equal(labels.filter((label) => label === 'PARTNER').length, 1);
+    const last = draws[60];
+    assert.ok(last[2] + last[4] <= 1240);
 });

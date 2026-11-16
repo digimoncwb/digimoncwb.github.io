@@ -1224,6 +1224,24 @@
     font-size: 16px;
     pointer-events: none;
 }
+.ed-partner-badge {
+    display: inline-block;
+    width: fit-content;
+    border-radius: 4px;
+    padding: 1px 6px;
+    background: var(--accent, #e85d67);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+.ed-photo-art .ed-partner-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    pointer-events: none;
+}
 .ed-photo-code {
     font-size: 11px;
     color: var(--ds-muted, #aab8c5);

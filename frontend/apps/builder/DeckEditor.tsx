@@ -640,9 +640,12 @@ export function DeckEditor({ context }: { context: MicroContext }) {
         [entries, cards, rules, rulesAvailable, format, partner]
     );
     const partnerOptions = useMemo(() => {
-        const deckNames = new Set(
-            entries.map((entry) => textKey(cards.get(entry.code)?.name || entry.code))
-        );
+        // Codes present in the list by name; a partner may only share its name with itself.
+        const deckCodesByName = new Map<string, Set<string>>();
+        for (const entry of entries) {
+            const key = textKey(cards.get(entry.code)?.name || entry.code);
+            deckCodesByName.set(key, new Set([...(deckCodesByName.get(key) || []), entry.code]));
+        }
         return [
             { value: '', label: 'Sem partner' },
             ...catalog
@@ -653,11 +656,20 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                             card.type === 'digimon' &&
                             card.level === rules.partner_level &&
                             !rules.banned_codes.includes(card.code) &&
-                            !deckNames.has(textKey(card.name)))
+                            [...(deckCodesByName.get(textKey(card.name)) || [])].every(
+                                (code) => code === card.code
+                            ))
                 )
                 .map((card) => ({ value: card.code, label: `${card.name} · ${card.code}` }))
         ];
     }, [catalog, cards, entries, partner, rules]);
+    const choosePartner = (code: string) => {
+        setPartner(code);
+        if (!code) return;
+        // The partner is the 81st card: keep exactly one copy of it in the list.
+        if (!counts.get(code)) setEntries((old) => aggregate([...old, { code, qty: 1 }]));
+        setAnnouncement(`${getCard(code).name} definido como partner.`);
+    };
     const getCard = (code: string): Card =>
         cards.get(code) || {
             code,
@@ -1225,7 +1237,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                     value={partner}
                                     commitOnly
                                     options={partnerOptions}
-                                    onChange={setPartner}
+                                    onChange={choosePartner}
                                 />
                             </li>
                         )}
@@ -1318,6 +1330,7 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                 <DeckImageDialog
                     context={context}
                     entries={sortEntries(entries, cards, 'level')}
+                    partner={rules.partner_level != null ? partner : undefined}
                     cards={cards}
                     scoring={
                         rules.points_limit !== null
@@ -1657,6 +1670,9 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                         {validation.main} / {rules.main_count}{' '}
                                         <span className="ed-muted">cartas</span>
                                     </strong>
+                                    {validation.partnerCopy > 0 && (
+                                        <span className="ed-muted">+ 1 partner</span>
+                                    )}
                                     <span className="ed-muted">· {validation.eggs} Digi-Eggs</span>
                                     {rules.points_limit !== null && (
                                         <PointsTotalTag
@@ -1715,6 +1731,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                                     issues={issues}
                                                     onClick={() => setValidationOpen(true)}
                                                 />
+                                                {entry.code === partner && (
+                                                    <span className="ed-partner-badge">
+                                                        Partner
+                                                    </span>
+                                                )}
                                                 <span
                                                     className="ed-photo-quantity"
                                                     aria-label={`${entry.qty} cópias de ${card.name}`}
@@ -1791,6 +1812,11 @@ export function DeckEditor({ context }: { context: MicroContext }) {
                                                     >
                                                         {card.name}
                                                     </button>
+                                                    {entry.code === partner && (
+                                                        <span className="ed-partner-badge">
+                                                            Partner
+                                                        </span>
+                                                    )}
                                                     <div className="ed-row-meta">
                                                         <span
                                                             className="ed-color-dots"

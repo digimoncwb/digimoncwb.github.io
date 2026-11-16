@@ -374,6 +374,15 @@ export function validateDeck(
                 codes: [code]
             });
     }
+    // The partner travels inside the decklist as one extra copy outside the main count.
+    const partnerCopy =
+        partner &&
+        rules.partner_level != null &&
+        (quantities.get(partner) || 0) > 0 &&
+        cards.get(partner)?.type !== 'digi-egg'
+            ? 1
+            : 0;
+    main -= partnerCopy;
     if (main !== rules.main_count)
         issues.unshift({
             id: 'main',
@@ -436,7 +445,7 @@ export function validateDeck(
             id: 'partner',
             title: 'Partner inválido',
             message: `${partner}: ${partnerIssue}`,
-            codes: []
+            codes: partnerCopy ? [partner!] : []
         });
     const raritiesValid =
         !rules.allowed_rarities.length ||
@@ -450,12 +459,14 @@ export function validateDeck(
         eggs,
         points,
         exceptions,
+        partnerCopy,
         raritiesValid,
         issues,
         valid: available && issues.length === 0
     };
 }
-/** Why a partner card is not acceptable for this deck, or '' when it is. */
+/** Why a partner card is not acceptable for this deck, or '' when it is. The partner is one
+ * copy inside the decklist; no other copy or version (same name) may be among the main cards. */
 export function partnerProblem(
     code: string,
     entries: Entry[],
@@ -468,15 +479,20 @@ export function partnerProblem(
     if (card.type !== 'digimon' || card.level !== rules.partner_level)
         return `o partner precisa ser um Digimon nível ${rules.partner_level}.`;
     if (rules.banned_codes.includes(code)) return 'carta proibida neste formato.';
+    const copies = entries.reduce((sum, entry) => sum + (entry.code === code ? entry.qty : 0), 0);
+    if (!copies) return 'adicione 1 cópia do partner à decklist.';
+    if (copies > 1)
+        return 'a decklist deve ter só 1 cópia do partner; ele não pode estar também no deck.';
     const name = textKey(card.name);
     if (
         entries.some(
             (entry) =>
                 entry.qty > 0 &&
-                (entry.code === code || textKey(cards.get(entry.code)?.name) === name)
+                entry.code !== code &&
+                textKey(cards.get(entry.code)?.name) === name
         )
     )
-        return 'o partner não pode estar no deck.';
+        return 'outra versão deste Digimon está no deck; o partner não pode estar no deck.';
     return '';
 }
 export interface CatalogFilters {

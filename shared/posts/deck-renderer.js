@@ -121,20 +121,20 @@ export function paintDeckDistribution(ctx, groups, accent, headingTop = DECK_HEA
     });
     ctx.restore();
 }
-export function paintDeckPoints(ctx, points, x, y) {
+export function paintDeckPoints(ctx, points, x, y, scale = 1) {
     const text = String(points);
     ctx.save();
     ctx.fillStyle = '#050505';
     ctx.beginPath();
-    ctx.arc(x, y, 28, 0, Math.PI * 2);
+    ctx.arc(x, y, 28 * scale, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#f02732';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 4 * scale;
     ctx.stroke();
     ctx.fillStyle = '#ffe52f';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    fitPostText(ctx, text, 40, 32, 900, 12);
+    fitPostText(ctx, text, 40 * scale, 32 * scale, 900, 8);
     const metrics = ctx.measureText(text);
     // Center the visible glyphs rather than the font's line box.
     ctx.fillText(
@@ -144,10 +144,40 @@ export function paintDeckPoints(ctx, points, x, y) {
     );
     ctx.restore();
 }
-export function deckImagePages(cards) {
+const GRID_TOP = 273;
+const GRID_BOTTOM = 1240;
+const GRID_WIDTH = 952;
+const BASE_CARD_WIDTH = (GRID_WIDTH - 16 * 5) / 6;
+function deckGrid(columns) {
+    const gap = columns > 6 ? 10 : 16;
+    const width = (GRID_WIDTH - gap * (columns - 1)) / columns;
+    const scale = width / BASE_CARD_WIDTH;
+    const height = (width * 88) / 63;
+    const label = Math.max(16, 30 * scale);
+    const rows = Math.max(1, Math.floor((GRID_BOTTOM - GRID_TOP) / (height + label)));
+    return {
+        columns,
+        gap,
+        width,
+        height,
+        scale,
+        rowHeight: height + label,
+        pageSize: columns * rows
+    };
+}
+/** Default grid is 6 columns × 4 rows; fitAll adds columns (up to 12) until every card fits. */
+export function deckImageLayout(count, fitAll = false) {
+    if (!fitAll || count <= DECK_IMAGE_PAGE_SIZE) return deckGrid(6);
+    for (let columns = 7; columns <= 12; columns++) {
+        const grid = deckGrid(columns);
+        if (grid.pageSize >= count) return grid;
+    }
+    return deckGrid(12);
+}
+export function deckImagePages(cards, fitAll = false) {
+    const { pageSize } = deckImageLayout(cards.length, fitAll);
     const pages = [];
-    for (let i = 0; i < cards.length; i += DECK_IMAGE_PAGE_SIZE)
-        pages.push(cards.slice(i, i + DECK_IMAGE_PAGE_SIZE));
+    for (let i = 0; i < cards.length; i += pageSize) pages.push(cards.slice(i, i + pageSize));
     return pages;
 }
 
@@ -159,7 +189,8 @@ export async function renderDeckPost(
     hazardUrl,
     isCurrent = () => true
 ) {
-    const pages = deckImagePages(cards);
+    const layout = deckImageLayout(cards.length, settings.fitAll === true);
+    const pages = deckImagePages(cards, settings.fitAll === true);
     const page = Math.max(0, Math.min(pages.length - 1, Number(settings.page) || 0));
     const visible = pages[page] || [];
     if (!visible.length) return { ready: false, message: 'Adicione cartas para gerar a imagem.' };
@@ -274,17 +305,14 @@ export async function renderDeckPost(
         fitPostText(ctx, playerLabel, titleWidth, 27, 600, 22);
         ctx.fillText(playerLabel, 64, 198, titleWidth);
     }
-    if (showDistribution) paintDeckDistribution(ctx, deckLevelDistribution(cards), accent, headingTop);
+    if (showDistribution)
+        paintDeckDistribution(ctx, deckLevelDistribution(cards), accent, headingTop);
     ctx.fillStyle = accent;
     ctx.fillRect(64, 242, 952, 2);
-    const columns = 6,
-        gap = 16,
-        width = (952 - gap * (columns - 1)) / columns;
-    const height = (width * 88) / 63;
-    const rowHeight = height + 30;
+    const { columns, gap, width, height, rowHeight, scale } = layout;
     visible.forEach((card, index) => {
         const x = 64 + (index % columns) * (width + gap),
-            y = 273 + Math.floor(index / columns) * rowHeight;
+            y = GRID_TOP + Math.floor(index / columns) * rowHeight;
         ctx.fillStyle = '#151a1f';
         ctx.fillRect(x, y, width, height);
         if (images[index]) {
@@ -299,25 +327,41 @@ export async function renderDeckPost(
             );
         } else {
             ctx.fillStyle = '#d2d7dc';
-            ctx.font = '600 17px Arial';
-            ctx.fillText(card.code, x + 8, y + height / 2, width - 16);
+            ctx.font = `600 ${Math.max(11, 17 * scale)}px Arial`;
+            ctx.fillText(card.code, x + 8 * scale, y + height / 2, width - 16 * scale);
         }
         const scored = Number.isInteger(card.points) && card.points >= 0;
-        const quantityX = x + width - 45;
+        const boxWidth = 45 * scale,
+            boxHeight = 38 * scale;
+        const quantityX = x + width - boxWidth;
         ctx.fillStyle = '#101519';
-        ctx.fillRect(quantityX, y + height - 38, 45, 38);
+        ctx.fillRect(quantityX, y + height - boxHeight, boxWidth, boxHeight);
         ctx.fillStyle = '#fff';
-        ctx.font = '800 25px Arial';
+        ctx.font = `800 ${25 * scale}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText(`×${card.qty}`, quantityX + 23, y + height - 10, 41);
+        ctx.fillText(
+            `×${card.qty}`,
+            quantityX + 23 * scale,
+            y + height - 10 * scale,
+            boxWidth - 4 * scale
+        );
         ctx.textAlign = 'left';
+        if (card.partner) {
+            const badgeHeight = Math.max(14, 26 * scale);
+            ctx.font = `800 ${Math.max(9, 15 * scale)}px Arial`;
+            const badgeWidth = Math.min(width, ctx.measureText('PARTNER').width + 12 * scale);
+            ctx.fillStyle = accent;
+            ctx.fillRect(x, y, badgeWidth, badgeHeight);
+            ctx.fillStyle = '#fff';
+            ctx.fillText('PARTNER', x + 6 * scale, y + badgeHeight * 0.72, width - 12 * scale);
+        }
         if (scored) {
-            paintDeckPoints(ctx, card.points, x + width - 32, y + 32);
+            paintDeckPoints(ctx, card.points, x + width - 32 * scale, y + 32 * scale, scale);
         }
         if (settings.showCodes !== false) {
             ctx.fillStyle = '#c0c9d1';
-            ctx.font = '500 17px Arial';
-            ctx.fillText(card.code, x, y + height + 21, width);
+            ctx.font = `500 ${Math.max(11, 17 * scale)}px Arial`;
+            ctx.fillText(card.code, x, y + height + Math.max(13, 21 * scale), width);
         }
     });
     postFooter(ctx, hazard, accent);

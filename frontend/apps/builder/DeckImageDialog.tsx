@@ -13,6 +13,7 @@ export function DeckImageDialog({
     cards,
     scoring,
     metadata,
+    partner,
     onClose
 }: {
     context: MicroContext;
@@ -29,6 +30,7 @@ export function DeckImageDialog({
         collection?: string;
         tournament: string;
     };
+    partner?: string;
     onClose(): void;
 }) {
     const canvas = useRef<HTMLCanvasElement>(null);
@@ -41,6 +43,7 @@ export function DeckImageDialog({
             '#ef646b'
     );
     const [page, setPage] = useState(0);
+    const [fitAll, setFitAll] = useState(true);
     const [showCodes, setShowCodes] = useState(true);
     const [showLevelDistribution, setShowLevelDistribution] = useState(true);
     const [showBackgroundIcon, setShowBackgroundIcon] = useState(true);
@@ -57,11 +60,13 @@ export function DeckImageDialog({
         type: cards.get(entry.code)?.type || 'unknown',
         colors: cards.get(entry.code)?.colors || [],
         points: scoring?.points[entry.code],
+        partner: !!partner && entry.code === partner,
         image:
             cards.get(entry.code)?.image ||
             `https://digimon.digilab.cards/api/card/${entry.code}.jpg`
     }));
-    const pages = deckImagePages(exportCards).length;
+    const pages = deckImagePages(exportCards, fitAll).length;
+    const shownPage = Math.min(page, pages - 1);
     useEffect(() => {
         let current = true;
         setReady(false);
@@ -74,7 +79,8 @@ export function DeckImageDialog({
             metadata,
             {
                 accent,
-                page,
+                page: shownPage,
+                fitAll,
                 showCodes,
                 showBackgroundIcon,
                 showLevelDistribution,
@@ -104,7 +110,16 @@ export function DeckImageDialog({
         return () => {
             current = false;
         };
-    }, [accent, page, showCodes, showBackgroundIcon, showLevelDistribution, opacity, retry]);
+    }, [
+        accent,
+        shownPage,
+        fitAll,
+        showCodes,
+        showBackgroundIcon,
+        showLevelDistribution,
+        opacity,
+        retry
+    ]);
     async function copyCaption() {
         try {
             await navigator.clipboard.writeText(caption);
@@ -127,7 +142,7 @@ export function DeckImageDialog({
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `${metadata.name.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'deck'}${pages > 1 ? `-${page + 1}` : ''}.png`;
+            link.download = `${metadata.name.replace(/[^\p{L}\p{N} _-]/gu, '').trim() || 'deck'}${pages > 1 ? `-${shownPage + 1}` : ''}.png`;
             link.click();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
             setStatus('Imagem exportada em PNG.');
@@ -166,6 +181,14 @@ export function DeckImageDialog({
                         <label className="ed-checkbox">
                             <input
                                 type="checkbox"
+                                checked={fitAll}
+                                onChange={(e) => setFitAll(e.target.checked)}
+                            />
+                            Todas as cartas em uma imagem
+                        </label>
+                        <label className="ed-checkbox">
+                            <input
+                                type="checkbox"
                                 checked={showCodes}
                                 onChange={(e) => setShowCodes(e.target.checked)}
                             />
@@ -195,7 +218,10 @@ export function DeckImageDialog({
                     {pages > 1 && (
                         <label>
                             Página
-                            <select value={page} onChange={(e) => setPage(Number(e.target.value))}>
+                            <select
+                                value={shownPage}
+                                onChange={(e) => setPage(Number(e.target.value))}
+                            >
                                 {Array.from({ length: pages }, (_, index) => (
                                     <option key={index} value={index}>
                                         {index + 1} de {pages}

@@ -172,9 +172,14 @@ at 2 copies and 8 Digi-Eggs at `egg_copies` 4. `use_official_limits: false` keep
 Bandai bans and pairs but drops Bandai limits; the format lists its own limited
 cards. `partner_level` (6) enables an optional partner stored in
 `decklists.partner_card_code` and saved by `save_deck_draft`'s last argument. The
-editor shows a partner picker restricted to Digimon of that level whose name is not
-in the deck, and reports an invalid partner as a validation issue; drafts stay
-savable.
+partner is the 81st card: one copy lives in the decklist, is marked "Partner" in the
+editor and the deck image, and does not count toward `main_count`. No other copy or
+version (same name) may be among the main cards. Choosing a partner adds its copy if
+missing; problems are validation issues and drafts stay savable.
+
+The deck image dialog's "Todas as cartas em uma imagem" option (on by default) keeps
+the 6-column grid up to 24 cards and otherwise widens it to 7–12 columns, scaling
+cards and labels, so up to 96 distinct cards fit one image before paginating.
 
 DigiCrest uses the same construction limits and a budget of 100 points inclusive,
 without the official banlist.

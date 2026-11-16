@@ -139,9 +139,19 @@ test('Digimon Partners applies 80/2 copies, 8 eggs at 4 copies, only official ba
     );
 
     let result = api.validateDeck(entries, cards, rules, true, 'BT1-084');
+    assert.match(result.issues.map((i) => i.message).join(), /adicione 1 cópia do partner/);
+
+    entries.push({ code: 'BT1-084', qty: 1 });
+    result = api.validateDeck(entries, cards, rules, true, 'BT1-084');
     assert.equal(result.issues.length, 0, JSON.stringify(result.issues));
     assert.equal(result.main, 80);
+    assert.equal(result.partnerCopy, 1);
     assert.equal(result.eggs, 8);
+    assert.equal(api.validateDeck(entries, cards, rules, true).main, 81);
+
+    entries[entries.length - 1].qty = 2;
+    assert.match(api.partnerProblem('BT1-084', entries, cards, rules), /só 1 cópia/);
+    entries[entries.length - 1].qty = 1;
 
     entries[0].qty = 3;
     assert.ok(
@@ -150,7 +160,7 @@ test('Digimon Partners applies 80/2 copies, 8 eggs at 4 copies, only official ba
     entries[0].qty = 2;
 
     cards.set('BT20-001', card('BT20-001', 'Digimon', 6, 'Omnimon'));
-    assert.match(api.partnerProblem('BT1-084', entries, cards, rules), /não pode estar no deck/);
+    assert.match(api.partnerProblem('BT1-084', entries, cards, rules), /outra versão/);
     cards.set('BT20-001', card('BT20-001', 'Digimon', 4));
     cards.set('BT1-090', card('BT1-090', 'Digimon', 5));
     assert.match(api.partnerProblem('BT1-090', entries, cards, rules), /nível 6/);
