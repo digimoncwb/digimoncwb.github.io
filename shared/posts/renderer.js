@@ -240,7 +240,7 @@ export function paintHazard(ctx, image, x, y, size, color, opacity = 1, crop = f
     ctx.restore();
 }
 
-function paintPortrait(ctx, image, x, y, radius, color, initials) {
+function paintPortrait(ctx, image, x, y, radius, color, initials, borderWidth = 3) {
     ctx.save();
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -266,8 +266,8 @@ function paintPortrait(ctx, image, x, y, radius, color, initials) {
     }
     ctx.restore();
     ctx.beginPath();
-    ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
-    ctx.lineWidth = 3;
+    ctx.arc(x, y, radius + borderWidth / 2 + 0.5, 0, Math.PI * 2);
+    ctx.lineWidth = borderWidth;
     ctx.strokeStyle = color;
     ctx.stroke();
 }
@@ -287,10 +287,10 @@ function paintSocialIcon(ctx, name, x, y, size) {
 }
 
 export function postFooter(ctx, hazard, accent, dividerY = 1240) {
-    const titleSize = 34;
-    const subtitleBaseSize = 22;
+    const titleSize = 38;
+    const subtitleBaseSize = 25;
     const brandGap = 8;
-    const handleSize = 24;
+    const handleSize = 28;
     ctx.save();
     ctx.save();
     ctx.globalAlpha = 0.35;
@@ -338,14 +338,14 @@ export function postFooter(ctx, hazard, accent, dividerY = 1240) {
     ctx.textBaseline = 'middle';
     ctx.font = `700 ${handleSize}px Arial`;
     const handles = ['@digimoncwb', '@digimon_cwb'];
-    const iconSize = 22,
-        gap = 12;
+    const iconSize = 26,
+        gap = 14;
     const socialWidth =
         iconSize + gap + Math.max(...handles.map((handle) => ctx.measureText(handle).width));
     const socialLeft = 1012 - socialWidth;
     ctx.textAlign = 'left';
     ['instagram', 'x'].forEach((network, index) => {
-        const spacing = 30;
+        const spacing = 36;
         const baseline = footerCenter + (index - 0.5) * spacing;
         paintSocialIcon(ctx, network, socialLeft, baseline - iconSize / 2, iconSize);
         ctx.font = `700 ${handleSize}px Arial`;
@@ -369,12 +369,26 @@ function paintStoreLogo(ctx, image, x, y, width, height) {
     );
 }
 
-function podiumDeckLines(name, lineLength) {
+/** splitCompound breaks joined names at their inner capitals (UlforceVeedramon → ULFORCE / VEEDRAMON). */
+function podiumDeckLines(name, lineLength, splitCompound = false) {
     const limit = Math.max(1, Math.floor(Number(lineLength) || DEFAULT_DECK_NAME_LINE_LENGTH));
-    const words = postDeckName(name).toUpperCase().trim().split(/\s+/);
+    const words = postDeckName(name)
+        .trim()
+        .split(/\s+/)
+        .flatMap((word) => {
+            const pieces = splitCompound ? word.split(/(?<=\p{Ll})(?=\p{Lu})/u) : [word];
+            return pieces.map((piece, index) => ({
+                text: piece.toUpperCase(),
+                breakBefore: index > 0
+            }));
+        });
     const lines = [];
     let current = '';
-    for (const word of words) {
+    for (const { text: word, breakBefore } of words) {
+        if (breakBefore && current) {
+            lines.push(current);
+            current = '';
+        }
         const candidate = current ? `${current} ${word}` : word;
         if (Array.from(candidate).length <= limit) {
             current = candidate;
@@ -393,12 +407,20 @@ function paintPodiumIdentity(ctx, player, portrait, isWinner, deckNameLineLength
     const top = portrait.textY - 20;
     ctx.textAlign = 'center';
     ctx.fillStyle = portrait.color;
-    const lines = podiumDeckLines(player.deck, deckNameLineLength);
+    const deckSize = portrait.deckSize ?? (isWinner ? 36 : 29);
+    let lines = podiumDeckLines(player.deck, deckNameLineLength);
+    ctx.font = `800 ${deckSize}px Arial, Helvetica, sans-serif`;
+    // A joined name that would have to shrink breaks at its inner capital instead.
+    if (lines.some((line) => ctx.measureText(line).width > portrait.width)) {
+        const compound = podiumDeckLines(player.deck, deckNameLineLength, true);
+        if (compound.length > lines.length) lines = compound;
+    }
     const firstLineY = top + 38;
+    const nameGap = (size) => Math.max(36, size * 0.9);
     // Keep the player's name above the footer even with a short line limit.
     const initialSize = Math.min(
-        isWinner ? 36 : 29,
-        (1200 - firstLineY - 36) / Math.max(1, (lines.length - 1) * 1.2)
+        deckSize,
+        (1200 - firstLineY - nameGap(deckSize)) / Math.max(1, (lines.length - 1) * 1.2)
     );
     const size = Math.min(
         ...lines.map((line) => fitPostText(ctx, line, portrait.width, initialSize, 800))
@@ -409,13 +431,40 @@ function paintPodiumIdentity(ctx, player, portrait, isWinner, deckNameLineLength
         ctx.fillText(line, portrait.x, firstLineY + index * spacing, portrait.width)
     );
     ctx.fillStyle = '#e0e3e5';
-    fitPostText(ctx, player.name, portrait.width, isWinner ? 29 : 27, 700, 20);
+    fitPostText(
+        ctx,
+        player.name,
+        portrait.width,
+        portrait.nameSize ?? (isWinner ? 29 : 27),
+        700,
+        20
+    );
     ctx.fillText(
         player.name,
         portrait.x,
-        firstLineY + (lines.length - 1) * spacing + 36,
+        firstLineY + (lines.length - 1) * spacing + nameGap(size),
         portrait.width
     );
+}
+
+/** Rank pill centered on the top edge of a portrait, so the label reads as part of it. */
+function paintRankBadge(ctx, label, x, y, color, size) {
+    ctx.save();
+    ctx.font = `900 ${size}px Arial, Helvetica, sans-serif`;
+    const height = size * 1.45;
+    const width = ctx.measureText(label).width + size * 1.1;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x - width / 2, y - height / 2, width, height, height / 2);
+    else ctx.rect(x - width / 2, y - height / 2, width, height);
+    ctx.fill();
+    ctx.strokeStyle = '#242629';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = '#1b1d20';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x, y + size * 0.36);
+    ctx.restore();
 }
 
 function paintTeamPodium(ctx, event, images, english) {
@@ -570,7 +619,8 @@ function paintPodium(
     deckNameLineLength = DEFAULT_DECK_NAME_LINE_LENGTH
 ) {
     const english = language === 'en';
-    const winnerCenter = { x: 540, y: 665 };
+    // Deckless podiums keep the original layout; with portraits the winner sits higher.
+    const winnerCenter = event.deckless || event.team ? { x: 540, y: 665 } : { x: 540, y: 495 };
     const watermarkCenter = winnerCenter;
     const watermarkSize = 1100 * (background.scale ?? 1);
     // Align the symbol's central ring (137, 128 in the 274-square viewBox),
@@ -583,7 +633,7 @@ function paintPodium(
             watermarkCenter.y + (background.offsetY ?? 0) - (watermarkSize * 128) / 274,
             watermarkSize,
             accent,
-            background.opacity ?? (event.team ? 0.08 : 0.16)
+            background.opacity ?? (event.team ? 0.08 : event.deckless ? 0.16 : 0.07)
         );
     paintEventHeader(ctx, event, title, hazard, accent, storeLogo, english);
     if (event.team) {
@@ -591,58 +641,88 @@ function paintPodium(
         postFooter(ctx, hazard, accent, 1240);
         return;
     }
+    if (event.deckless) {
+        const labels = [
+            { x: 540, labelY: 425, color: '#e2bb68', width: 390 },
+            { x: 202, labelY: 693, color: '#c8ced5', width: 300 },
+            { x: 878, labelY: 693, color: '#cb7b43', width: 300 }
+        ];
+        labels.forEach((slot, index) => {
+            const player = event.podium[index] || { name: 'Resultado não registrado' };
+            const label = index
+                ? english
+                    ? ['2nd', '3rd'][index - 1]
+                    : `${index + 1}º`
+                : english
+                  ? 'WINNER'
+                  : 'CAMPEÃO';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = slot.color;
+            ctx.font = `900 ${index === 0 ? 75 : 64}px Arial`;
+            ctx.fillText(label, slot.x, slot.labelY);
+            fitPostText(ctx, player.name, slot.width, index === 0 ? 38 : 30, 800, 24);
+            ctx.fillText(player.name, slot.x, slot.labelY + 85, slot.width);
+        });
+        postFooter(ctx, hazard, accent);
+        return;
+    }
     const portraits = [
         {
             ...winnerCenter,
-            radius: 185,
+            radius: 215,
             label: english ? 'WINNER' : 'CAMPEÃO',
+            badgeSize: 38,
+            borderWidth: 6,
             color: '#e2bb68',
-            labelY: 425,
-            textY: 888,
-            width: 390
+            textY: 762,
+            width: 440,
+            deckSize: 52,
+            nameSize: 32
         },
         {
-            x: 202,
-            y: 868,
-            radius: 125,
+            x: 196,
+            y: 925,
+            radius: 138,
             label: english ? '2nd' : '2º',
-            color: '#c8ced5',
-            labelY: 693,
-            textY: 1027,
-            width: 300
+            badgeSize: 32,
+            color: '#d9dee3',
+            textY: 1097,
+            width: 300,
+            nameSize: 30
         },
         {
-            x: 878,
-            y: 868,
-            radius: 125,
+            x: 884,
+            y: 925,
+            radius: 138,
             label: english ? '3rd' : '3º',
+            badgeSize: 32,
             color: '#cb7b43',
-            labelY: 693,
-            textY: 1027,
-            width: 300
+            textY: 1097,
+            width: 300,
+            nameSize: 30
         }
     ];
     portraits.forEach((portrait, index) => {
         const player = event.podium[index] || { deck: '—', name: 'Resultado não registrado' };
-        ctx.textAlign = 'center';
-        ctx.fillStyle = portrait.color;
-        ctx.font = `900 ${index === 0 ? 75 : 64}px Arial`;
-        ctx.fillText(portrait.label, portrait.x, portrait.labelY);
-        if (!event.deckless)
-            paintPortrait(
-                ctx,
-                images[index]?.[0],
-                portrait.x,
-                portrait.y,
-                portrait.radius,
-                portrait.color,
-                player.deck.slice(0, 2).toUpperCase()
-            );
-        if (event.deckless) {
-            ctx.fillStyle = portrait.color;
-            fitPostText(ctx, player.name, portrait.width, index === 0 ? 38 : 30, 800, 24);
-            ctx.fillText(player.name, portrait.x, portrait.labelY + 85, portrait.width);
-        } else paintPodiumIdentity(ctx, player, portrait, index === 0, deckNameLineLength);
+        paintPortrait(
+            ctx,
+            images[index]?.[0],
+            portrait.x,
+            portrait.y,
+            portrait.radius,
+            portrait.color,
+            player.deck.slice(0, 2).toUpperCase(),
+            portrait.borderWidth
+        );
+        paintRankBadge(
+            ctx,
+            portrait.label,
+            portrait.x,
+            portrait.y - portrait.radius,
+            portrait.color,
+            portrait.badgeSize
+        );
+        paintPodiumIdentity(ctx, player, portrait, index === 0, deckNameLineLength);
     });
     postFooter(ctx, hazard, accent);
 }
@@ -659,6 +739,22 @@ export function teamStandings(event) {
         .map(([placement, members]) => ({ placement, members }));
 }
 
+/** Full standings: teams grouped by placement, or one row per player. */
+export function eventStandings(event) {
+    if (event?.team) return teamStandings(event);
+    return [...(event?.results || [])]
+        .filter((result) => Number.isFinite(result.placement))
+        .sort((a, b) => a.placement - b.placement)
+        .map((result) => ({ placement: result.placement, members: [result] }));
+}
+
+export function standingsPages(event) {
+    const standings = eventStandings(event);
+    return Array.from({ length: Math.ceil(standings.length / 9) }, (_, index) =>
+        standings.slice(index * 9, index * 9 + 9)
+    );
+}
+
 export function teamStandingsPages(event) {
     const standings = teamStandings(event);
     return Array.from({ length: Math.ceil(standings.length / 9) }, (_, index) =>
@@ -668,14 +764,17 @@ export function teamStandingsPages(event) {
 
 function paintTeamStandings(ctx, event, standings, images, hazard, accent, settings, pageCount) {
     const english = settings.language === 'en';
+    const title = event.team
+        ? '2V2'
+        : String(settings.title || postEventTitle(event)).toUpperCase();
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 68px Arial';
-    const titleBounds = ctx.measureText('2V2');
+    fitPostText(ctx, title, 500, 68, 900, 40);
+    const titleBounds = ctx.measureText(title);
     const titleCenterY =
         112 + (titleBounds.actualBoundingBoxDescent - titleBounds.actualBoundingBoxAscent) / 2;
     paintHazard(ctx, hazard, 52, titleCenterY - 39, 78, accent);
-    ctx.fillText('2V2', 158, 112);
+    ctx.fillText(title, 158, 112, 500);
     ctx.textAlign = 'right';
     ctx.fillStyle = accent;
     ctx.font = '800 34px Arial';
@@ -687,8 +786,41 @@ function paintTeamStandings(ctx, event, standings, images, hazard, accent, setti
     ctx.fillStyle = accent;
     ctx.font = '700 26px Arial';
     ctx.textAlign = 'center';
+    // Rows grow to fill the list area when a page has few entries (9 rows keep the base size).
+    const listTop = 236,
+        listBottom = 1216;
+    const slot =
+        standings.length >= 9
+            ? 108
+            : Math.min(event.team ? 140 : 168, (listBottom - listTop) / standings.length);
+    const scale = (slot - 8) / 100;
+    const radius = 40 * scale;
+    const portraitX = 170 + 52 * scale;
+    const textX = event.deckless ? 180 : portraitX + radius + 18 * scale;
+    // Match points column, shown when the tournament recorded any.
+    const showPoints = (event.results || []).some((result) => result.points != null);
+    const rightEdge = showPoints ? 890 : 1010;
     ctx.fillText(english ? 'PLACE' : 'POSIÇÃO', 110, 212);
-    ctx.fillText(english ? 'DECKS / PLAYERS' : 'DECKS / JOGADORES', 600, 212);
+    if (showPoints) {
+        ctx.textAlign = 'right';
+        ctx.fillText('PTS', 1000, 212);
+    }
+    ctx.textAlign = 'left';
+    ctx.fillText(
+        event.deckless
+            ? english
+                ? 'PLAYERS'
+                : 'JOGADORES'
+            : event.team
+              ? english
+                  ? 'DECKS / PLAYERS'
+                  : 'DECKS / JOGADORES'
+              : english
+                ? 'DECK / PLAYER'
+                : 'DECK / JOGADOR',
+        textX,
+        212
+    );
     if (pageCount > 1) {
         ctx.textAlign = 'right';
         ctx.font = '700 24px Arial';
@@ -699,47 +831,76 @@ function paintTeamStandings(ctx, event, standings, images, hazard, accent, setti
         );
     }
     standings.forEach((team, index) => {
-        const y = 236 + index * 108;
+        const y = listTop + index * slot;
+        const height = slot - 8;
         const podium = team.placement <= 3;
         const color = ['#e2bb68', '#c8ced5', '#cb7b43'][team.placement - 1] || '#b9bec5';
-        ctx.fillStyle = '#1b1e21';
+        ctx.fillStyle = podium ? '#202327' : '#1b1e21';
         ctx.beginPath();
-        ctx.roundRect(52, y, 976, 100, 20);
+        ctx.roundRect(52, y, 976, height, 20);
         ctx.fill();
+        if (podium) {
+            // Medal-colored edge for the top three, kept clear of the rounded corners.
+            ctx.fillStyle = color;
+            ctx.fillRect(52, y + 16, 6, height - 32);
+        }
         ctx.textAlign = 'center';
         ctx.fillStyle = color;
         const rank = english
             ? `${team.placement}${team.placement % 100 >= 11 && team.placement % 100 <= 13 ? 'th' : { 1: 'st', 2: 'nd', 3: 'rd' }[team.placement % 10] || 'th'}`
             : `${team.placement}º`;
-        fitPostText(ctx, rank, 88, 36, podium ? 900 : 700, 28);
-        ctx.fillText(rank, 110, y + 63, 88);
+        // Keep the rank clear of the medal edge as rows grow.
+        const rankX = 110 + 8 * (scale - 1);
+        fitPostText(ctx, rank, 84, 36 * scale, podium ? 900 : 700, 28);
+        ctx.fillText(rank, rankX, y + height / 2 + 13 * scale, 84);
+        const memberWidth = 426;
+        // Team rows: each member's text stops before the next member and the card's edge.
+        const textWidth = event.team
+            ? Math.min(memberWidth - (textX - portraitX) - 60, rightEdge - textX - memberWidth)
+            : rightEdge - 10 - textX;
+        const points = team.members.find((member) => member.points != null)?.points;
+        if (showPoints && points != null) {
+            ctx.textAlign = 'right';
+            ctx.fillStyle = podium ? color : '#c7cbd0';
+            ctx.font = `800 ${34 * scale}px Arial, Helvetica, sans-serif`;
+            ctx.fillText(String(points), 1000, y + height / 2 + 12 * scale, 100);
+        }
         team.members.forEach((member, memberIndex) => {
-            const portraitX = 222 + memberIndex * 426;
-            const textX = 280 + memberIndex * 426;
+            const offset = memberIndex * memberWidth;
+            ctx.textAlign = 'left';
+            if (event.deckless) {
+                ctx.fillStyle = color;
+                const nameWidth = Math.min(790, rightEdge - textX);
+                fitPostText(ctx, member.name, nameWidth, 34 * scale, podium ? 800 : 700, 20);
+                ctx.fillText(member.name, textX + offset, y + height / 2 + 12 * scale, nameWidth);
+                return;
+            }
             paintPortrait(
                 ctx,
                 images[index]?.[memberIndex],
-                portraitX,
-                y + 50,
-                40,
+                portraitX + offset,
+                y + height / 2,
+                radius,
                 color,
                 member.deck.slice(0, 2)
             );
             ctx.textAlign = 'left';
             ctx.fillStyle = color;
             const deck = postDeckName(member.deck);
-            fitPostText(ctx, deck, 290, 30, 800, 20);
-            ctx.fillText(deck, textX, y + 42, 290);
+            fitPostText(ctx, deck, textWidth, 30 * scale, 800, 20);
+            ctx.fillText(deck, textX + offset, y + height / 2 - 8 * scale, textWidth);
             ctx.fillStyle = podium ? '#c7cbd0' : '#a4abb3';
-            fitPostText(ctx, member.name, 290, 26, podium ? 700 : 600, 18);
-            ctx.fillText(member.name, textX, y + 77, 290);
+            fitPostText(ctx, member.name, textWidth, 26 * scale, podium ? 700 : 600, 18);
+            ctx.fillText(member.name, textX + offset, y + height / 2 + 27 * scale, textWidth);
         });
-        ctx.strokeStyle = '#ffffff0c';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(600, y + 18);
-        ctx.lineTo(600, y + 82);
-        ctx.stroke();
+        if (event.team) {
+            ctx.strokeStyle = '#ffffff0c';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(600, y + 18 * scale);
+            ctx.lineTo(600, y + height - 18 * scale);
+            ctx.stroke();
+        }
     });
     postFooter(ctx, hazard, accent, 1240);
 }
@@ -973,7 +1134,7 @@ export async function renderPost(canvas, settings, allEvents, hazardUrl, isCurre
     const weeklyPages = weeklyPostPages(allEvents, settings.week);
     const weekEvents = weeklyPages.flat();
     const weeklyRows = weeklyPages[Number(settings.page) || 0] || [];
-    const teamPages = teamStandingsPages(event);
+    const teamPages = standingsPages(event);
     const teamRows = teamPages[Number(settings.page) || 0] || [];
     if (
         settings.template === 'teams'

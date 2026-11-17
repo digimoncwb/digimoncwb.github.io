@@ -19,6 +19,8 @@ export interface Result {
     deck: string;
     image: string;
     placement: number;
+    /** Match points (3 per win, 1 per draw); null when not recorded. */
+    points?: number | null;
     members?: Result[];
 }
 export interface Tournament {

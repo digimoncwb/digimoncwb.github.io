@@ -6,7 +6,7 @@ import {
     POST_FORMAT,
     DEFAULT_DECK_NAME_LINE_LENGTH,
     postEventTitle,
-    teamStandingsPages,
+    standingsPages,
     weeklyPostPages
 } from '../../../shared/posts/renderer.js';
 import { PageHeading } from '../../shared/PageHeading';
@@ -48,7 +48,7 @@ function Studio({ context }: { context: MicroContext }) {
         [deckNameLineLengthInput, setDeckNameLineLengthInput] = useState(
             String(DEFAULT_DECK_NAME_LINE_LENGTH)
         ),
-        [showBackgroundIcon, setShowBackgroundIcon] = useState(true),
+        [showBackgroundIcon, setShowBackgroundIcon] = useState(false),
         [backgroundAdjustments, setBackground] = useState(defaultBackground),
         [week, setWeek] = useState(''),
         [page, setPage] = useState(0),
@@ -63,16 +63,10 @@ function Studio({ context }: { context: MicroContext }) {
         ...new Set(data.events.map((event) => window.liveData.weekStart(event.isoDate)))
     ];
     const currentEvent = events.find((event) => event.id === tournament) || events[0];
-    useEffect(() => {
-        if (template === 'teams' && !currentEvent?.team) {
-            setTemplate('podium');
-            setPage(0);
-        }
-    }, [template, currentEvent?.team]);
     const background = useMemo(
         () => ({
             ...backgroundAdjustments,
-            opacity: backgroundAdjustments.opacity ?? (currentEvent?.team ? 0.08 : 0.16)
+            opacity: backgroundAdjustments.opacity ?? (currentEvent?.team ? 0.08 : 0.07)
         }),
         [backgroundAdjustments, currentEvent?.team]
     );
@@ -88,13 +82,13 @@ function Studio({ context }: { context: MicroContext }) {
             ? buildWeeklyCaption(data.events, currentWeek)
             : currentEvent
               ? template === 'teams'
-                  ? buildTeamStandingsCaption(currentEvent)
+                  ? buildTeamStandingsCaption(currentEvent, captionLoaded ? captionLink.url : '')
                   : buildPodiumCaption(currentEvent, captionLoaded ? captionLink.url : '')
               : '';
     useEffect(() => setCopyStatus(''), [caption]);
     useEffect(() => {
         setCopyStatus('');
-        if (template !== 'podium' || !currentEvent || !context.active) return;
+        if (template === 'weekly' || !currentEvent || !context.active) return;
         const controller = new AbortController();
         const eventId = currentEvent.id;
         if (currentEvent.team) {
@@ -128,7 +122,7 @@ function Studio({ context }: { context: MicroContext }) {
     const pageCount = Math.max(
         1,
         template === 'teams'
-            ? teamStandingsPages(currentEvent).length
+            ? standingsPages(currentEvent).length
             : template === 'weekly'
               ? weeklyPostPages(data.events, currentWeek).length
               : 1
@@ -246,9 +240,12 @@ function Studio({ context }: { context: MicroContext }) {
                                     options={[
                                         { value: 'podium', label: 'Pódio — Top 3' },
                                         { value: 'weekly', label: 'Resumo da semana' },
-                                        ...(currentEvent?.team
-                                            ? [{ value: 'teams', label: 'Classificação — Duplas' }]
-                                            : [])
+                                        {
+                                            value: 'teams',
+                                            label: currentEvent?.team
+                                                ? 'Classificação — Duplas'
+                                                : 'Classificação completa'
+                                        }
                                     ]}
                                 />
                                 {template !== 'weekly' ? (
@@ -260,12 +257,6 @@ function Studio({ context }: { context: MicroContext }) {
                                             onChange={(value) => {
                                                 setTournament(value);
                                                 setPage(0);
-                                                if (
-                                                    template === 'teams' &&
-                                                    !events.find((event) => event.id === value)
-                                                        ?.team
-                                                )
-                                                    setTemplate('podium');
                                             }}
                                             options={events.map((event) => ({
                                                 value: event.id,

@@ -8,7 +8,7 @@ function setup(fetch = async () => ({ ok: true, json: async () => [] })) {
         stripTypeScriptTypes(fs.readFileSync('frontend/apps/studio/caption.ts', 'utf8'))
             .replace(/^import .*$/gm, '')
             .replace(/export /g, '') +
-            '\n({ buildPodiumCaption, buildTeamStandingsCaption, buildWeeklyCaption, loadStandingsUrl })',
+            '\n({ buildPodiumCaption, buildTeamStandingsCaption, buildWeeklyCaption, loadStandingsUrl, xLength })',
         {
             fetch,
             postDeckName: vm.runInNewContext(
@@ -18,6 +18,10 @@ function setup(fetch = async () => ({ ok: true, json: async () => [] })) {
             teamStandings: vm.runInNewContext(
                 fs.readFileSync('shared/posts/renderer.js', 'utf8').replace(/export /g, '') +
                     '\nteamStandings'
+            ),
+            eventStandings: vm.runInNewContext(
+                fs.readFileSync('shared/posts/renderer.js', 'utf8').replace(/export /g, '') +
+                    '\neventStandings'
             ),
             URLSearchParams,
             window: {
@@ -51,12 +55,31 @@ test('team standings captions cover all places with only decks and post abbrevia
         players: 18,
         results
     });
-    assert.ok(caption.includes('Full standings:'));
-    assert.ok(caption.includes('9º Deck 17 & DATS Shine'));
+    assert.ok(caption.includes('🥇 Deck 1 & Deck 2'));
     assert.ok(!caption.includes('Jogador Nome Completo'));
-    assert.equal(caption.split('\n').filter((line) => /^\d+º /.test(line)).length, 9);
+    assert.ok(setup().xLength(caption) <= 280);
+    const listed = caption.split('\n').filter((line) => /^(\d+º|🥇|🥈|🥉) /.test(line)).length;
+    assert.ok(listed >= 3 && listed < 9);
+    assert.ok(caption.includes(`+${9 - listed} more`));
+    assert.ok(caption.endsWith('#DigimonTCG #EX13 #DigimonCWB'));
+    const short = setup().buildTeamStandingsCaption({
+        ...event,
+        team: true,
+        players: 6,
+        results: results.slice(0, 6)
+    });
+    assert.ok(short.includes('3º Deck 5 & Deck 6'.replace('3º', '🥉')));
+    assert.doesNotMatch(short, /more/);
     assert.ok(!caption.includes('digilab'));
-    assert.equal(setup().buildTeamStandingsCaption(event), '');
+    const solo = setup().buildTeamStandingsCaption({
+        ...event,
+        results: [
+            { placement: 2, deck: 'Data Squad Ravemon', name: 'Bia' },
+            { placement: 1, deck: 'Jupitermon', name: 'Ana' }
+        ]
+    });
+    assert.ok(solo.includes('🥇 Jupitermon\n🥈 DATS Ravemon\n'));
+    assert.doesNotMatch(solo, /Ana|Bia/);
 });
 test('podium caption reproduces the approved message using tournament data', () => {
     assert.equal(
@@ -163,4 +186,77 @@ test('standings links use the external ID rather than the local tournament ID', 
     );
     assert.equal(await setup().loadStandingsUrl('213', signal), '');
     await assert.rejects(setup(async () => ({ ok: false })).loadStandingsUrl('213', signal));
+});
+
+test('large tournament captions stay within 280 characters with the DigiLab link', () => {
+    const results = Array.from({ length: 24 }, (_, index) => ({
+        placement: index + 1,
+        name: `Player ${index + 1}`,
+        deck: ['UlforceVeedramon', 'Data Squad Ravemon', 'Omnimon Zwart Defeat'][index % 3]
+    }));
+    const url = 'https://digimon.digilab.cards/tournament/10374';
+    const caption = setup().buildPodiumCaption({ ...event, players: 24, results }, url);
+    assert.ok(setup().xLength(caption) <= 280, `${setup().xLength(caption)} characters`);
+    assert.ok(caption.includes('🥇 UlforceVeedramon\n🥈 DATS Ravemon\n🥉 Omnimon Zwart Defeat'));
+    assert.match(
+        caption,
+        /\+\d+ more\n\nFull standings:\nhttps:\/\/digimon\.digilab\.cards\/tournament\/10374/
+    );
+    assert.doesNotMatch(caption, /Player/);
+});
+
+test('caption length follows X weighting for links, emoji and text', () => {
+    const { xLength } = setup();
+    assert.equal(xLength('abc'), 3);
+    assert.equal(xLength('🥇'), 2);
+    assert.equal(xLength('🇧🇷'), 2);
+    assert.equal(xLength('— · º'), 5);
+    assert.equal(xLength('https://digimon.digilab.cards/tournament/10374'), 23);
+});
+
+test('captions always fit 280 X characters and keep the top 3 in extreme tournaments', () => {
+    const api = setup();
+    const long = 'Data Squad ShineGreymon Ruin Mode Burst Mode Extra Long Deck Name';
+    const url = 'https://digimon.digilab.cards/tournament/10374';
+    const cases = [];
+    for (const team of [false, true])
+        for (const players of [1, 3, 8, 40])
+            for (const deck of ['Gammamon', long])
+                for (const store of [
+                    'Taverna',
+                    'Loja Com Um Nome Extremamente Comprido De Verdade Mesmo'
+                ])
+                    cases.push({
+                        ...event,
+                        team,
+                        store,
+                        players,
+                        format: 'EX13',
+                        podium: [1, 2, 3].map((placement) =>
+                            team
+                                ? {
+                                      members: [
+                                          { name: 'A', deck },
+                                          { name: 'B', deck }
+                                      ]
+                                  }
+                                : { name: 'A', deck, placement }
+                        ),
+                        results: Array.from({ length: players }, (_, index) => ({
+                            placement: team ? Math.floor(index / 2) + 1 : index + 1,
+                            name: `P${index}`,
+                            deck
+                        }))
+                    });
+    cases.push({
+        ...event,
+        deckless: true,
+        podium: [{ name: 'Ana' }, { name: 'Bia' }, { name: 'Caio' }]
+    });
+    for (const item of cases) {
+        const caption = api.buildPodiumCaption(item, item.team ? '' : url);
+        assert.ok(api.xLength(caption) <= 280, `${api.xLength(caption)}: ${caption}`);
+        assert.match(caption, /🥇/);
+        assert.ok(caption.startsWith('🇧🇷 5 Oct 2026'));
+    }
 });

@@ -55,7 +55,7 @@ test('compact footer leaves comfortable margins while retaining community and so
         assert.ok(texts.some((row) => row.text === '@digimoncwb'));
         assert.ok(texts.some((row) => row.text === '@digimon_cwb'));
         assert.ok(!texts.some((row) => row.text === 'Follow us:'));
-        assert.match(texts.find((row) => row.text === 'DIGIMON CWB').font, /34px/);
+        assert.match(texts.find((row) => row.text === 'DIGIMON CWB').font, /38px/);
         assert.ok(texts.every((row) => row.top >= dividerY + 20 && row.bottom <= 1350 - 20));
     }
 });
@@ -116,12 +116,12 @@ test('podium deck names wrap at the configured limit and leave room for player n
             () => true
         );
         assert.ok(result.ready);
-        for (const [index, x] of [540, 202, 878].entries()) {
+        for (const [index, x] of [540, 196, 884].entries()) {
             const player = texts.find((row) => row.text === event.podium[index].name);
             const lines = texts.filter(
                 (row) =>
                     row.x === x &&
-                    row.y >= (index === 0 ? 906 : 1045) &&
+                    row.y >= (index === 0 ? 780 : 1075) &&
                     row.font.startsWith('800 ')
             );
             assert.ok(lines.length);
@@ -285,4 +285,44 @@ test('podium and weekly posts export at feed dimensions with aligned community a
         }
     }
     assert.equal(renderer.POST_FORMAT.mime, 'image/png');
+});
+
+test('podium breaks a joined deck name at its inner capital only when it would shrink', async () => {
+    const event = {
+        id: 'compound',
+        isoDate: '2026-11-16',
+        title: 'Locals',
+        players: 5,
+        format: 'EX13',
+        podium: [
+            { name: 'Ana', deck: 'Gammamon', image: '' },
+            { name: 'Bia', deck: 'UlforceVeedramon', image: '' },
+            { name: 'Caio', deck: 'Jupitermon', image: '' }
+        ]
+    };
+    event.winner = event.podium[0];
+    const texts = [];
+    const ctx = new Proxy(
+        {
+            measureText(text) {
+                const size = Number(this.font.match(/([\d.]+)px/)[1]);
+                return { width: String(text).length * size * 0.75 };
+            },
+            fillText(text, x, y) {
+                texts.push({ text, x, y, font: this.font });
+            }
+        },
+        { get: (target, key) => (key in target ? target[key] : () => {}) }
+    );
+    await renderer.renderPost(
+        { getContext: () => ctx },
+        { template: 'podium', tournament: 'compound', deckNameLineLength: 24 },
+        [event],
+        '',
+        () => true
+    );
+    const deckLines = texts.filter((row) => row.font.startsWith('800 ')).map((row) => row.text);
+    assert.ok(deckLines.includes('ULFORCE') && deckLines.includes('VEEDRAMON'));
+    assert.ok(deckLines.includes('GAMMAMON') && deckLines.includes('JUPITERMON'));
+    assert.ok(!deckLines.includes('ULFORCEVEEDRAMON'));
 });

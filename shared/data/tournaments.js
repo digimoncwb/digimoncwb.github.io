@@ -59,7 +59,9 @@
     function normalize(data) {
         const stores = new Map(data.stores.map((store) => [String(store.id), store]));
         const formats = new Map(data.formats.map((format) => [String(format.id), format]));
-        const deckFormats = new Map((data.deckFormats || []).map((format) => [String(format.id), format]));
+        const deckFormats = new Map(
+            (data.deckFormats || []).map((format) => [String(format.id), format])
+        );
         const dates = new Map();
         data.tournaments.forEach((event) => {
             const key = `${event.store_id}:${event.tournament_date}`;
@@ -104,7 +106,8 @@
                               name: row.player || 'Jogador não informado',
                               deck: deckless ? '' : row.deck || 'Deck não informado',
                               image: deckless ? '' : validImage(row.image_url),
-                              placement: Number(row.placement)
+                              placement: Number(row.placement),
+                              points: row.match_points == null ? null : Number(row.match_points)
                           }
                         : null;
                 const standing = (place) => {
@@ -179,14 +182,19 @@
             ),
             readAll(
                 'v_podium_full',
-                'id,tournament_id,store_id,tournament_date,placement,player,deck,image_url,format_code,team_member',
+                'id,tournament_id,store_id,tournament_date,placement,player,deck,image_url,format_code,team_member,match_points',
                 request,
                 signal
             ),
             readAll('stores', 'id,name,logo_url,is_active,bandai_nick', request, signal),
             readAll('formats', 'id,code,name,is_active,is_default,created_at', request, signal),
             readAll('tournament_weekly_schedule', 'weekday,store_id,is_active', request, signal),
-            readAll('deck_formats', 'id,code,name,is_active,is_default,created_at,description,rules_text,rules_url,is_community_highlight,validation_rules,rules_revision,rules_status,updated_at,change_note', request, signal)
+            readAll(
+                'deck_formats',
+                'id,code,name,is_active,is_default,created_at,description,rules_text,rules_url,is_community_highlight,validation_rules,rules_revision,rules_status,updated_at,change_note',
+                request,
+                signal
+            )
         ]);
         return {
             events: normalize({ tournaments, results, stores, formats, deckFormats }),

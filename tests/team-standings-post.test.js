@@ -149,12 +149,9 @@ test('standings paint both full names, decks and placement on every page within 
     assert.ok(allDecks.includes('DATS Shine'));
 });
 
-test('standings cannot render a solo event or a page outside the tournament', async () => {
+test('standings render solo events but not a page outside the tournament', async () => {
     const { renderPost } = renderer();
-    for (const [selected, page] of [
-        [{ ...event, team: false }, 0],
-        [event, 2]
-    ]) {
+    for (const [selected, page] of [[event, 2]]) {
         assert.equal(
             (
                 await renderPost(
@@ -168,4 +165,69 @@ test('standings cannot render a solo event or a page outside the tournament', as
             false
         );
     }
+});
+
+test('solo standings list one player per row in placement order', async () => {
+    const api = vm.runInNewContext(
+        readFileSync('shared/posts/renderer.js', 'utf8').replace(/export /g, '') +
+            '\n({ standingsPages, eventStandings })'
+    );
+    const solo = {
+        ...event,
+        team: false,
+        results: results.slice(0, 12).map((row, index) => ({ ...row, placement: 12 - index }))
+    };
+    const rows = api.eventStandings(solo);
+    assert.equal(rows.length, 12);
+    assert.equal(rows[0].placement, 1);
+    assert.equal(rows[0].members.length, 1);
+    assert.deepEqual(
+        Array.from(api.standingsPages(solo), (page) => page.length),
+        [9, 3]
+    );
+});
+
+test('solo standings show match points only when the tournament recorded them', async () => {
+    const { renderPost } = renderer();
+    const paint = async (points) => {
+        const texts = [];
+        const ctx = new Proxy(
+            {
+                measureText: (text) => ({ width: String(text).length * 10 }),
+                fillText(text, x, y) {
+                    texts.push({ text: String(text), x, y });
+                },
+                roundRect() {}
+            },
+            { get: (target, key) => (key in target ? target[key] : () => {}) }
+        );
+        const solo = {
+            ...event,
+            team: false,
+            results: results.slice(0, 5).map((row, index) => ({
+                ...row,
+                placement: index + 1,
+                points: points ? 12 - index * 3 : null
+            }))
+        };
+        solo.winner = solo.results[0];
+        const result = await renderPost(
+            { width: 1080, height: 1350, getContext: () => ctx },
+            { template: 'teams', tournament: 'teams', language: 'en' },
+            [solo],
+            '',
+            () => true
+        );
+        assert.equal(result.ready, true);
+        return texts;
+    };
+    const withPoints = await paint(true);
+    assert.ok(withPoints.some((row) => row.text === 'PTS' && row.x === 1000));
+    for (const value of ['12', '9', '6', '3', '0'])
+        assert.ok(
+            withPoints.some((row) => row.text === value && row.x === 1000),
+            value
+        );
+    const without = await paint(false);
+    assert.ok(!without.some((row) => row.text === 'PTS'));
 });
