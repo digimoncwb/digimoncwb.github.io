@@ -293,7 +293,8 @@ async function loadStoresToEdit(selectedStoreId) {
     editStores = stores || [];
     const select = document.getElementById('editStoreSelect');
     select.innerHTML = '<option value="">Selecione a loja...</option>';
-    if (editingTournamentOrganizer) select.options[0].textContent = `Sem loja · ${editingTournamentOrganizer}`;
+    if (editingTournamentOrganizer)
+        select.options[0].textContent = `Sem loja · ${editingTournamentOrganizer}`;
 
     stores.forEach((s) => {
         const isSelected = String(s.id) === String(selectedStoreId);
@@ -1209,7 +1210,10 @@ async function deleteEditingTournament() {
             `${modalSupabaseUrl}/rest/v1/rpc/delete_tournament_transaction`,
             {
                 method: 'POST',
-                headers: modalHeaders,
+                // Read the session token now: the one captured at load may be stale or anonymous.
+                headers: window.createSupabaseHeaders
+                    ? window.createSupabaseHeaders()
+                    : modalHeaders,
                 body: JSON.stringify({ p_tournament_id: tournamentId })
             }
         );

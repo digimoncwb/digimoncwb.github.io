@@ -95,8 +95,9 @@ export function AuditHealth({ auth, onBusy }: { auth: SiteAuth; onBusy(value: bo
                     )}
                     {!!health.recovered_failed_integrations_24h && (
                         <p className="muted audit-health-note">
-                            {health.recovered_failed_integrations_24h} falhas anteriores do catálogo
-                            com recuperação confirmada. O histórico permanece disponível.
+                            {health.recovered_failed_integrations_24h} falhas anteriores de rotinas
+                            automáticas do DigiLab com recuperação confirmada. O histórico permanece
+                            disponível.
                         </p>
                     )}
                     <details className="audit-health-details">

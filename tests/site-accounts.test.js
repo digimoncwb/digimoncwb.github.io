@@ -1543,6 +1543,44 @@ test('Audit health recognizes a later scheduled catalog recovery while retaining
         await db.close();
     }
 });
+test('Audit health recovers a scheduled tournament sync failure after a later scheduled success only', async () => {
+    const db = await setup([
+        legalMigration,
+        exportMigration,
+        monitorMigration,
+        '20261025170000_audit_catalog_recovery_health.sql',
+        '20261118000000_audit_recover_scheduled_sync.sql'
+    ]);
+    try {
+        await sqlOwner(db);
+        await db.exec(`create schema cron;
+            create table cron.job(jobid bigint,jobname text,active boolean);
+            insert into cron.job values(1,'site-audit-retention',true);
+            insert into site_audit.integration_runs(operation_id,operation,started_at,finished_at,http_status)
+            values(gen_random_uuid(),'sync-new-digilab-tournaments',now()-interval '40 minutes',now()-interval '39 minutes',500);`);
+        const snapshot = async () =>
+            (await db.query('select site_audit.health_snapshot() value')).rows[0].value;
+        assert.equal((await snapshot()).unresolved_failed_integrations_24h, 1);
+        // An admin-triggered success or another integration does not prove the schedule recovered.
+        await db.exec(`insert into site_audit.integration_runs(operation_id,operation,actor_user_id,started_at,finished_at,http_status) values
+            (gen_random_uuid(),'sync-new-digilab-tournaments','${ids.a}',now()-interval '20 minutes',now()-interval '19 minutes',200),
+            (gen_random_uuid(),'import-digilab-tournament',null,now()-interval '20 minutes',now()-interval '19 minutes',200);`);
+        assert.equal((await snapshot()).severity, 'warning');
+        await db.exec(`insert into site_audit.integration_runs(operation_id,operation,started_at,finished_at,http_status)
+            values(gen_random_uuid(),'sync-new-digilab-tournaments',now()-interval '25 minutes',now()-interval '24 minutes',200);`);
+        const health = await snapshot();
+        assert.equal(health.severity, 'ok');
+        assert.equal(health.failed_integrations_24h, 1);
+        assert.equal(health.recovered_failed_integrations_24h, 1);
+        // Failures of other operations still need attention.
+        await db.exec(`insert into site_audit.integration_runs(operation_id,operation,started_at,finished_at,http_status)
+            values(gen_random_uuid(),'import-digilab-tournament',now()-interval '10 minutes',now()-interval '9 minutes',500),
+            (gen_random_uuid(),'import-digilab-tournament',now()-interval '5 minutes',now()-interval '4 minutes',200);`);
+        assert.equal((await snapshot()).unresolved_failed_integrations_24h, 1);
+    } finally {
+        await db.close();
+    }
+});
 test('Erasure requires reviewed workflow, keeps historical rows and confirms provider deletion before completion', async () => {
     const db = await setup([legalMigration, erasureMigration]);
     try {

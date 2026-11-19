@@ -50,20 +50,21 @@ function Run-Step {
     }
 }
 
-$script:SupabaseCmd = Resolve-SupabaseCommand
+# @() keeps a one-item result as an array; otherwise [0] would read the first character.
+$script:SupabaseCmd = @(Resolve-SupabaseCommand)
 
 if (-not (Test-DockerAvailable)) {
     throw "Docker CLI not found. 'supabase db dump' requires Docker Desktop. Install Docker Desktop (or run this script in an environment with Docker)."
 }
 
 function Invoke-Supabase {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$CliArgs)
     $exe = $script:SupabaseCmd[0]
     $base = @()
     if ($script:SupabaseCmd.Length -gt 1) {
         $base = $script:SupabaseCmd[1..($script:SupabaseCmd.Length - 1)]
     }
-    & $exe @base @Args
+    & $exe @base @CliArgs
 }
 
 if ([string]::IsNullOrWhiteSpace($DbUrl)) {
