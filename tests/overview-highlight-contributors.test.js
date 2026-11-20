@@ -11,7 +11,9 @@ test('highlight cards list every deck participant with counts and attribute titl
     )
         .replace(/^import.*$/gm, '')
         .replace(/export /g, '');
-    const analyzeMeta = vm.runInNewContext(modelSource + '\nanalyzeMeta');
+    const { analyzeMeta, shownPlacement } = vm.runInNewContext(
+        modelSource + '\n({ analyzeMeta, shownPlacement })'
+    );
     const events = ['1', '2', '3', '4'].map((id) => ({
         id,
         players: 2,
@@ -88,6 +90,7 @@ test('highlight cards list every deck participant with counts and attribute titl
         useMetaResults: () => ({ records, loading: false, error: null }),
         currentFormat: () => '',
         overviewFourWeeks: () => ({ events }),
+        shownPlacement,
         Portrait: () => null,
         Loader: () => null
     });

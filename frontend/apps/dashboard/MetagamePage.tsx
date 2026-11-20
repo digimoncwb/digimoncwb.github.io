@@ -7,7 +7,13 @@ import { DeckColors } from '../../shared/DeckColors';
 import { deckColors } from '../workspace/catalog-service';
 import { Portrait } from '../../shared/cards';
 import { Dialog, Pagination } from '../../shared/ListPage';
-import { analyzeMeta, currentFormat, eventType, communityActivity } from './metagame-model';
+import {
+    analyzeMeta,
+    currentFormat,
+    eventType,
+    communityActivity,
+    shownPlacement
+} from './metagame-model';
 import '../workspace/catalog.css';
 import './metagame.css';
 import { useMetaResults } from './useMetaResults';
@@ -738,7 +744,7 @@ export function MetagamePage({ context }: { context: MicroContext }) {
                                         <strong>{r.deck?.name || 'Deck não informado'}</strong>
                                         <span>
                                             {r.player?.name || 'Jogador não informado'} ·{' '}
-                                            {r.placement}º lugar
+                                            {shownPlacement(r)}º lugar
                                         </span>
                                         <span>
                                             {
@@ -873,7 +879,7 @@ export function MetagamePage({ context }: { context: MicroContext }) {
                                                 );
                                                 return (
                                                     <tr key={r.id}>
-                                                        <td>{r.placement}º</td>
+                                                        <td>{shownPlacement(r)}º</td>
                                                         <th>
                                                             {r.player?.name ||
                                                                 'Jogador não informado'}

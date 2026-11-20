@@ -1,7 +1,7 @@
 import type { MicroContext } from '../../contracts';
 import { useData, Loader } from '../../shared/runtime';
 import { Portrait } from '../../shared/cards';
-import { analyzeMeta, currentFormat, overviewFourWeeks } from './metagame-model';
+import { analyzeMeta, currentFormat, overviewFourWeeks, shownPlacement } from './metagame-model';
 import './overview-highlights.css';
 import { useMetaResults } from './useMetaResults';
 import { useSiteAuth } from '../../shared/site-auth';
@@ -112,7 +112,7 @@ export function OverviewHighlights({ context }: { context: MicroContext }) {
                                         (column.key !== 'top4' ||
                                             topEligibleEvents.has(String(r.tournament_id))) &&
                                         (column.key !== 'titles' ||
-                                            (r.placement === 1 &&
+                                            (shownPlacement(r) === 1 &&
                                                 model.complete.has(String(r.tournament_id))))
                                 )) {
                                     const player = contributions.get(result.player_id!) || {
@@ -121,7 +121,7 @@ export function OverviewHighlights({ context }: { context: MicroContext }) {
                                         top4: 0
                                     };
                                     player.count++;
-                                    if (result.placement <= 4) player.top4++;
+                                    if (shownPlacement(result) <= 4) player.top4++;
                                     contributions.set(result.player_id!, player);
                                 }
                                 const contributors = [...contributions.entries()].sort(

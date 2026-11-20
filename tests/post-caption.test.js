@@ -281,4 +281,11 @@ test('captions show DigiLab ties as shared places', () => {
         ),
         caption
     );
+    assert.ok(
+        caption.includes(
+            'Rare tie: two players shared 1st place with identical points and tiebreakers.'
+        )
+    );
+    assert.ok(setup().xLength(caption) <= 280);
+    assert.doesNotMatch(setup().buildPodiumCaption({ ...event, players: 3 }), /Rare tie/);
 });

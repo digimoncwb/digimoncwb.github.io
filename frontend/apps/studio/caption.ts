@@ -81,6 +81,12 @@ export function buildPodiumCaption(event: Tournament, standingsUrl = '') {
             result ? [{ marker: marker(result.rank ?? index + 1), label: deckOf(result) }] : []
         );
     const rows = standings.length ? standings : podium;
+    // Rare: players sharing 1st place with identical points and tiebreakers.
+    const winners = rows.filter((row) => row.marker === medals[0]).length;
+    const tieNote =
+        winners > 1
+            ? `Rare tie: ${winners === 2 ? 'two' : winners} players shared 1st place with identical points and tiebreakers.`
+            : '';
     const formatTag = event.format.replace(/[^a-z0-9]/gi, '');
     const shorten = (text: string, limit: number) => {
         const characters = Array.from(text);
@@ -96,11 +102,13 @@ export function buildPodiumCaption(event: Tournament, standingsUrl = '') {
         tags = 2,
         rules = true,
         labelLimit = Infinity,
-        storeLimit = Infinity
+        storeLimit = Infinity,
+        note = true
     }) =>
         [
             `🇧🇷 ${date.getUTCDate()} ${month} ${date.getUTCFullYear()} — ${shorten(event.store, storeLimit)}`,
             `${event.format} · ${event.players} ${event.players === 1 ? 'player' : 'players'}`,
+            ...(tieNote && note ? [tieNote] : []),
             ...(event.team && rules ? [teamRules] : []),
             '',
             ...rows.slice(0, shown).map((row) => `${row.marker} ${shorten(row.label, labelLimit)}`),
@@ -126,6 +134,7 @@ export function buildPodiumCaption(event: Tournament, standingsUrl = '') {
     attempts.push(bare);
     for (const labelLimit of [32, 26, 20, 16, 12]) attempts.push({ ...bare, labelLimit });
     for (const storeLimit of [28, 20, 14]) attempts.push({ ...bare, labelLimit: 12, storeLimit });
+    if (tieNote) attempts.push({ ...bare, labelLimit: 12, storeLimit: 14, note: false });
     for (const attempt of attempts) {
         const caption = compose(attempt);
         if (fits(caption)) return caption;

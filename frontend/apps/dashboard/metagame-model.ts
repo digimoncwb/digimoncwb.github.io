@@ -6,6 +6,8 @@ export interface MetaResult {
     deck_id: string | null;
     player_id: string | null;
     placement: number;
+    /** DigiLab shared place for ties (two 1st places); null otherwise. */
+    reported_placement?: number | null;
     deck: {
         name: string;
         colors?: string | null;
@@ -17,6 +19,9 @@ export interface MetaResult {
     player: { name: string } | null;
     decklists: { id: string }[];
 }
+/** Place shown and counted for titles/top 4: ties reported by DigiLab share the place. */
+export const shownPlacement = (r: { placement: number; reported_placement?: number | null }) =>
+    r.reported_placement ?? r.placement;
 export function createMetaCache() {
     let stored: { version: number; records: MetaResult[] } | null = null;
     const pending = new Map<number, Promise<MetaResult[]>>();
@@ -154,11 +159,11 @@ export function analyzeMeta(events: Tournament[], records: MetaResult[]) {
         if (r.player_id) row.players.add(r.player_id);
         if (complete.has(String(r.tournament_id))) {
             row.eligible++;
-            if (r.placement === 1) row.titles++;
+            if (shownPlacement(r) === 1) row.titles++;
         }
         if (eligibleTop.has(String(r.tournament_id))) {
             row.topEligible++;
-            if (r.placement <= 4) row.top4++;
+            if (shownPlacement(r) <= 4) row.top4++;
         }
         decks.set(row.id, row);
     }
@@ -189,10 +194,10 @@ export function analyzeMeta(events: Tournament[], records: MetaResult[]) {
             last: ''
         };
         row.count++;
-        if (complete.has(String(r.tournament_id)) && r.placement === 1) row.titles++;
+        if (complete.has(String(r.tournament_id)) && shownPlacement(r) === 1) row.titles++;
         if (eligibleTop.has(String(r.tournament_id))) {
             row.topEligible++;
-            if (r.placement <= 4) row.top4++;
+            if (shownPlacement(r) <= 4) row.top4++;
         }
         if (deckEvents.has(String(r.tournament_id)) && r.deck_id && r.deck) {
             const deck = row.decks.get(r.deck_id) || { id: r.deck_id, name: r.deck.name, count: 0 };
@@ -278,7 +283,7 @@ export async function readMeta(context: { asset(path: string): string }, signal:
     const rows: MetaResult[] = [];
     for (let offset = 0; ; offset += 500) {
         const query = new URLSearchParams({
-            select: 'id,tournament_id,deck_id,player_id,placement,deck:decks(*,deck_images(image_url)),player:players(name),decklists(id)',
+            select: 'id,tournament_id,deck_id,player_id,placement,reported_placement,deck:decks(*,deck_images(image_url)),player:players(name),decklists(id)',
             order: 'id.asc',
             limit: '500',
             offset: String(offset)

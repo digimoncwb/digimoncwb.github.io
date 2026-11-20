@@ -266,7 +266,8 @@ test('podium and standings show DigiLab ties as shared places', async () => {
     assert.equal(standings.filter((row) => row.text === '1st').length, 2);
     assert.ok(!standings.some((row) => row.text === '2nd'));
     const podium = await paint('podium', tied);
-    assert.equal(podium.filter((row) => row.text === 'WINNER').length, 2);
+    assert.equal(podium.filter((row) => row.text === 'WINNERS').length, 1);
+    assert.ok(!podium.some((row) => row.text === 'WINNER'));
     assert.ok(podium.some((row) => row.text === '3rd'));
     assert.ok(!podium.some((row) => row.text === '2nd'));
 });

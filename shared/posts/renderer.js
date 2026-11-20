@@ -675,6 +675,57 @@ function paintPodium(
         postFooter(ctx, hazard, accent);
         return;
     }
+    // Rare case: the first two share 1st place (same points and tiebreakers). Both winners
+    // get equal large portraits side by side under one plural badge; 3rd sits centered below.
+    const coWinners = shownRank(event.podium[0], 1) === 1 && shownRank(event.podium[1], 2) === 1;
+    if (coWinners) {
+        const winner = {
+            y: 470,
+            radius: 175,
+            borderWidth: 6,
+            textY: 682,
+            width: 390,
+            deckSize: 44,
+            nameSize: 30
+        };
+        const tied = [
+            { ...winner, x: 300 },
+            { ...winner, x: 780 },
+            { x: 540, y: 945, radius: 115, badgeSize: 30, textY: 1097, width: 360, nameSize: 30 }
+        ];
+        tied.forEach((slot, index) => {
+            const player = event.podium[index] || { deck: '—', name: 'Resultado não registrado' };
+            const rank = Math.min(3, shownRank(player, index + 1));
+            const portrait = {
+                ...slot,
+                label: podiumLabel(rank, english),
+                color: PODIUM_COLORS[rank - 1]
+            };
+            paintPortrait(
+                ctx,
+                images[index]?.[0],
+                portrait.x,
+                portrait.y,
+                portrait.radius,
+                portrait.color,
+                player.deck.slice(0, 2).toUpperCase(),
+                portrait.borderWidth
+            );
+            if (index === 2)
+                paintRankBadge(
+                    ctx,
+                    portrait.label,
+                    portrait.x,
+                    portrait.y - portrait.radius,
+                    portrait.color,
+                    portrait.badgeSize
+                );
+            paintPodiumIdentity(ctx, player, portrait, index < 2, deckNameLineLength);
+        });
+        paintRankBadge(ctx, english ? 'WINNERS' : 'CAMPEÕES', 540, 268, PODIUM_COLORS[0], 40);
+        postFooter(ctx, hazard, accent);
+        return;
+    }
     const portraits = [
         {
             ...winnerCenter,

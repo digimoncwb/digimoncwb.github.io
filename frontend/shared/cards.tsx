@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Tournament, Result, Store, MicroContext } from '../contracts';
 import { useSiteAuth } from './site-auth';
 import { canAccessRoute } from './route-access';
+/** Place shown to users: DigiLab ties keep their shared place (two 1st places). */
+const shownPlace = (result: Result) => result.rank ?? result.placement;
 export function Portrait({ image, className = 'art' }: { image?: string; className?: string }) {
     const [, update] = useState(0);
     useEffect(() => {
@@ -83,10 +85,10 @@ export function RecentTournamentCard({
                             className={`card-podium-row${event.deckless ? ' deckless' : ''}`}
                         >
                             <span
-                                className={`card-place place-${result.placement - 1}`}
-                                aria-label={`${result.placement}º lugar`}
+                                className={`card-place place-${shownPlace(result) - 1}`}
+                                aria-label={`${shownPlace(result)}º lugar`}
                             >
-                                {result.placement}º
+                                {shownPlace(result)}º
                             </span>
                             <Identity event={event} result={result} />
                         </div>
@@ -149,10 +151,10 @@ export function EventCard({
                             className={`card-podium-row${event.deckless ? ' deckless' : ''}`}
                         >
                             <span
-                                className={`card-place place-${result.placement - 1}`}
-                                aria-label={`${result.placement}º lugar`}
+                                className={`card-place place-${shownPlace(result) - 1}`}
+                                aria-label={`${shownPlace(result)}º lugar`}
                             >
-                                {result.placement}º
+                                {shownPlace(result)}º
                             </span>
                             <Identity event={event} result={result} />
                         </div>
@@ -164,7 +166,7 @@ export function EventCard({
                     <div>
                         {others.map((result) => (
                             <div key={result.placement} className="card-result-row">
-                                <span>{result.placement}º</span>
+                                <span>{shownPlace(result)}º</span>
                                 <div>
                                     <strong>{result.name}</strong>
                                     {!event.deckless && <span>{result.deck}</span>}
@@ -249,8 +251,10 @@ export function EventDialog({
                                     className={`podium-detail${event.deckless ? ' deckless' : ''}`}
                                     data-placement={result.placement}
                                 >
-                                    <span className={`podium-place place-${result.placement - 1}`}>
-                                        {result.placement}º
+                                    <span
+                                        className={`podium-place place-${shownPlace(result) - 1}`}
+                                    >
+                                        {shownPlace(result)}º
                                     </span>
                                     <Identity event={event} result={result} />
                                 </li>
