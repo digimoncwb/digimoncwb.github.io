@@ -447,6 +447,14 @@ function paintPodiumIdentity(ctx, player, portrait, isWinner, deckNameLineLength
     );
 }
 
+const PODIUM_COLORS = ['#e2bb68', '#d9dee3', '#cb7b43'];
+/** Place shown in posts: DigiLab may report ties (two 1st places) over unique placements. */
+const shownRank = (result, fallback) => Number(result?.rank ?? result?.placement ?? fallback);
+function podiumLabel(rank, english) {
+    if (rank <= 1) return english ? 'WINNER' : 'CAMPEÃO';
+    return english ? ['2nd', '3rd'][Math.min(rank, 3) - 2] : `${Math.min(rank, 3)}º`;
+}
+
 /** Rank pill centered on the top edge of a portrait, so the label reads as part of it. */
 function paintRankBadge(ctx, label, x, y, color, size) {
     ctx.save();
@@ -649,15 +657,16 @@ function paintPodium(
         ];
         labels.forEach((slot, index) => {
             const player = event.podium[index] || { name: 'Resultado não registrado' };
-            const label = index
-                ? english
-                    ? ['2nd', '3rd'][index - 1]
-                    : `${index + 1}º`
-                : english
-                  ? 'WINNER'
-                  : 'CAMPEÃO';
+            const rank = Math.min(3, shownRank(player, index + 1));
+            const label = podiumLabel(rank, english);
             ctx.textAlign = 'center';
-            ctx.fillStyle = slot.color;
+            ctx.fillStyle = index
+                ? rank === 1
+                    ? '#e2bb68'
+                    : rank === 2
+                      ? '#c8ced5'
+                      : '#cb7b43'
+                : slot.color;
             ctx.font = `900 ${index === 0 ? 75 : 64}px Arial`;
             ctx.fillText(label, slot.x, slot.labelY);
             fitPostText(ctx, player.name, slot.width, index === 0 ? 38 : 30, 800, 24);
@@ -702,8 +711,15 @@ function paintPodium(
             nameSize: 30
         }
     ];
-    portraits.forEach((portrait, index) => {
+    portraits.forEach((slot, index) => {
         const player = event.podium[index] || { deck: '—', name: 'Resultado não registrado' };
+        // A tie keeps the shared place's badge and color (e.g. both 1st in gold).
+        const rank = Math.min(3, shownRank(player, index + 1));
+        const portrait = {
+            ...slot,
+            label: podiumLabel(rank, english),
+            color: PODIUM_COLORS[rank - 1]
+        };
         paintPortrait(
             ctx,
             images[index]?.[0],
@@ -745,7 +761,11 @@ export function eventStandings(event) {
     return [...(event?.results || [])]
         .filter((result) => Number.isFinite(result.placement))
         .sort((a, b) => a.placement - b.placement)
-        .map((result) => ({ placement: result.placement, members: [result] }));
+        .map((result) => ({
+            placement: result.placement,
+            rank: result.rank ?? result.placement,
+            members: [result]
+        }));
 }
 
 export function standingsPages(event) {
@@ -833,8 +853,9 @@ function paintTeamStandings(ctx, event, standings, images, hazard, accent, setti
     standings.forEach((team, index) => {
         const y = listTop + index * slot;
         const height = slot - 8;
-        const podium = team.placement <= 3;
-        const color = ['#e2bb68', '#c8ced5', '#cb7b43'][team.placement - 1] || '#b9bec5';
+        const place = shownRank(team, index + 1);
+        const podium = place <= 3;
+        const color = ['#e2bb68', '#c8ced5', '#cb7b43'][place - 1] || '#b9bec5';
         ctx.fillStyle = podium ? '#202327' : '#1b1e21';
         ctx.beginPath();
         ctx.roundRect(52, y, 976, height, 20);
@@ -847,8 +868,8 @@ function paintTeamStandings(ctx, event, standings, images, hazard, accent, setti
         ctx.textAlign = 'center';
         ctx.fillStyle = color;
         const rank = english
-            ? `${team.placement}${team.placement % 100 >= 11 && team.placement % 100 <= 13 ? 'th' : { 1: 'st', 2: 'nd', 3: 'rd' }[team.placement % 10] || 'th'}`
-            : `${team.placement}º`;
+            ? `${place}${place % 100 >= 11 && place % 100 <= 13 ? 'th' : { 1: 'st', 2: 'nd', 3: 'rd' }[place % 10] || 'th'}`
+            : `${place}º`;
         // Keep the rank clear of the medal edge as rows grow.
         const rankX = 110 + 8 * (scale - 1);
         fitPostText(ctx, rank, 84, 36 * scale, podium ? 900 : 700, 28);

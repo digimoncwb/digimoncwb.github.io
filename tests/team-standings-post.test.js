@@ -231,3 +231,42 @@ test('solo standings show match points only when the tournament recorded them', 
     const without = await paint(false);
     assert.ok(!without.some((row) => row.text === 'PTS'));
 });
+
+test('podium and standings show DigiLab ties as shared places', async () => {
+    const { renderPost } = renderer();
+    const paint = async (template, results) => {
+        const texts = [];
+        const ctx = new Proxy(
+            {
+                measureText: (text) => ({ width: String(text).length * 10 }),
+                fillText(text) {
+                    texts.push({ text: String(text), color: this.fillStyle });
+                },
+                roundRect() {}
+            },
+            { get: (target, key) => (key in target ? target[key] : () => {}) }
+        );
+        const solo = { ...event, team: false, results, podium: results.slice(0, 3) };
+        solo.winner = results[0];
+        await renderPost(
+            { width: 1080, height: 1350, getContext: () => ctx },
+            { template, tournament: 'teams', language: 'en' },
+            [solo],
+            '',
+            () => true
+        );
+        return texts;
+    };
+    const tied = results.slice(0, 4).map((row, index) => ({
+        ...row,
+        placement: index + 1,
+        rank: [1, 1, 3, 4][index]
+    }));
+    const standings = await paint('teams', tied);
+    assert.equal(standings.filter((row) => row.text === '1st').length, 2);
+    assert.ok(!standings.some((row) => row.text === '2nd'));
+    const podium = await paint('podium', tied);
+    assert.equal(podium.filter((row) => row.text === 'WINNER').length, 2);
+    assert.ok(podium.some((row) => row.text === '3rd'));
+    assert.ok(!podium.some((row) => row.text === '2nd'));
+});

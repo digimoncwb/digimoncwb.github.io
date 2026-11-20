@@ -19,6 +19,8 @@ export interface Result {
     deck: string;
     image: string;
     placement: number;
+    /** Place shown in posts; equals placement except for ties reported by DigiLab. */
+    rank?: number;
     /** Match points (3 per win, 1 per draw); null when not recorded. */
     points?: number | null;
     members?: Result[];

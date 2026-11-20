@@ -71,13 +71,14 @@ export function buildPodiumCaption(event: Tournament, standingsUrl = '') {
                 label: team.members.map((member: Result) => postDeckName(member.deck)).join(' & ')
             }))
           : eventStandings(event).map(({ placement, members: [player] }) => ({
-                marker: marker(placement),
+                // Ties reported by DigiLab share a place (two 🥇).
+                marker: marker(player.rank ?? placement),
                 label: postDeckName(player.deck)
             }));
     const podium = event.podium
         .slice(0, 3)
         .flatMap((result, index) =>
-            result ? [{ marker: medals[index], label: deckOf(result) }] : []
+            result ? [{ marker: marker(result.rank ?? index + 1), label: deckOf(result) }] : []
         );
     const rows = standings.length ? standings : podium;
     const formatTag = event.format.replace(/[^a-z0-9]/gi, '');

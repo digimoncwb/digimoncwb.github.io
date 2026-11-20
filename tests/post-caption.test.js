@@ -260,3 +260,25 @@ test('captions always fit 280 X characters and keep the top 3 in extreme tournam
         assert.ok(caption.startsWith('🇧🇷 5 Oct 2026'));
     }
 });
+
+test('captions show DigiLab ties as shared places', () => {
+    const results = [
+        { placement: 1, rank: 1, deck: 'Jesmon', name: 'Lukas' },
+        { placement: 2, rank: 1, deck: 'Chronomon', name: 'Alex' },
+        { placement: 3, rank: 3, deck: 'Imperialdramon', name: 'Matheus' },
+        { placement: 4, rank: 3, deck: 'Medusamon', name: 'Nai' },
+        { placement: 5, rank: 5, deck: 'Heavymetaldramon', name: 'Vinicius' }
+    ];
+    const caption = setup().buildPodiumCaption({
+        ...event,
+        players: 5,
+        podium: results.slice(0, 3),
+        results
+    });
+    assert.ok(
+        caption.includes(
+            '🥇 Jesmon\n🥇 Chronomon\n🥉 Imperialdramon\n🥉 Medusamon\n5º Heavymetaldramon'
+        ),
+        caption
+    );
+});

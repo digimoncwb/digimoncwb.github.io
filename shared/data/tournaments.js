@@ -107,6 +107,8 @@
                               deck: deckless ? '' : row.deck || 'Deck não informado',
                               image: deckless ? '' : validImage(row.image_url),
                               placement: Number(row.placement),
+                              // Shared place reported by DigiLab for ties (e.g. two 1st places).
+                              rank: Number(row.reported_placement ?? row.placement),
                               points: row.match_points == null ? null : Number(row.match_points)
                           }
                         : null;
@@ -182,7 +184,7 @@
             ),
             readAll(
                 'v_podium_full',
-                'id,tournament_id,store_id,tournament_date,placement,player,deck,image_url,format_code,team_member,match_points',
+                'id,tournament_id,store_id,tournament_date,placement,player,deck,image_url,format_code,team_member,match_points,reported_placement',
                 request,
                 signal
             ),
